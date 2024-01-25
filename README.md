@@ -1,12 +1,12 @@
-# FisherCalculator
-Calculates stable deltas for an 8th-order central finite-difference derivative and the corresponding Fisher elements for the full 14 dimensional parameter space of the 5PNAAK waveform model in the FastEMRIWaveforms package (https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms). 
+# Stable EMRI Fisher Calculator
+Calculates a stable Fisher matrix using numerical derivatives for the 14-dimensional parameter space of the 5PNAAK waveform model in the FastEMRIWaveforms (FEW) package (https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms). 
 
 ### Installation
 Simply download as a zip file, extract, and run in your favorite FEW environment. No build is required. 
 
-`FisherCalculator.py` contains the class definition, supporting function definitions, and imports. 
+`StableEMRIFisher.py` contains the class definition, supporting function definitions, and FEW imports. 
 
-`FisherCalculator_Example.ipynb` provides a simple usage example. 
+`StableEMRIFisher_Example.ipynb` provides a simple usage example. 
 
 # Processing the data
 

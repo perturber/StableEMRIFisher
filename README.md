@@ -6,7 +6,7 @@ Simply download as a zip file, extract, and run in your favorite FEW environment
 
 `StableEMRIFisher.py` contains the class definition, supporting function definitions, and FEW imports. 
 
-`StableEMRIFisher_Example.ipynb` contains a simple example. 
+`StableEMRIFisher_Example.ipynb` contains a simple example with results in the `TestRun` folder.
 
 ### Processing the data
 

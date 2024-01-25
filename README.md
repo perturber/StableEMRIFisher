@@ -2,13 +2,11 @@
 Calculates stable deltas for an 8th-order central finite-difference derivative and the corresponding Fisher elements for the full 14 dimensional parameter space of the 5PNAAK waveform model in the FastEMRIWaveforms package (https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms). 
 
 ### Installation
-Simply download as a zip file, extract, and run in your favorite FEW environment. No build is required*. 
-
-*Note that the implementation depends on dense-stepping trajectories. One must tweak FEW to set a sufficient dense-step size. Results here used step size dt = 3000 sec, by recompiling FEW after replacing the file /FastEMRIWaveforms/src/Inspiral.cc to the one provided in this repository (``Inspiral.cc``).  
+Simply download as a zip file, extract, and run in your favorite FEW environment. No build is required. 
 
 `FisherCalculator.py` contains the class definition, supporting function definitions, and imports. 
 
-`FisherCalculator_Example.ipynb` runs through a simple example of using the Fisher class. 
+`FisherCalculator_Example.ipynb` provides a simple usage example. 
 
 # Processing the data
 

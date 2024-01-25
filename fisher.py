@@ -812,28 +812,28 @@ class StableEMRIFisher:
                 if i != j:
                     cov = np.array(((covariance[i][i],covariance[i][j]),(covariance[j][i],covariance[j][j])))
                     #print(cov)
-                    mean = np.array((param[param_names[i]],param[param_names[j]]))
+                    mean = np.array((self.param[self.param_names[i]],self.param[self.param_names[j]]))
 
                     cov_ellipse(mean,cov,axs[j,i],lw=2,edgecolor='blue')
 
                     #custom setting the x-y lim for each plot
-                    axs[j,i].set_xlim([param[param_names[i]]-2.5*np.sqrt(covariance[i][i]), param[param_names[i]]+2.5*np.sqrt(covariance[i][i])])
-                    axs[j,i].set_ylim([param[param_names[j]]-2.5*np.sqrt(covariance[j][j]), param[param_names[j]]+2.5*np.sqrt(covariance[j][j])])
+                    axs[j,i].set_xlim([self.param[self.param_names[i]]-2.5*np.sqrt(covariance[i][i]), self.param[self.param_names[i]]+2.5*np.sqrt(covariance[i][i])])
+                    axs[j,i].set_ylim([self.param[self.param_names[j]]-2.5*np.sqrt(covariance[j][j]), self.param[self.param_names[j]]+2.5*np.sqrt(covariance[j][j])])
 
-                    axs[j,i].set_xlabel(param_names[i],labelpad=20,fontsize=16)
-                    axs[j,i].set_ylabel(param_names[j],labelpad=20,fontsize=16)
+                    axs[j,i].set_xlabel(self.param_names[i],labelpad=20,fontsize=16)
+                    axs[j,i].set_ylabel(self.param_names[j],labelpad=20,fontsize=16)
 
                 else:
-                    mean = param[param_names[i]]
+                    mean = self.param[self.param_names[i]]
                     var = covariance[i][i]
 
                     x = np.linspace(mean-3*np.sqrt(var),mean+3*np.sqrt(var))
 
                     axs[j,i].plot(x,normal(mean,var,x),c='blue')
-                    axs[j,i].set_xlim([param[param_names[i]]-2.5*np.sqrt(covariance[i][i]), param[param_names[i]]+2.5*np.sqrt(covariance[i][i])])
-                    axs[j,i].set_xlabel(param_names[i],labelpad=20,fontsize=16)
+                    axs[j,i].set_xlim([self.param[self.param_names[i]]-2.5*np.sqrt(covariance[i][i]), self.param[self.param_names[i]]+2.5*np.sqrt(covariance[i][i])])
+                    axs[j,i].set_xlabel(self.param_names[i],labelpad=20,fontsize=16)
                     if i == j and j == 0:
-                        axs[j,i].set_ylabel(param_names[i],labelpad=20,fontsize=16)
+                        axs[j,i].set_ylabel(self.param_names[i],labelpad=20,fontsize=16)
 
         for ax in fig.get_axes():
             ax.label_outer()

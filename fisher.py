@@ -127,6 +127,9 @@ def cov_ellipse(mean, cov, ax, n_std=1.0, edgecolor='blue',facecolor='none',lw=5
     ellipse.set_transform(transf + ax.transData)
     return ax.add_patch(ellipse)
     
+def normal(mean, var, x):
+    return np.exp(-(mean-x)**2/var/2)
+    
 class StableEMRIFisher:
     
     def __init__(self, M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,\
@@ -807,7 +810,7 @@ class StableEMRIFisher:
         #first param index
         for i in range(len(self.param_names)):
             #second param index
-            for j in range(i+1,len(self.param_names)):
+            for j in range(i,len(self.param_names)):
 
                 if i != j:
                     cov = np.array(((covariance[i][i],covariance[i][j]),(covariance[j][i],covariance[j][j])))
@@ -839,7 +842,7 @@ class StableEMRIFisher:
             ax.label_outer()
 
         for i in range(len(self.param_names)):
-            for j in range(i,len(self.param_names)):
+            for j in range(i+1,len(self.param_names)):
                 fig.delaxes(axs[i,j])
                 
         if self.filename == '':

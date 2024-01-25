@@ -1,12 +1,12 @@
 # Stable EMRI Fisher Calculator
 Calculates a stable Fisher matrix using numerical derivatives for the 14-dimensional parameter space of the 5PNAAK waveform model in the FastEMRIWaveforms (FEW) package (https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms). 
 
-### Installation
+### Installation and Execution
 Simply download as a zip file, extract, and run in your favorite FEW environment. No build is required. 
 
 `StableEMRIFisher.py` contains the class definition, supporting function definitions, and FEW imports. 
 
-`StableEMRIFisher_Example.ipynb` provides a simple usage example. 
+`StableEMRIFisher_Example.ipynb` contains a simple example. 
 
 ### Processing the data
 

@@ -7,7 +7,7 @@ Calculates a stable Fisher matrix using numerical derivatives for the 14-dimensi
 ### Installation and Execution
 Simply download as a zip file, extract, and run in your favorite FEW environment. No build is required. 
 
-`StableEMRIFisher.py` contains the class definition, supporting function definitions, and FEW imports. 
+`fisher.py` contains the StableEMRIFisher class definition, supporting function definitions, and FEW imports. 
 
 `StableEMRIFisher_Example.ipynb` contains a simple example with results in the `TestRun` folder.
 

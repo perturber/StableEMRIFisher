@@ -1,4 +1,7 @@
 # Stable EMRI Fisher Calculator
+
+*The current version of this class needs GPU to work*.
+
 Calculates a stable Fisher matrix using numerical derivatives for the 14-dimensional parameter space of the 5PNAAK waveform model in the FastEMRIWaveforms (FEW) package (https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms). 
 
 ### Installation and Execution

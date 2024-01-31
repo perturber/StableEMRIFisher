@@ -134,7 +134,7 @@ class StableEMRIFisher:
     
     def __init__(self, M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,\
                  Phi_phi0, Phi_theta0, Phi_r0, dt = 10, T = 1, param_names=[],\
-                 deltas=None, der_order=2, Ndelta=8, err = 5e-12, CovMat=False, CovEllipse=False, filename='', suffix=None):
+                 deltas=None, der_order=4, Ndelta=12, err = 5e-12, CovMat=False, CovEllipse=False, filename='', suffix=None):
         """
         This Fisher class takes as input the source parameters of an EMRI as modeled in the 
         5PNAAK waveform model of the FastEMRIWaveforms package, and produces the corresponding

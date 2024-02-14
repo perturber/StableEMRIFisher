@@ -1,6 +1,7 @@
 # Stable EMRI Fisher Calculator
 
 ## In this branch, we calculate the Fisher matrices for subsonic interactions between the accretion disk and a compact object on eccentric orbits.
+### (Duque et al. 2024)
 
 *The current version of this class needs GPU to work*.
 

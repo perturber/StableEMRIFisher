@@ -1,5 +1,7 @@
 # Stable EMRI Fisher Calculator
 
+## In this branch, we calculate the Fisher matrices for subsonic interactions between the accretion disk and a compact object on eccentric orbits.
+
 *The current version of this class needs GPU to work*.
 
 Calculates a stable Fisher matrix using numerical derivatives for the 14-dimensional parameter space of the 5PNAAK waveform model in the FastEMRIWaveforms (FEW) package (https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms). 

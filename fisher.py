@@ -53,7 +53,32 @@ def sensitivity_LWA(f):
     Sc = A*f**(-7/3)*np.exp(-f**alpha+beta*f*np.sin(kappa*f))*(1+np.tanh(gamma*(fk-f)))
     sensitivity_LWA = (10/(3*L**2))*(P_OMS+4*(P_acc)/((2*np.pi*f)**4))*(1 + 6*f**2/(10*fstar**2))+Sc
     return sensitivity_LWA
+
+def noise_PSD_AE(f, TDI = 'TDI1'):
+    """
+    Inputs: Frequency f [Hz]
+    Outputs: Power spectral density of noise process for TDI1 or TDI2.
+
+    TODO: Incorporate the background!! 
+    """
+    # Define constants
+    L = 2.5e9
+    c = 299758492
+    x = 2*np.pi*(L/c)*f
     
+    # Test mass acceleration
+    Spm = (3e-15)**2 * (1 + ((4e-4)/f)**2)*(1 + (f/(8e-3))**4) * (1/(2*np.pi*f))**4 * (2 * np.pi * f/ c)**2
+    # Optical metrology subsystem noise 
+    Sop = (15e-12)**2 * (1 + ((2e-3)/f)**4 )*((2*np.pi*f)/c)**2
+    
+    S_val = (2 * Spm *(3 + 2*np.cos(x) + np.cos(2*x)) + Sop*(2 + np.cos(x))) 
+    
+    if TDI == 'TDI1':
+        S = 8*(np.sin(x)**2) * S_val
+    elif TDI == 'TDI2':
+        S = 32*np.sin(x)**2 * np.sin(2*x)**2 * S_val
+    return S
+
 #Defining the inner product (this runs on the GPU)
 from cupy.fft import rfft, rfftfreq
 import cupy as cp 
@@ -385,13 +410,12 @@ class StableEMRIFisher:
         freq_np = cp.asnumpy(self.freq) # Compute frequencies
 
         # Generate PSDs given LWA/TDI variables
-        if self.response == "TDI1":
-            PSD = 2*[noisepsd_AE(freq_np[1:], includewd = T)] #SK: to be reimplemented for lisatools=1.0.5
-        elif self.response == "TDI2":
-            PSD = 2*[noisepsd_AE2(freq_np[1:])] #SK: to be reimplemented for lisatools=1.0.5
+        if self.response == "TDI1" or self.response == "TDI2":
+            PSD = 2*[noise_PSD_AE(freq_np[1:], TDI = self.response)]
         else:
             PSD = 2*[sensitivity_LWA(freq_np[1:])]  
         PSD_cp = [cp.asarray(item) for item in PSD] # Convert to cupy array
+        
         self.PSD_funcs = PSD_cp[0:len(self.channels)] # Choose which channels to include
 
         # Compute SNR 

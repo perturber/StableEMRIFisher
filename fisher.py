@@ -538,27 +538,14 @@ class StableEMRIFisher:
             if self.SFN:    
                 print("For parameter",self.param_names[i])
                 print(self.param_names[i],' = ', temp[self.param_names[i]])
-
-            # f(x + h)
-            waveform_plus = cp.asarray(self.waveform_generator(temp['M'],
-                        temp['mu'],
-                        temp['a'],
-                        temp['p0'],
-                        temp['e0'],
-                        temp['Y0'],
-                        temp['dist'],
-                        temp['qS'],
-                        temp['phiS'],
-                        temp['qK'],
-                        temp['phiK'],
-                        temp['Phi_phi0'],
-                        temp['Phi_theta0'],
-                        temp['Phi_r0'],
-                        mich=self.mich,\
-                        T = self.T,\
-                        dt = self.dt
-                        ))
-
+            
+            temp_vals = list(temp.values())
+            waveform_plus = cp.asarray(self.waveform_generator(
+                                        *temp_vals,
+                                        mich=self.mich,\
+                                        T = self.T,\
+                                        dt = self.dt
+                                        ))
             if self.response == "LWA":
                 waveform_plus = cp.asarray([waveform_plus.real, waveform_plus.imag])
 
@@ -574,24 +561,13 @@ class StableEMRIFisher:
                 temp['Y0'] = -1.0
 
             # f(x - h)
-            waveform_minus = cp.asarray(self.waveform_generator(temp['M'],
-                        temp['mu'],
-                        temp['a'],
-                        temp['p0'],
-                        temp['e0'],
-                        temp['Y0'],
-                        temp['dist'],
-                        temp['qS'],
-                        temp['phiS'],
-                        temp['qK'],
-                        temp['phiK'],
-                        temp['Phi_phi0'],
-                        temp['Phi_theta0'],
-                        temp['Phi_r0'],
-                        mich=self.mich,\
-                        T = self.T,\
-                        dt = self.dt
-                        ))
+            temp_vals = list(temp.values())
+            waveform_minus = cp.asarray(self.waveform_generator(
+                                        *temp_vals,
+                                        mich=self.mich,\
+                                        T = self.T,\
+                                        dt = self.dt
+                                        ))
 
             if self.response == "LWA":
                 waveform_minus = cp.asarray([waveform_minus.real, waveform_minus.imag])
@@ -600,13 +576,13 @@ class StableEMRIFisher:
             waveform_plus = padding(waveform_plus,self.waveform)
             waveform_minus = padding(waveform_minus,self.waveform)
             
+            derivs_to_delete = [waveform_plus, waveform_minus]
             # Actually compute derivative
             if self.order == 2:
                      
                 derivative = (waveform_plus - waveform_minus)/(2*delta)
-            
-                del waveform_plus
-                del waveform_minus
+
+                del derivs_to_delete 
             
                 return derivative
         
@@ -619,24 +595,13 @@ class StableEMRIFisher:
             if self.SFN:
                 print(self.param_names[i],' = ', temp[self.param_names[i]])
                 
-            waveform_2plus = cp.asarray(self.waveform_generator(temp['M'],
-                            temp['mu'],
-                            temp['a'],
-                            temp['p0'],
-                            temp['e0'],
-                            temp['Y0'],
-                            temp['dist'],
-                            temp['qS'],
-                            temp['phiS'],
-                            temp['qK'],
-                            temp['phiK'],
-                            temp['Phi_phi0'],
-                            temp['Phi_theta0'],
-                            temp['Phi_r0'],
-                            mich=self.mich,\
-                            T = self.T,\
-                            dt = self.dt
-                            ))
+            temp_vals = list(temp.values())
+            waveform_2plus = cp.asarray(self.waveform_generator(
+                                        *temp_vals,
+                                        mich=self.mich,\
+                                        T = self.T,\
+                                        dt = self.dt
+                                        ))
  
             temp = self.param.copy()
 
@@ -647,38 +612,26 @@ class StableEMRIFisher:
             if temp['a'] < 0:           # Handle retrograde case.  
                 temp['a'] *= -1.0
                 temp['Y0'] = -1.0
-            waveform_2minus = cp.asarray(self.waveform_generator(temp['M'],
-                            temp['mu'],
-                            temp['a'],
-                            temp['p0'],
-                            temp['e0'],
-                            temp['Y0'],
-                            temp['dist'],
-                            temp['qS'],
-                            temp['phiS'],
-                            temp['qK'],
-                            temp['phiK'],
-                            temp['Phi_phi0'],
-                            temp['Phi_theta0'],
-                            temp['Phi_r0'],
-                            mich=self.mich,\
-                            T = self.T,\
-                            dt = self.dt
-                            ))
+            temp_vals = list(temp.values())
+            waveform_2minus = cp.asarray(self.waveform_generator(
+                                        *temp_vals,
+                                        mich=self.mich,
+                                        T = self.T,\
+                                        dt = self.dt
+                                        ))
 
             #padding
             waveform_2plus = padding(waveform_2plus,self.waveform)
             waveform_2minus = padding(waveform_2minus,self.waveform)
-        
+
+            derivs_to_delete += [waveform_2plus, waveform_2minus]
+
             if self.order == 4:
     
                 #4th order finite difference differentiation
                 derivative = (1/12*waveform_2minus - 2/3*waveform_minus + 2/3*waveform_plus -1/12*waveform_2plus)/(delta)
                     
-                del waveform_plus
-                del waveform_minus
-                del waveform_2plus
-                del waveform_2minus
+                del derivs_to_delete
                 
                 return derivative
             
@@ -692,24 +645,13 @@ class StableEMRIFisher:
             if self.SFN:
                 print(self.param_names[i],' = ', temp[self.param_names[i]])
                 
-            waveform_3plus = cp.asarray(self.waveform_generator(temp['M'],
-                            temp['mu'],
-                            temp['a'],
-                            temp['p0'],
-                            temp['e0'],
-                            temp['Y0'],
-                            temp['dist'],
-                            temp['qS'],
-                            temp['phiS'],
-                            temp['qK'],
-                            temp['phiK'],
-                            temp['Phi_phi0'],
-                            temp['Phi_theta0'],
-                            temp['Phi_r0'],
-                            mich=self.mich,\
-                            T = self.T,\
-                            dt = self.dt
-                            ))
+            temp_vals = list(temp.values())
+            waveform_3plus = cp.asarray(self.waveform_generator(
+                                        *temp_vals,
+                                        mich=self.mich,
+                                        T = self.T,
+                                        dt = self.dt
+                                        ))
             
             temp = self.param.copy()
             
@@ -721,40 +663,25 @@ class StableEMRIFisher:
                 temp['a'] *= -1.0
                 temp['Y0'] = -1.0
                 
-            waveform_3minus = cp.asarray(self.waveform_generator(temp['M'],
-                            temp['mu'],
-                            temp['a'],
-                            temp['p0'],
-                            temp['e0'],
-                            temp['Y0'],
-                            temp['dist'],
-                            temp['qS'],
-                            temp['phiS'],
-                            temp['qK'],
-                            temp['phiK'],
-                            temp['Phi_phi0'],
-                            temp['Phi_theta0'],
-                            temp['Phi_r0'],
-                            mich=self.mich,\
-                            T = self.T,\
-                            dt = self.dt
-                            ))
+            temp_vals = list(temp.values())
+            waveform_3minus = cp.asarray(self.waveform_generator(
+                                        *temp_vals,
+                                        mich=self.mich,
+                                        T = self.T,
+                                        dt = self.dt
+                                        ))
 
             #padding
             waveform_3plus = padding(waveform_3plus,self.waveform)
             waveform_3minus = padding(waveform_3minus,self.waveform)
-            
+
+            derivs_to_delete += [waveform_3plus, waveform_3minus]            
             if self.order == 6:
                     
             #     #4th order finite difference differentiation
                 derivative = (-1/60*waveform_3minus+3/20*waveform_2minus - 3/4*waveform_minus + 3/4*waveform_plus - 3/20*waveform_2plus +1/60*waveform_3plus)/(delta)
                     
-                del waveform_plus
-                del waveform_minus
-                del waveform_2plus
-                del waveform_2minus
-                del waveform_3plus
-                del waveform_3minus
+                del derivs_to_delete
                 
                 return derivative
             
@@ -764,22 +691,11 @@ class StableEMRIFisher:
             if self.SFN:
                 print(self.param_names[i],' = ', temp[self.param_names[i]])
                 
-            waveform_4plus = cp.asarray(self.waveform_generator(temp['M'],
-                            temp['mu'],
-                            temp['a'],
-                            temp['p0'],
-                            temp['e0'],
-                            temp['Y0'],
-                            temp['dist'],
-                            temp['qS'],
-                            temp['phiS'],
-                            temp['qK'],
-                            temp['phiK'],
-                            temp['Phi_phi0'],
-                            temp['Phi_theta0'],
-                            temp['Phi_r0'],
-                            mich=self.mich,\
-                            T = self.T,\
+            temp_vals = list(temp.values())
+            waveform_4plus = cp.asarray(self.waveform_generator(
+                            *temp_vals,
+                            mich=self.mich,
+                            T = self.T,
                             dt = self.dt
                             ))
             
@@ -793,41 +709,24 @@ class StableEMRIFisher:
                 temp['a'] *= -1.0
                 temp['Y0'] = -1.0
     
-            waveform_4minus = cp.asarray(self.waveform_generator(temp['M'],
-                            temp['mu'],
-                            temp['a'],
-                            temp['p0'],
-                            temp['e0'],
-                            temp['Y0'],
-                            temp['dist'],
-                            temp['qS'],
-                            temp['phiS'],
-                            temp['qK'],
-                            temp['phiK'],
-                            temp['Phi_phi0'],
-                            temp['Phi_theta0'],
-                            temp['Phi_r0'],
-                            mich=self.mich,\
-                            T = self.T,\
-                            dt = self.dt
-                            ))
+            temp_vals = list(temp.values())
+            waveform_4minus = cp.asarray(self.waveform_generator(
+                                            *temp_vals,
+                                            mich=self.mich,
+                                            T = self.T,
+                                            dt = self.dt
+                                            ))
             #padding
             waveform_4plus = padding(waveform_4plus,self.waveform)
             waveform_4minus = padding(waveform_4minus,self.waveform)
+            
+            derivs_to_delete += [waveform_4plus, waveform_4minus]    
     
             # #8th order finite difference differentiation
             derivative = (waveform_4minus/280 - waveform_3minus*4/105 + waveform_2minus/5 - waveform_minus*4/5 \
                         - waveform_4plus/280 + waveform_3plus*4/105 - waveform_2plus/5 + waveform_plus*4/5)/(delta)
-    
-            del waveform_plus
-            del waveform_minus
-            del waveform_2plus
-            del waveform_2minus
-            del waveform_3plus
-            del waveform_3minus
-            del waveform_4plus
-            del waveform_4minus
-            
+
+            del derivs_to_delete  
             return derivative
     
 

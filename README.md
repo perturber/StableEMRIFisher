@@ -9,7 +9,9 @@ Download as a zip file, extract, and run in your favorite FEW environment. No bu
 
 Dependencies:
 FastEMRIWaveforms (https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms)
+
 LISAAnalysisTools (https://github.com/mikekatz04/LISAanalysistools)
+
 LISA-on-gpu (https://github.com/mikekatz04/lisa-on-gpu)
 
 `fisher.py` contains the StableEMRIFisher class definition, supporting function definitions, and FEW imports. 

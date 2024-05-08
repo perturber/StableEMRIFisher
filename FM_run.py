@@ -7,7 +7,7 @@ sys.path.append("..")
 from fisher import StableEMRIFisher
 import matplotlib.pyplot as plt
 
-from few.waveform import Pn5AAKWaveform, GenerateEMRIWaveform,KerrEquatorialEccentric,KerrEquatorialEccentricWaveformBase
+from few.waveform import Pn5AAKWaveform, GenerateEMRIWaveform, KerrEquatorialEccentric, KerrEquatorialEccentricWaveformBase
 
 from few.trajectory.inspiral import EMRIInspiral
 
@@ -85,7 +85,6 @@ Phi_phi0 = 2.0; Phi_theta0 = 3.0; Phi_r0 = 4.0
 # dist = 1.0; qS = 1.5; phiS = 0.7; qK = 1.2; phiK = 0.6
 # Phi_phi0 = 2.0; Phi_theta0 = 3.0; Phi_r0 = 4.0
 
-
 params = [M,mu,a,p0,e0,Y0,dist,qS,phiS,qK,phiK,Phi_phi0, Phi_theta0, Phi_r0]
 # Waveform params
 dt = 10.0;  # Sampling interval [seconds]
@@ -156,7 +155,7 @@ if model_choice == "KerrEccentricEquatorialFlux":
         "specific_spins":[0.85, 0.9, 0.95],
         "use_gpu" : True
         }
-    # Waveform_model = GenerateEMRIWaveform(model_choice, inspiral_kwargs=inspiral_kwargs, sum_kwargs=sum_kwargs, amplitude_kwargs=amplitude_kwargs, use_gpu=use_gpu)
+    
     Waveform_model = GenerateEMRIWaveform(
     KerrEquatorialEccentricWaveformBase, # Define the base waveform
     EMRIInspiral, # Define the trajectory
@@ -170,6 +169,7 @@ if model_choice == "KerrEccentricEquatorialFlux":
     use_gpu=use_gpu,
     frame='detector'
     )
+
 elif model_choice == "FastSchwarzschildEccentricFlux":
     inspiral_kwargs = {
             "DENSE_STEPPING": 0,
@@ -197,14 +197,11 @@ elif model_choice == "Pn5AAKWaveform":
         "pad_output": True,
     }
     Waveform_model = GenerateEMRIWaveform(model_choice, inspiral_kwargs=inspiral_kwargs, sum_kwargs=sum_kwargs, use_gpu=use_gpu)
-breakpoint()
-check = Waveform_model(*params)
-breakpoint()
 
 t0 = 20000.0   # How many samples to remove from start and end of simulations.
 order = 25
 
-orbit_file = "../../lisa-on-gpu/orbit_files/equalarmlength-trailing-fit.h5"
+orbit_file = "../lisa-on-gpu/orbit_files/equalarmlength-trailing-fit.h5"
 orbit_kwargs = dict(orbit_file=orbit_file)
 
 # 1st or 2nd or custom (see docs for custom)
@@ -226,11 +223,20 @@ N = int((T*YRSID_SI/dt))
 window_function = cp.asarray(scipy.signal.tukey(N,0.05))
 
 window_function = None
+#varied parameters
+param_names = ['M','mu','a','p0','e0']
+
+#initialization
 sef = StableEMRIFisher(M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
-              Phi_phi0, Phi_theta0, Phi_r0, dt, T, 
-              filename="Test_Case", CovMat=False, Ndelta=8, err = 0, 
-              CovEllipse=False, der_order=2, Live_Dangerously = False, deltas = None,  EMRI_waveform_gen = EMRI_TDI,
-              TDI = "TDI1", window = window_function)
+              Phi_phi0, Phi_theta0, Phi_r0, dt, T, EMRI_waveform_gen=EMRI_TDI,
+              param_names=param_names, stats_for_nerds=False, TDI = "TDI1",
+              filename='TestRun', CovMat=True, CovEllipse=True)
+
+# sef = StableEMRIFisher(M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
+#               Phi_phi0, Phi_theta0, Phi_r0, dt, T, 
+#               filename="Test_Case", CovMat=False, Ndelta=8, err = 0, 
+#               CovEllipse=False, der_order=2, Live_Dangerously = False, deltas = None,  EMRI_waveform_gen = EMRI_TDI,
+#               TDI = "TDI1", window = window_function)
 
 #execution
 print("Computing FM")

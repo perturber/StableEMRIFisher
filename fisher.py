@@ -24,7 +24,7 @@ YRSID_SI = 31558149.763545603
 
 def sensitivity_LWA(f):
     """
-    LISA sensitivity function in the long-wavelength approximation.
+    LISA sensitivity function in the long-wavelength approximation (https://arxiv.org/pdf/1803.01944.pdf).
     
     args:
         f (float): LISA-band frequency of the signal

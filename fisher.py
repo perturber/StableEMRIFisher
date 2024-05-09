@@ -315,8 +315,6 @@ class StableEMRIFisher:
         self.window = window
         self.SFN = stats_for_nerds
 
-        breakpoint() 
- 
 		# Determine what version of TDI to use or whether to use the LWA 
         if EMRI_waveform_gen.response_model.tdi == '1st generation':
             self.response = "TDI1"

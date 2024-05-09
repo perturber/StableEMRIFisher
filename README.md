@@ -2,10 +2,17 @@
 
 *The current version of this class needs GPU to work*.
 
-Calculates a stable Fisher matrix using numerical derivatives for the 14-dimensional parameter space of the 5PNAAK waveform model in the FastEMRIWaveforms (FEW) package (https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms). 
+Calculates a stable Fisher matrix using numerical derivatives for the various EMRI waveform models in the FastEMRIWaveforms (FEW) package (https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms). 
 
 ### Installation and Execution
-Simply download as a zip file, extract, and run in your favorite FEW environment. No build is required. 
+Download as a zip file, extract, and run in your favorite FEW environment. No build is required. 
+
+Dependencies:
+FastEMRIWaveforms (https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms)
+
+LISAAnalysisTools (https://github.com/mikekatz04/LISAanalysistools)
+
+LISA-on-gpu (https://github.com/mikekatz04/lisa-on-gpu)
 
 `fisher.py` contains the StableEMRIFisher class definition, supporting function definitions, and FEW imports. 
 

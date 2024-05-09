@@ -120,7 +120,7 @@ p_new = get_p_at_t(
     index_of_x=5,
     xtol=2e-12,
     rtol=8.881784197001252e-16,
-    bounds=[None,20],
+    bounds=[None,13],
 )
 
 
@@ -152,7 +152,7 @@ if model_choice == "KerrEccentricEquatorialFlux":
         "pad_output": True,
     }
     amplitude_kwargs = {
-        "specific_spins":[0.85, 0.9, 0.95],
+        "specific_spins":[0.80, 0.9, 0.95],
         "use_gpu" : True
         }
     
@@ -229,7 +229,7 @@ param_names = ['M','mu','a','p0','e0']
 #initialization
 sef = StableEMRIFisher(M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
               Phi_phi0, Phi_theta0, Phi_r0, dt, T, EMRI_waveform_gen=EMRI_TDI,
-              param_names=param_names, stats_for_nerds=False, TDI = "TDI1",
+              param_names=param_names, stats_for_nerds=False, 
               filename='TestRun', CovMat=True, CovEllipse=True)
 
 # sef = StableEMRIFisher(M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,

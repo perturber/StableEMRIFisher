@@ -228,7 +228,7 @@ def normal(mean, var, x):
 class StableEMRIFisher:
     
     def __init__(self, M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
-                 Phi_phi0, Phi_theta0, Phi_r0, dt = 10, T = 1.0, EMRI_waveform_gen = None, TDI = "LWA", window = None,
+                 Phi_phi0, Phi_theta0, Phi_r0, dt = 10, T = 1.0, EMRI_waveform_gen = None, window = None,
                  param_names=None, deltas=None, der_order=2, Ndelta=8, CovMat=False, CovEllipse=False, 
                  Live_Dangerously = False, filename='', suffix=None, stats_for_nerds=True):
         """
@@ -271,10 +271,7 @@ class StableEMRIFisher:
 
         else:
             self.param_names = param_names
-        
-        if TDI not in ["LWA", "TDI1", "TDI2"]:
-            raise ValueError("TDI must be one of 'LWA', 'TDI1', or 'TDI2'")
-            
+         
         if deltas != None and len(deltas) != len(self.param_names):
             print('Length of deltas array should be equal to length of param_names.\n\
                    Assuming deltas = None.')
@@ -318,12 +315,25 @@ class StableEMRIFisher:
         self.window = window
         self.SFN = stats_for_nerds
 
-        
-        # Initialise trajectory module 
-        if TDI in ["TDI1", "TDI2"]: 
+        breakpoint() 
+ 
+		# Determine what version of TDI to use or whether to use the LWA 
+        if EMRI_waveform_gen.response_model.tdi == '1st generation':
+            self.response = "TDI1"
+        elif EMRI_waveform_gen.response_model.tdi == '2nd generation': 
+            self.response = "TDI2"
+        else:
+            self.response = "LWA"
+		
+        if self.response in ["TDI1", "TDI2"]:
+            self.channels = ["A", "E"]
+            self.mich = False
             self.traj_module = EMRI_waveform_gen.waveform_gen.waveform_generator.inspiral_kwargs['func']
         else:
+            self.channels = ["I", "II"]
+            self.mich = True
             self.traj_module = EMRI_waveform_gen.waveform_generator.inspiral_kwargs['func']
+			
 
         # Define what EMRI waveform model we are using  
         if 'Schwarz' in self.traj_module:
@@ -340,18 +350,6 @@ class StableEMRIFisher:
         # =============== Initialise Waveform generator ================
         self.waveform_generator = EMRI_waveform_gen
 
-        # Determine what version of TDI to use or whether to use the LWA 
-        if TDI in ["TDI1", "TDI2"]:  
-            if EMRI_waveform_gen.response_model.tdi == '1st generation':
-                self.response = "TDI1"
-            elif EMRI_waveform_gen.response_model.tdi == '2nd generation': 
-                self.response = "TDI2"
-            self.channels = ["A", "E"] # This is hard coded, we could use "A, E, T"
-            self.mich = False
-        else:
-            self.response = 'LWA'
-            self.channels = ["I", "II"]
-            self.mich = True
 
         #initializing param dictionary
         self.param = {'M':M,

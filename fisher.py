@@ -316,12 +316,15 @@ class StableEMRIFisher:
         self.SFN = stats_for_nerds
 
 		# Determine what version of TDI to use or whether to use the LWA 
-        if EMRI_waveform_gen.response_model.tdi == '1st generation':
-            self.response = "TDI1"
-        elif EMRI_waveform_gen.response_model.tdi == '2nd generation': 
-            self.response = "TDI2"
-        else:
+        try:
+            if EMRI_waveform_gen.response_model.tdi == '1st generation':
+                self.response = "TDI1"
+            elif EMRI_waveform_gen.response_model.tdi == '2nd generation': 
+                self.response = "TDI2"
+        except:
             self.response = "LWA"
+         
+
 		
         if self.response in ["TDI1", "TDI2"]:
             self.channels = ["A", "E"]

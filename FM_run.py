@@ -70,14 +70,14 @@ YRSID_SI = 31558149.763545603
 # Phi_phi0 = 2.0; Phi_theta0 = 3.0; Phi_r0 = 4.0
 
 # Using full Kerr model
-# M = 1e6; mu = 10; a = 0.9; p0 = 8.58; e0 = 0.2; Y0 = 1.0
-# dist = 4.0; qS = 1.5; phiS = 0.7; qK = 1.2; phiK = 0.6
-# Phi_phi0 = 2.0; Phi_theta0 = 3.0; Phi_r0 = 4.0
-
-# Using full kerr eccentric model, loud SNR ~ 174
 M = 1e6; mu = 10; a = 0.9; p0 = 8.58; e0 = 0.2; Y0 = 1.0
 dist = 1.0; qS = 1.5; phiS = 0.7; qK = 1.2; phiK = 0.6
 Phi_phi0 = 2.0; Phi_theta0 = 3.0; Phi_r0 = 4.0
+
+# Using full kerr eccentric model, loud SNR ~ 174
+# M = 1e6; mu = 10; a = 0.9; p0 = 8.58; e0 = 0.2; Y0 = 1.0
+# dist = 1.0; qS = 1.5; phiS = 0.7; qK = 1.2; phiK = 0.6
+# Phi_phi0 = 2.0; Phi_theta0 = 3.0; Phi_r0 = 4.0
 
 
 # Kerr with a = -0.9, RETROGRADE
@@ -90,12 +90,12 @@ params = [M,mu,a,p0,e0,Y0,dist,qS,phiS,qK,phiK,Phi_phi0, Phi_theta0, Phi_r0]
 dt = 10.0;  # Sampling interval [seconds]
 T = 2.0     # Evolution time [years]
 
-mich = True #mich = True implies output in hI, hII long wavelength approximation
+mich = False #mich = True implies output in hI, hII long wavelength approximation
 
 use_gpu = True
-# traj = EMRIInspiral(func="pn5")  # Set up trajectory module, pn5 AAK
+traj = EMRIInspiral(func="pn5")  # Set up trajectory module, pn5 AAK
 # traj = EMRIInspiral(func="SchwarzEccFlux")  # Set up trajectory module, pn5 AAK
-traj = EMRIInspiral(func="KerrEccentricEquatorial")  # Set up trajectory module, pn5 AAK
+# traj = EMRIInspiral(func="KerrEccentricEquatorial")  # Set up trajectory module, pn5 AAK
 
 # Compute trajectory 
 if a < 0:
@@ -103,6 +103,7 @@ if a < 0:
     Y0_val = -1.0 * Y0
 else:
     a_val = a; Y0_val = Y0
+
 t_traj, p_traj, e_traj, Y_traj, Phi_phi_traj, Phi_r_traj, Phi_theta_traj = traj(M, mu, a_val, p0, e0, Y0_val,
                                              Phi_phi0=Phi_phi0, Phi_theta0=Phi_theta0, Phi_r0=Phi_r0, T=T)
 traj_args = [M, mu, a, e_traj[0], Y_traj[0]]
@@ -144,7 +145,7 @@ if model_choice == "KerrEccentricEquatorialFlux":
             "err": 1e-10,  # To be set within the class
             "use_rk4": True,
             "integrate_phases":False,
-            "func": "KerrEccentricEquatorial"
+            "func": "KerrEccentricEquatorialAPEX"
         }
     # keyword arguments for summation generator (AAKSummation)
     sum_kwargs = {
@@ -169,7 +170,6 @@ if model_choice == "KerrEccentricEquatorialFlux":
     use_gpu=use_gpu,
     frame='detector'
     )
-
 elif model_choice == "FastSchwarzschildEccentricFlux":
     inspiral_kwargs = {
             "DENSE_STEPPING": 0,
@@ -188,8 +188,9 @@ elif model_choice == "Pn5AAKWaveform":
             "DENSE_STEPPING": 0,
             "max_init_len": int(1e4),
             "err": 1e-10,  # To be set within the class
-            "use_rk4": True,
-            "integrate_phases":False
+            # "use_rk4": True,
+            # "integrate_phases":False,
+            "func":"pn5"
         }
     # keyword arguments for summation generator (AAKSummation)
     sum_kwargs = {
@@ -218,25 +219,18 @@ EMRI_TDI = ResponseWrapper(Waveform_model,T,dt,
                 index_lambda,index_beta,t0=t0,
                 flip_hx = True, use_gpu = use_gpu, is_ecliptic_latitude=False,
                 remove_garbage = "zero", **tdi_kwargs_esa)
-import scipy
-N = int((T*YRSID_SI/dt))
-window_function = cp.asarray(scipy.signal.tukey(N,0.05))
 
 window_function = None
 #varied parameters
-param_names = ['M','mu','a','p0','e0']
+param_names = ['M','mu','a','p0','e0', "scalar_charge"]
+# param_names = ['M','mu','a','p0','e0']
 
+scalar_charge = [0]
 #initialization
 sef = StableEMRIFisher(M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
-              Phi_phi0, Phi_theta0, Phi_r0, dt, T, EMRI_waveform_gen=EMRI_TDI,
-              param_names=param_names, stats_for_nerds=False, 
+              Phi_phi0, Phi_theta0, Phi_r0, dt, T, param_args = scalar_charge, EMRI_waveform_gen=EMRI_TDI,
+              param_names=param_names, stats_for_nerds=True, 
               filename='TestRun', CovMat=True, CovEllipse=True)
-
-# sef = StableEMRIFisher(M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
-#               Phi_phi0, Phi_theta0, Phi_r0, dt, T, 
-#               filename="Test_Case", CovMat=False, Ndelta=8, err = 0, 
-#               CovEllipse=False, der_order=2, Live_Dangerously = False, deltas = None,  EMRI_waveform_gen = EMRI_TDI,
-#               TDI = "TDI1", window = window_function)
 
 #execution
 print("Computing FM")

@@ -228,7 +228,7 @@ def normal(mean, var, x):
 class StableEMRIFisher:
     
     def __init__(self, M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
-                 Phi_phi0, Phi_theta0, Phi_r0, dt = 10, T = 1.0, EMRI_waveform_gen = None, window = None,
+                 Phi_phi0, Phi_theta0, Phi_r0, dt = 10, T = 1.0, param_args = None, EMRI_waveform_gen = None, window = None,
                  param_names=None, deltas=None, der_order=2, Ndelta=8, CovMat=False, CovEllipse=False, 
                  Live_Dangerously = False, filename='', suffix=None, stats_for_nerds=True):
         """
@@ -279,6 +279,10 @@ class StableEMRIFisher:
             
         if EMRI_waveform_gen == None:
             raise ValueError("Please set up EMRI waveform model and pass as argument.")
+
+        # Determine how many additional arguments we want to computer FM over. 
+
+
         
         #initializing FEW
         #defining model parameters
@@ -302,6 +306,9 @@ class StableEMRIFisher:
         self.Phi_r0 = Phi_r0
         self.dt = dt
         self.T = T
+
+        #initialising extra parameters
+        self.param_args = param_args
 
         # Handle retrograde orbits
         if self.a < 0:
@@ -344,16 +351,13 @@ class StableEMRIFisher:
         elif 'pn5' in self.traj_module:
             self.waveform_model_choice = "Pn5AAKWaveform" 
 
-        # Redefine final time if small body is plunging. More stable FMs.
-        final_time = self.check_if_plunging()
-        self.T = final_time/YRSID_SI # Years
         
         # =============== Initialise Waveform generator ================
         self.waveform_generator = EMRI_waveform_gen
 
 
         #initializing param dictionary
-        self.param = {'M':M,
+        self.wave_params = {'M':M,
                       'mu':mu,
                       'a':a,
                       'p0':p0,
@@ -368,6 +372,22 @@ class StableEMRIFisher:
                       'Phi_theta0':Phi_theta0,
                       'Phi_r0':Phi_r0,
                       }
+        self.traj_params = dict(list(self.wave_params.items())[:6]) 
+
+        #initialise extra args, add them to wave_params/traj_params
+        full_EMRI_param = list(self.wave_params.keys())
+ 
+        i = 0
+        for param_label in param_names:
+            if param_label not in full_EMRI_param:
+                arg_dict = {param_label:float(self.param_args[i])}
+                # Update both lists
+                self.traj_params.update(arg_dict)
+                self.wave_params.update(arg_dict)
+                i += 1
+
+
+        print("Extra parameter!")
         
         #initializing deltas
         self.deltas = deltas #Use deltas == None as a Flag
@@ -378,21 +398,17 @@ class StableEMRIFisher:
         self.filename = filename
         self.suffix = suffix
         self.Live_Dangerously = Live_Dangerously
+        
+        # Redefine final time if small body is plunging. More stable FMs.
+        final_time = self.check_if_plunging()
+        self.T = final_time/YRSID_SI # Years
     
     def __call__(self):
         # Generate base waveform
         
-        # if self.a < 0:  # Handle retrograde case
-        #     a_val = self.a * -1.0
-        #     Y0_val = -1.0
-        # else:
-        #     a_val = self.a
-        #     Y0_val = self.Y0
+        param_vals = list(self.wave_params.values())
 
-        self.waveform = self.waveform_generator(self.M, self.mu, self.a, self.p0, self.e0, self.Y0, 
-                                                self.dist, self.qS, self.phiS, self.qK, self.phiK, 
-                                                self.Phi_phi0, self.Phi_theta0, self.Phi_r0, 
-                                                mich=self.mich, dt=self.dt, T=self.T)
+        self.waveform = self.waveform_generator(*param_vals, mich=self.mich, dt=self.dt, T=self.T)
         
         # If we use LWA, extract real and imaginary components (channels 1 and 2)
         if self.response == "LWA":
@@ -500,15 +516,18 @@ class StableEMRIFisher:
         traj = EMRIInspiral(func=self.traj_module)
 
         # Compute trajectory 
-        # if self.a < 0:  # Handle retrograde case
-        #     a_val = self.a * -1.0
-        #     Y0_val = -1.0
-        # else:
-        #     a_val = self.a
-        #     Y0_val = self.Y0
-        t_traj, _, _, _, _, _, _ = traj(self.M, self.mu, self.a, self.p0, self.e0, self.Y0,
-                                                    Phi_phi0=self.Phi_phi0, Phi_theta0=self.Phi_theta0, Phi_r0=self.Phi_r0, 
-                                                    T=self.T) 
+        if self.a < 0:  # Handle retrograde case
+            a_val = self.a * -1.0
+            Y0_val = -1.0
+        else:
+            a_val = self.a
+            Y0_val = self.Y0
+        
+        traj_vals = list(self.traj_params.values())
+        t_traj, _, _, _, _, _, _ = traj(*traj_vals, Phi_phi0=self.Phi_phi0, 
+                                        Phi_theta0=self.Phi_theta0, Phi_r0=self.Phi_r0, 
+                                        T = self.T) 
+
         if t_traj[-1] < self.T*YRSID_SI:
             warnings.warn("Body is plunging! Expect instabilities.")
             final_time = t_traj[-1] - 4*60*60 # Remove 4 hours of final inspiral
@@ -527,7 +546,7 @@ class StableEMRIFisher:
         else:
 
             #modifying the given parameter
-            temp = self.param.copy()
+            temp = self.wave_params.copy()
             if temp['a'] < 0:           # Handle retrograde case.  
                 temp['a'] *= -1.0
                 temp['Y0'] = -1.0
@@ -548,7 +567,7 @@ class StableEMRIFisher:
             if self.response == "LWA":
                 waveform_plus = cp.asarray([waveform_plus.real, waveform_plus.imag])
 
-            temp = self.param.copy()
+            temp = self.wave_params.copy()
 
             temp[self.param_names[i]] -= delta
             if self.SFN:
@@ -746,26 +765,18 @@ class StableEMRIFisher:
             elif self.waveform_model_choice == "KerrEccentricEquatorial" and self.param_names[i] in ['Y0', 'Phi_theta0']:
                 warnings.warn(f"{self.param_names[i]} unmeasurable in {self.waveform_model_choice} EMRI model.")
                 
-            #custom delta_inits for different parameters
-            if self.param[self.param_names[i]] == 0.0:
+            # If a specific parameter equals zero, then consider stepsizes around zero.
+            if self.wave_params[self.param_names[i]] == 0.0:
                 delta_init = np.geomspace(1e-4,1e-9,Ndelta)
 
             # Compute Ndelta number of delta values to compute derivative. Testing stability.
             elif self.param_names[i] == 'M' or self.param_names[i] == 'mu': 
-                delta_init = np.geomspace(1e-4*self.param[self.param_names[i]],1e-9*self.param[self.param_names[i]],Ndelta)
+                delta_init = np.geomspace(1e-4*self.wave_params[self.param_names[i]],1e-9*self.wave_params[self.param_names[i]],Ndelta)
             elif self.param_names[i] == 'a' or self.param_names[i] == 'p0' or self.param_names[i] == 'e0' or self.param_names[i] == 'Y0':
-                delta_init = np.geomspace(1e-4*self.param[self.param_names[i]],1e-9*self.param[self.param_names[i]],Ndelta)
+                delta_init = np.geomspace(1e-4*self.wave_params[self.param_names[i]],1e-9*self.wave_params[self.param_names[i]],Ndelta)
             else:
-                delta_init = np.geomspace(1e-1*self.param[self.param_names[i]],1e-10*self.param[self.param_names[i]],Ndelta)
-
-            #sanity check:
-            #if self.param_names[i] == 'a' and self.param[self.param_names[i]] >= 1.:
-            #    self.param_names[i] = 0.999
-            #if self.param_names[i] == 'p0' and self.param[self.param_names[i]] <= 5:
-            #    self.param_names[i] = 5.0001
-            #if self.param_names[i] == 'e0' and self.param[self.param_names[i]] <= 0.:
-            #    self.param_names[i] = 1e-6
-            
+                delta_init = np.geomspace(1e-1*self.wave_params[self.param_names[i]],1e-10*self.wave_params[self.param_names[i]],Ndelta)
+ 
             Gamma = []
             orderofmag = []
 
@@ -874,25 +885,25 @@ class StableEMRIFisher:
                 if i != j:
                     cov = np.array(((covariance[i][i],covariance[i][j]),(covariance[j][i],covariance[j][j])))
                     #print(cov)
-                    mean = np.array((self.param[self.param_names[i]],self.param[self.param_names[j]]))
+                    mean = np.array((self.wave_params[self.param_names[i]],self.wave_params[self.param_names[j]]))
 
                     cov_ellipse(mean,cov,axs[j,i],lw=2,edgecolor='blue')
 
                     #custom setting the x-y lim for each plot
-                    axs[j,i].set_xlim([self.param[self.param_names[i]]-2.5*np.sqrt(covariance[i][i]), self.param[self.param_names[i]]+2.5*np.sqrt(covariance[i][i])])
-                    axs[j,i].set_ylim([self.param[self.param_names[j]]-2.5*np.sqrt(covariance[j][j]), self.param[self.param_names[j]]+2.5*np.sqrt(covariance[j][j])])
+                    axs[j,i].set_xlim([self.wave_params[self.param_names[i]]-2.5*np.sqrt(covariance[i][i]), self.wave_params[self.param_names[i]]+2.5*np.sqrt(covariance[i][i])])
+                    axs[j,i].set_ylim([self.wave_params[self.param_names[j]]-2.5*np.sqrt(covariance[j][j]), self.wave_params[self.param_names[j]]+2.5*np.sqrt(covariance[j][j])])
 
                     axs[j,i].set_xlabel(self.param_names[i],labelpad=20,fontsize=16)
                     axs[j,i].set_ylabel(self.param_names[j],labelpad=20,fontsize=16)
 
                 else:
-                    mean = self.param[self.param_names[i]]
+                    mean = self.wave_params[self.param_names[i]]
                     var = covariance[i][i]
 
                     x = np.linspace(mean-3*np.sqrt(var),mean+3*np.sqrt(var))
 
                     axs[j,i].plot(x,normal(mean,var,x),c='blue')
-                    axs[j,i].set_xlim([self.param[self.param_names[i]]-2.5*np.sqrt(covariance[i][i]), self.param[self.param_names[i]]+2.5*np.sqrt(covariance[i][i])])
+                    axs[j,i].set_xlim([self.wave_params[self.param_names[i]]-2.5*np.sqrt(covariance[i][i]), self.wave_params[self.param_names[i]]+2.5*np.sqrt(covariance[i][i])])
                     axs[j,i].set_xlabel(self.param_names[i],labelpad=20,fontsize=16)
                     if i == j and j == 0:
                         axs[j,i].set_ylabel(self.param_names[i],labelpad=20,fontsize=16)

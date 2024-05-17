@@ -1,3 +1,5 @@
+# Ignore the TestRun folder
+Testrun/
 # Types of files I don't want to upload:
 
 *.npy

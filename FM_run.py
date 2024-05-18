@@ -225,10 +225,10 @@ window_function = None
 param_names = ['M','mu','a','p0','e0', "scalar_charge"]
 # param_names = ['M','mu','a','p0','e0']
 
-scalar_charge = [0]
+param_args = [0]
 #initialization
 sef = StableEMRIFisher(M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
-              Phi_phi0, Phi_theta0, Phi_r0, dt, T, param_args = scalar_charge, EMRI_waveform_gen=EMRI_TDI,
+              Phi_phi0, Phi_theta0, Phi_r0, dt, T, param_args = param_args, EMRI_waveform_gen=EMRI_TDI,
               param_names=param_names, stats_for_nerds=True, 
               filename='TestRun', CovMat=True, CovEllipse=True)
 

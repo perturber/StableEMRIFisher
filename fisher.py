@@ -280,13 +280,7 @@ class StableEMRIFisher:
         if EMRI_waveform_gen == None:
             raise ValueError("Please set up EMRI waveform model and pass as argument.")
 
-        # Determine how many additional arguments we want to computer FM over. 
-
-
-        
-        #initializing FEW
-        #defining model parameters
-
+        # Set up GPU
         use_gpu = True
          
         #initializing parameters
@@ -376,15 +370,20 @@ class StableEMRIFisher:
 
         #initialise extra args, add them to wave_params/traj_params
         full_EMRI_param = list(self.wave_params.keys())
- 
-        i = 0
-        for param_label in param_names:
-            if param_label not in full_EMRI_param:
-                arg_dict = {param_label:float(self.param_args[i])}
-                # Update both lists
-                self.traj_params.update(arg_dict)
-                self.wave_params.update(arg_dict)
-                i += 1
+        additional_args_flag = not(all(param in full_EMRI_param for param in param_names))
+        if additional_args_flag == True and param_args != None:
+            i = 0
+            for param_label in param_names:
+                if param_label not in full_EMRI_param:
+                    arg_dict = {param_label:float(self.param_args[i])}
+                    # Update both lists
+                    self.traj_params.update(arg_dict)
+                    self.wave_params.update(arg_dict)
+                    i += 1
+        elif (additional_args_flag == True and param_args == None) or (param_args != None and additional_args_flag == False):
+            raise ValueError("Number of FM parameter labels do not match parameter labels") 
+        # elif param_args != None and additional_args_flag == False
+        #     raise ValueError("param_args must not be a list if there are additional_args_flag is False") 
 
 
         print("Extra parameter!")

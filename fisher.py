@@ -4,7 +4,6 @@ import warnings
 import os
 import scipy
 import time 
-gpu_available = True
 
 from few.trajectory.inspiral import EMRIInspiral
 from few.utils.constants import *
@@ -249,7 +248,6 @@ class StableEMRIFisher:
                 T (float, optional): Duration of the EMRI signal in years. Default is 1.
 
                 EMRI_waveform_gen (object, optional): EMRI waveform generator object. Default is None.
-                TDI (str, optional): Type of Time Delay Interferometry (TDI) to be used. Options are 'LWA', 'TDI1', or 'TDI2'. Default is 'LWA'.
                 param_names (np.ndarray, optional): Order in which Fisher matrix elements will be arranged. Default is None.
                 deltas (np.ndarray, optional): Range of stable deltas for numerical differentiation of each parameter. Default is None.
                 der_order (int, optional): Order at which to calculate the numerical derivatives. Default is 2.
@@ -279,9 +277,6 @@ class StableEMRIFisher:
             
         if EMRI_waveform_gen == None:
             raise ValueError("Please set up EMRI waveform model and pass as argument.")
-
-        # Set up GPU
-        use_gpu = True
          
         #initializing parameters
         self.M = M
@@ -312,7 +307,6 @@ class StableEMRIFisher:
         # Initilising FM details
         self.order = der_order
         self.Ndelta = Ndelta
-        self.use_gpu = use_gpu
         self.window = window
         self.SFN = stats_for_nerds
 
@@ -384,9 +378,6 @@ class StableEMRIFisher:
             raise ValueError("Number of FM parameter labels do not match parameter labels") 
         # elif param_args != None and additional_args_flag == False
         #     raise ValueError("param_args must not be a list if there are additional_args_flag is False") 
-
-
-        print("Extra parameter!")
         
         #initializing deltas
         self.deltas = deltas #Use deltas == None as a Flag
@@ -403,37 +394,9 @@ class StableEMRIFisher:
         self.T = final_time/YRSID_SI # Years
     
     def __call__(self):
-        # Generate base waveform
-        
-        param_vals = list(self.wave_params.values())
-
-        self.waveform = self.waveform_generator(*param_vals, mich=self.mich, dt=self.dt, T=self.T)
-        
-        # If we use LWA, extract real and imaginary components (channels 1 and 2)
-        if self.response == "LWA":
-            self.waveform = [self.waveform.real, self.waveform.imag]
-                        
-        # Extract fourier frequencies
-        self.length = len(self.waveform[0])
-        self.freq = cp.fft.rfftfreq(self.length)/self.dt
-        self.df = 1/(self.length * self.dt)
-
-        # Compute evolution time of EMRI 
-        T = (self.df * YRSID_SI)**-1
-
-        freq_np = cp.asnumpy(self.freq) # Compute frequencies
-
-        # Generate PSDs given LWA/TDI variables
-        if self.response == "TDI1" or self.response == "TDI2":
-            PSD = 2*[noise_PSD_AE(freq_np[1:], TDI = self.response)]
-        else:
-            PSD = 2*[sensitivity_LWA(freq_np[1:])]  
-        PSD_cp = [cp.asarray(item) for item in PSD] # Convert to cupy array
-        
-        self.PSD_funcs = PSD_cp[0:len(self.channels)] # Choose which channels to include
 
         # Compute SNR 
-        rho = self.SNRcalc(self.waveform, self.df, self.PSD_funcs, self.window)
+        rho = self.SNRcalc()
 
         self.SNR2 = rho**2
 
@@ -481,20 +444,43 @@ class StableEMRIFisher:
             
         return Fisher, covariance
 
-    def SNRcalc(self, waveform, df, PSD_funcs, window = None):
+    def SNRcalc(self):
         """
-        Give the SNR of a given waveform.
-
-        Args:
-            waveform (ndarray): time series waveform for which SNR is to be calculated.
-            df (float): sampling rate of the signal in Hz.
-            PSD_funcs: channel wise PSD of the detector in the chosen sensitivity curve approximation.
+        Give the SNR of a given waveform after SEF initialization.
 
         Returns:
             float: SNR of the source.
         """
+        param_vals = list(self.wave_params.values())
+	
+        print(param_vals)
+	
+        self.waveform = self.waveform_generator(*param_vals, mich=self.mich, dt=self.dt, T=self.T)
         
-        return cp.asnumpy(np.sqrt(inner_product(waveform,waveform, df, PSD_funcs, window)).real)
+        # If we use LWA, extract real and imaginary components (channels 1 and 2)
+        if self.response == "LWA":
+            self.waveform = [self.waveform.real, self.waveform.imag]
+                        
+        # Extract fourier frequencies
+        self.length = len(self.waveform[0])
+        self.freq = cp.fft.rfftfreq(self.length)/self.dt
+        self.df = 1/(self.length * self.dt)
+
+        # Compute evolution time of EMRI 
+        T = (self.df * YRSID_SI)**-1
+
+        freq_np = cp.asnumpy(self.freq) # Compute frequencies
+
+        # Generate PSDs given LWA/TDI variables
+        if self.response == "TDI1" or self.response == "TDI2":
+            PSD = 2*[noise_PSD_AE(freq_np[1:], TDI = self.response)]
+        else:
+            PSD = 2*[sensitivity_LWA(freq_np[1:])]  
+        PSD_cp = [cp.asarray(item) for item in PSD] # Convert to cupy array
+        
+        self.PSD_funcs = PSD_cp[0:len(self.channels)] # Choose which channels to include
+        
+        return cp.asnumpy(np.sqrt(inner_product(self.waveform,self.waveform, self.df, self.PSD_funcs, self.window)).real)
     
     def check_if_plunging(self):
         """

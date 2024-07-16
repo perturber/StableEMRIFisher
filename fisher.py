@@ -459,7 +459,7 @@ class StableEMRIFisher:
         
         # If we use LWA, extract real and imaginary components (channels 1 and 2)
         if self.response == "LWA":
-            self.waveform = [self.waveform.real, self.waveform.imag]
+            self.waveform = cp.asarray([self.waveform.real, self.waveform.imag])
                         
         # Extract fourier frequencies
         self.length = len(self.waveform[0])
@@ -589,7 +589,7 @@ class StableEMRIFisher:
             
                 return derivative
         
-            temp = self.param.copy()
+            temp = self.wave_params.copy()
             if temp['a'] < 0:           # Handle retrograde case.  
                 temp['a'] *= -1.0
                 temp['Y0'] = -1.0
@@ -605,8 +605,11 @@ class StableEMRIFisher:
                                         T = self.T,\
                                         dt = self.dt
                                         ))
+
+            if self.response == "LWA":
+                waveform_2plus = cp.asarray([waveform_2plus.real, waveform_2plus.imag])
  
-            temp = self.param.copy()
+            temp = self.wave_params.copy()
 
             temp[self.param_names[i]] -= 2*delta
             if self.SFN:
@@ -623,6 +626,9 @@ class StableEMRIFisher:
                                         dt = self.dt
                                         ))
 
+            if self.response == "LWA":
+                waveform_2minus = cp.asarray([waveform_2minus.real, waveform_2minus.imag])
+
             #padding
             waveform_2plus = padding(waveform_2plus,self.waveform)
             waveform_2minus = padding(waveform_2minus,self.waveform)
@@ -638,7 +644,7 @@ class StableEMRIFisher:
                 
                 return derivative
             
-            temp = self.param.copy()
+            temp = self.wave_params.copy()
             
             if temp['a'] < 0:           # Handle retrograde case.  
                 temp['a'] *= -1.0
@@ -655,8 +661,11 @@ class StableEMRIFisher:
                                         T = self.T,
                                         dt = self.dt
                                         ))
+
+            if self.response == "LWA":
+                waveform_3plus = cp.asarray([waveform_3plus.real, waveform_3plus.imag])
             
-            temp = self.param.copy()
+            temp = self.wave_params.copy()
             
             temp[self.param_names[i]] -= 3*delta
             if self.SFN:
@@ -674,6 +683,9 @@ class StableEMRIFisher:
                                         dt = self.dt
                                         ))
 
+            if self.response == "LWA":
+                waveform_3minus = cp.asarray([waveform_3minus.real, waveform_3minus.imag])
+
             #padding
             waveform_3plus = padding(waveform_3plus,self.waveform)
             waveform_3minus = padding(waveform_3minus,self.waveform)
@@ -688,7 +700,7 @@ class StableEMRIFisher:
                 
                 return derivative
             
-            temp = self.param.copy()
+            temp = self.wave_params.copy()
     
             temp[self.param_names[i]] += 4*delta
             if self.SFN:
@@ -701,8 +713,11 @@ class StableEMRIFisher:
                             T = self.T,
                             dt = self.dt
                             ))
+
+            if self.response == "LWA":
+                waveform_4plus = cp.asarray([waveform_4plus.real, waveform_4plus.imag])
             
-            temp = self.param.copy()
+            temp = self.wave_params.copy()
     
             temp[self.param_names[i]] -= 4*delta
             if self.SFN:
@@ -719,6 +734,10 @@ class StableEMRIFisher:
                                             T = self.T,
                                             dt = self.dt
                                             ))
+
+            if self.response == "LWA":
+                waveform_4minus = cp.asarray([waveform_4minus.real, waveform_4minus.imag])
+                
             #padding
             waveform_4plus = padding(waveform_4plus,self.waveform)
             waveform_4minus = padding(waveform_4minus,self.waveform)
@@ -731,6 +750,259 @@ class StableEMRIFisher:
 
             del derivs_to_delete  
             return derivative
+
+    def forward_derivative(self, i, delta):
+
+        if self.order > 4:
+            warnings.warn('forward derivatives only available to 4th order accuracy. Setting der_order = 4')
+            self.order = 4
+
+        warnings.warn(f"calculating forward derivatives of order {self.order} for param {self.param_names[i]}")
+
+        if self.param_names[i] == 'dist':
+            # Compute derivative analytically for the distance
+            derivative = (-1/self.dist) * cp.asarray(self.waveform)
+            return derivative
+
+        #modifying the given parameter
+        temp = self.wave_params.copy()
+        if temp['a'] < 0:           # Handle retrograde case.  
+            temp['a'] *= -1.0
+            temp['Y0'] = -1.0
+
+        temp[self.param_names[i]] += delta
+        # Print details if wanted
+        if self.SFN:    
+            print("For parameter",self.param_names[i])
+            print(self.param_names[i],' = ', temp[self.param_names[i]])
+        
+        temp_vals = list(temp.values())
+        waveform_plus = cp.asarray(self.waveform_generator(
+                                    *temp_vals,
+                                    mich=self.mich,\
+                                    T = self.T,\
+                                    dt = self.dt
+                                    ))
+        if self.response == "LWA":
+            waveform_plus = cp.asarray([waveform_plus.real, waveform_plus.imag])
+
+        #padding
+        waveform_plus = padding(waveform_plus,self.waveform)
+    
+        temp = self.wave_params.copy()
+        if temp['a'] < 0:           # Handle retrograde case.  
+            temp['a'] *= -1.0
+            temp['Y0'] = -1.0
+
+        temp[self.param_names[i]] += 2*delta
+        if self.SFN:
+            print(self.param_names[i],' = ', temp[self.param_names[i]])
+            
+        temp_vals = list(temp.values())
+        waveform_2plus = cp.asarray(self.waveform_generator(
+                                    *temp_vals,
+                                    mich=self.mich,\
+                                    T = self.T,\
+                                    dt = self.dt
+                                    ))
+
+        if self.response == "LWA":
+            waveform_2plus = cp.asarray([waveform_2plus.real, waveform_2plus.imag])
+
+        #padding
+        waveform_2plus = padding(waveform_2plus,self.waveform)
+        
+        derivs_to_delete = [waveform_plus, waveform_2plus]
+        
+        # Actually compute derivative
+        if self.order == 2:
+                 
+            derivative = (2*waveform_plus - 3/2*self.waveform -1/2*waveform_2plus)/delta
+
+            del derivs_to_delete 
+        
+            return derivative
+        
+        temp = self.wave_params.copy()
+        
+        if temp['a'] < 0:           # Handle retrograde case.  
+            temp['a'] *= -1.0
+            temp['Y0'] = -1.0
+
+        temp[self.param_names[i]] += 3*delta
+        if self.SFN:
+            print(self.param_names[i],' = ', temp[self.param_names[i]])
+            
+        temp_vals = list(temp.values())
+        waveform_3plus = cp.asarray(self.waveform_generator(
+                                    *temp_vals,
+                                    mich=self.mich,
+                                    T = self.T,
+                                    dt = self.dt
+                                    ))
+
+        if self.response == "LWA":
+            waveform_3plus = cp.asarray([waveform_3plus.real, waveform_3plus.imag])
+        
+        #padding
+        waveform_3plus = padding(waveform_3plus,self.waveform)
+        
+        derivs_to_delete += [waveform_3plus]            
+        
+        temp = self.wave_params.copy()
+
+        temp[self.param_names[i]] += 4*delta
+        if self.SFN:
+            print(self.param_names[i],' = ', temp[self.param_names[i]])
+            
+        temp_vals = list(temp.values())
+        waveform_4plus = cp.asarray(self.waveform_generator(
+                        *temp_vals,
+                        mich=self.mich,
+                        T = self.T,
+                        dt = self.dt
+                        ))
+
+        if self.response == "LWA":
+            waveform_4plus = cp.asarray([waveform_4plus.real, waveform_4plus.imag])
+        
+        #padding
+        waveform_4plus = padding(waveform_4plus,self.waveform)
+        
+        derivs_to_delete += [waveform_4plus]    
+
+        #4th order finite difference differentiation
+        derivative = (self.waveform*(-25/12) + waveform_plus*4 + waveform_2plus*(-3) + waveform_3plus*(4/3) + waveform_4plus*(-1/4))/delta
+
+        del derivs_to_delete  
+        return derivative
+
+    def backward_derivative(self, i, delta):
+
+        if self.order > 4:
+            warnings.warn('backward derivatives only available to 4th order accuracy. Setting der_order = 4')
+            self.order = 4
+
+        warnings.warn(f"calculating backward derivatives of order {self.order} for param {self.param_names[i]}")
+
+        if self.param_names[i] == 'dist':
+            # Compute derivative analytically for the distance
+            derivative = (-1/self.dist) * cp.asarray(self.waveform)
+            return derivative
+
+        #modifying the given parameter
+        temp = self.wave_params.copy()
+        if temp['a'] < 0:           # Handle retrograde case.  
+            temp['a'] *= -1.0
+            temp['Y0'] = -1.0
+
+        temp[self.param_names[i]] -= delta
+        # Print details if wanted
+        if self.SFN:    
+            print("For parameter",self.param_names[i])
+            print(self.param_names[i],' = ', temp[self.param_names[i]])
+        
+        temp_vals = list(temp.values())
+        waveform_minus = cp.asarray(self.waveform_generator(
+                                    *temp_vals,
+                                    mich=self.mich,\
+                                    T = self.T,\
+                                    dt = self.dt
+                                    ))
+        if self.response == "LWA":
+            waveform_minus = cp.asarray([waveform_minus.real, waveform_minus.imag])
+
+        #padding
+        waveform_minus = padding(waveform_minus,self.waveform)
+    
+        temp = self.wave_params.copy()
+        if temp['a'] < 0:           # Handle retrograde case.  
+            temp['a'] *= -1.0
+            temp['Y0'] = -1.0
+
+        temp[self.param_names[i]] -= 2*delta
+        if self.SFN:
+            print(self.param_names[i],' = ', temp[self.param_names[i]])
+            
+        temp_vals = list(temp.values())
+        waveform_2minus = cp.asarray(self.waveform_generator(
+                                    *temp_vals,
+                                    mich=self.mich,\
+                                    T = self.T,\
+                                    dt = self.dt
+                                    ))
+
+        if self.response == "LWA":
+            waveform_2minus = cp.asarray([waveform_2minus.real, waveform_2minus.imag])
+
+        #padding
+        waveform_2minus = padding(waveform_2minus,self.waveform)
+        
+        derivs_to_delete = [waveform_minus, waveform_2minus]
+        
+        # Actually compute derivative
+        if self.order == 2:
+                 
+            derivative = -(2*waveform_minus - 3/2*self.waveform -1/2*waveform_2minus)/delta
+
+            del derivs_to_delete 
+        
+            return derivative
+        
+        temp = self.wave_params.copy()
+        
+        if temp['a'] < 0:           # Handle retrograde case.  
+            temp['a'] *= -1.0
+            temp['Y0'] = -1.0
+
+        temp[self.param_names[i]] -= 3*delta
+        if self.SFN:
+            print(self.param_names[i],' = ', temp[self.param_names[i]])
+            
+        temp_vals = list(temp.values())
+        waveform_3minus = cp.asarray(self.waveform_generator(
+                                    *temp_vals,
+                                    mich=self.mich,
+                                    T = self.T,
+                                    dt = self.dt
+                                    ))
+
+        if self.response == "LWA":
+            waveform_3minus = cp.asarray([waveform_3minus.real, waveform_3minus.imag])
+        
+        #padding
+        waveform_3minus = padding(waveform_3minus,self.waveform)
+        
+        derivs_to_delete += [waveform_3minus]            
+        
+        temp = self.wave_params.copy()
+
+        temp[self.param_names[i]] -= 4*delta
+        if self.SFN:
+            print(self.param_names[i],' = ', temp[self.param_names[i]])
+            
+        temp_vals = list(temp.values())
+        waveform_4minus = cp.asarray(self.waveform_generator(
+                        *temp_vals,
+                        mich=self.mich,
+                        T = self.T,
+                        dt = self.dt
+                        ))
+
+        if self.response == "LWA":
+            waveform_4minus = cp.asarray([waveform_4minus.real, waveform_4minus.imag])
+        
+        #padding
+        waveform_4minus = padding(waveform_4minus,self.waveform)
+        
+        derivs_to_delete += [waveform_4minus]    
+
+        #4th order finite difference differentiation
+        derivative = -(self.waveform*(-25/12) + waveform_minus*4 + waveform_2minus*(-3) + waveform_3minus*(4/3) + waveform_4minus*(-1/4))/delta
+
+        del derivs_to_delete
+        
+        return derivative
     
 
 
@@ -774,7 +1046,19 @@ class StableEMRIFisher:
                     break
                 else:
                     # print("For a choice of delta =",delta_init[k])
-                    del_k = self.derivative(i,delta_init[k])
+                    
+                    minmax = {'Phi_phi0':[0.1,2*np.pi-0.1],'Phi_r0':[0.1,np.pi-0.1],'Phi_theta0':[0.1,np.pi-0.1],
+                              'qS':[0.1,np.pi-0.1],'qK':[0.1,np.pi-0.1],'phiS':[0.1,2*np.pi-0.1],'phiK':[0.1,2*np.pi-0.1]}
+                    
+                    if self.param_names[i] in ['Phi_phi0','Phi_r0','Phi_theta0','qS','qK','phiS','phiK']:
+                        if self.wave_params[self.param_names[i]] <= minmax[self.param_names[i]][0]:
+                            del_k = self.forward_derivative(i,delta_init[k])
+                        elif self.wave_params[self.param_names[i]] >= minmax[self.param_names[i]][1]:
+                            del_k = self.backward_derivative(i,delta_init[k])
+                        else:
+                            del_k = self.derivative(i,delta_init[k])
+                    else:
+                        del_k = self.derivative(i,delta_init[k])
 
                 #Calculating the Fisher Elements
                 Gammai = inner_product(del_k,del_k, self.df, self.PSD_funcs,self.window)
@@ -822,11 +1106,24 @@ class StableEMRIFisher:
         Fisher = np.zeros((Fisher_size,Fisher_size), dtype=np.float64)
         dtv = []
         for i in range(len(self.param_names)):
+            
             if self.waveform_model_choice == "SchwarzEccFlux" and self.param_names[i] in ['a', 'Y0', 'Phi_theta0']: 
                 warnings.warn(f"{self.param_names[i]} unmeasurable in {self.waveform_model_choice} EMRI model.")
             elif self.waveform_model_choice == "KerrEccentricEquatorial" and self.param_names[i] in ['Y0', 'Phi_theta0']: 
                 warnings.warn(f"{self.param_names[i]} unmeasurable in {self.waveform_model_choice} EMRI model.")
-            dtv.append(self.derivative(i, self.deltas[self.param_names[i]]))
+
+            minmax = {'Phi_phi0':[0.1,2*np.pi-0.1],'Phi_r0':[0.1,np.pi-0.1],'Phi_theta0':[0.1,np.pi-0.1],
+                      'qS':[0.1,np.pi-0.1],'qK':[0.1,np.pi-0.1],'phiS':[0.1,2*np.pi-0.1],'phiK':[0.1,2*np.pi-0.1]}
+                    
+            if self.param_names[i] in ['Phi_phi0','Phi_r0','Phi_theta0','qS','qK','phiS','phiK']:
+                if self.wave_params[self.param_names[i]] <= minmax[self.param_names[i]][0]:
+                    dtv.append(self.forward_derivative(i,self.deltas[self.param_names[i]]))
+                elif self.wave_params[self.param_names[i]] >= minmax[self.param_names[i]][1]:
+                    dtv.append(self.backward_derivative(i,self.deltas[self.param_names[i]]))
+                else:
+                    dtv.append(self.derivative(i,self.deltas[self.param_names[i]]))
+            else:
+                dtv.append(self.derivative(i, self.deltas[self.param_names[i]]))
 
         print("Finished derivatives")
 
@@ -907,3 +1204,4 @@ class StableEMRIFisher:
                 plt.savefig(f'{self.filename}/CovEllipse_{self.filename}_{suffix}.png',dpi=300,bbox_inches='tight')
             else:
                 plt.savefig(f'{self.filename}/CovEllipse.png',dpi=300,bbox_inches='tight')
+

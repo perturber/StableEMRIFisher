@@ -1145,24 +1145,17 @@ class StableEMRIFisher:
         # Check for positive-definiteness
         if (np.linalg.eigvals(Fisher) <= 0.0).any():
             warnings.warn("Calculated Fisher is not positive-definite. Try lowering inspiral error tolerance or increasing the derivative order.")
-            if self.filename == None:
-                pass
-            else:
-                if self.suffix != None:
-                    np.save(f'{self.filename}/notFisher_{self.suffix}.npy',Fisher) #"not" is for Fishers with failed positive-definiteness
-                else:
-                    np.save(f'{self.filename}/notFisher.npy',Fisher)
         else:
             print("Calculated Fisher is *atleast* positive-definite.")
 
         
-            if self.filename == None:
-                pass
+        if self.filename == None:
+            pass
+        else:
+            if self.suffix != None:
+                np.save(f'{self.filename}/Fisher_{self.suffix}.npy',Fisher)
             else:
-                if self.suffix != None:
-                    np.save(f'{self.filename}/Fisher_{self.suffix}.npy',Fisher)
-                else:
-                    np.save(f'{self.filename}/Fisher.npy',Fisher)
+                np.save(f'{self.filename}/Fisher.npy',Fisher)
                     
         return Fisher
 

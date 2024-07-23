@@ -360,6 +360,10 @@ class StableEMRIFisher:
                       'Phi_theta0':Phi_theta0,
                       'Phi_r0':Phi_r0,
                       }
+                      
+        self.minmax = {'Phi_phi0':[0.1,2*np.pi*(0.99)],'Phi_r0':[0.1,np.pi*(0.99)],'Phi_theta0':[0.1,np.pi*(0.99)],
+                              'qS':[0.1,np.pi*(0.99)],'qK':[0.1,np.pi*(0.99)],'phiS':[0.1,2*np.pi(0.99)],'phiK':[0.1,2*np.pi*(0.99)]}
+                                            
         self.traj_params = dict(list(self.wave_params.items())[:6]) 
 
         #initialise extra args, add them to wave_params/traj_params
@@ -403,7 +407,7 @@ class StableEMRIFisher:
         print('Waveform Generated. SNR: ', rho)
         
         #making parent folder
-        if self.filename != None:
+        if self.filename != '':
             if not os.path.exists(self.filename):
                 os.makedirs(self.filename)
                 
@@ -543,12 +547,20 @@ class StableEMRIFisher:
                 print(self.param_names[i],' = ', temp[self.param_names[i]])
             
             temp_vals = list(temp.values())
-            waveform_plus = cp.asarray(self.waveform_generator(
-                                        *temp_vals,
-                                        mich=self.mich,\
-                                        T = self.T,\
-                                        dt = self.dt
-                                        ))
+            
+            try:
+                waveform_plus = cp.asarray(self.waveform_generator(
+	                                    *temp_vals,
+	                                    mich=self.mich,\
+	                                    T = self.T,\
+	                                    dt = self.dt
+	                                    ))
+            except:
+                waveform_plus = cp.asarray(self.waveform_generator(
+	                                    *temp_vals,
+	                                    T = self.T,\
+	                                    dt = self.dt
+	                                    ))
             if self.response == "LWA":
                 waveform_plus = cp.asarray([waveform_plus.real, waveform_plus.imag])
 
@@ -565,9 +577,16 @@ class StableEMRIFisher:
 
             # f(x - h)
             temp_vals = list(temp.values())
-            waveform_minus = cp.asarray(self.waveform_generator(
+            try:
+                waveform_minus = cp.asarray(self.waveform_generator(
                                         *temp_vals,
                                         mich=self.mich,\
+                                        T = self.T,\
+                                        dt = self.dt
+                                        ))
+            except:
+                waveform_minus = cp.asarray(self.waveform_generator(
+                                        *temp_vals,
                                         T = self.T,\
                                         dt = self.dt
                                         ))
@@ -599,9 +618,17 @@ class StableEMRIFisher:
                 print(self.param_names[i],' = ', temp[self.param_names[i]])
                 
             temp_vals = list(temp.values())
-            waveform_2plus = cp.asarray(self.waveform_generator(
+            
+            try:
+                waveform_2plus = cp.asarray(self.waveform_generator(
                                         *temp_vals,
                                         mich=self.mich,\
+                                        T = self.T,\
+                                        dt = self.dt
+                                        ))
+            except:
+                waveform_2plus = cp.asarray(self.waveform_generator(
+                                        *temp_vals,
                                         T = self.T,\
                                         dt = self.dt
                                         ))
@@ -619,9 +646,18 @@ class StableEMRIFisher:
                 temp['a'] *= -1.0
                 temp['Y0'] = -1.0
             temp_vals = list(temp.values())
-            waveform_2minus = cp.asarray(self.waveform_generator(
+            
+            try:
+                waveform_2minus = cp.asarray(self.waveform_generator(
                                         *temp_vals,
                                         mich=self.mich,
+                                        T = self.T,\
+                                        dt = self.dt
+                                        ))
+                                        
+            except:
+                waveform_2minus = cp.asarray(self.waveform_generator(
+                                        *temp_vals,
                                         T = self.T,\
                                         dt = self.dt
                                         ))
@@ -655,12 +691,21 @@ class StableEMRIFisher:
                 print(self.param_names[i],' = ', temp[self.param_names[i]])
                 
             temp_vals = list(temp.values())
-            waveform_3plus = cp.asarray(self.waveform_generator(
+            
+            try:
+                waveform_3plus = cp.asarray(self.waveform_generator(
                                         *temp_vals,
                                         mich=self.mich,
                                         T = self.T,
                                         dt = self.dt
                                         ))
+                                        
+            except:
+                waveform_3plus = cp.asarray(self.waveform_generator(
+                                        *temp_vals,
+                                        T = self.T,
+                                        dt = self.dt
+                                        ))                         
 
             if self.response == "LWA":
                 waveform_3plus = cp.asarray([waveform_3plus.real, waveform_3plus.imag])
@@ -676,13 +721,24 @@ class StableEMRIFisher:
                 temp['Y0'] = -1.0
                 
             temp_vals = list(temp.values())
-            waveform_3minus = cp.asarray(self.waveform_generator(
+            
+            try:
+            
+                waveform_3minus = cp.asarray(self.waveform_generator(
                                         *temp_vals,
                                         mich=self.mich,
                                         T = self.T,
                                         dt = self.dt
                                         ))
 
+            except:
+            
+                waveform_3minus = cp.asarray(self.waveform_generator(
+                                        *temp_vals,
+                                        T = self.T,
+                                        dt = self.dt
+                                        ))
+            
             if self.response == "LWA":
                 waveform_3minus = cp.asarray([waveform_3minus.real, waveform_3minus.imag])
 
@@ -707,12 +763,21 @@ class StableEMRIFisher:
                 print(self.param_names[i],' = ', temp[self.param_names[i]])
                 
             temp_vals = list(temp.values())
-            waveform_4plus = cp.asarray(self.waveform_generator(
+            
+            try:
+                waveform_4plus = cp.asarray(self.waveform_generator(
                             *temp_vals,
                             mich=self.mich,
                             T = self.T,
                             dt = self.dt
                             ))
+            except:
+                waveform_4plus = cp.asarray(self.waveform_generator(
+                            *temp_vals,
+                            T = self.T,
+                            dt = self.dt
+                            ))
+
 
             if self.response == "LWA":
                 waveform_4plus = cp.asarray([waveform_4plus.real, waveform_4plus.imag])
@@ -728,12 +793,23 @@ class StableEMRIFisher:
                 temp['Y0'] = -1.0
     
             temp_vals = list(temp.values())
-            waveform_4minus = cp.asarray(self.waveform_generator(
+            
+            try:
+            
+                waveform_4minus = cp.asarray(self.waveform_generator(
                                             *temp_vals,
                                             mich=self.mich,
                                             T = self.T,
                                             dt = self.dt
                                             ))
+            except:
+            
+                waveform_4minus = cp.asarray(self.waveform_generator(
+                                            *temp_vals,
+                                            T = self.T,
+                                            dt = self.dt
+                                            ))
+
 
             if self.response == "LWA":
                 waveform_4minus = cp.asarray([waveform_4minus.real, waveform_4minus.imag])
@@ -777,12 +853,24 @@ class StableEMRIFisher:
             print(self.param_names[i],' = ', temp[self.param_names[i]])
         
         temp_vals = list(temp.values())
-        waveform_plus = cp.asarray(self.waveform_generator(
+        
+        try:
+        
+            waveform_plus = cp.asarray(self.waveform_generator(
                                     *temp_vals,
                                     mich=self.mich,\
                                     T = self.T,\
                                     dt = self.dt
                                     ))
+                                    
+        except:
+        
+            waveform_plus = cp.asarray(self.waveform_generator(
+                                    *temp_vals,
+                                    T = self.T,\
+                                    dt = self.dt
+                                    ))
+                                                                
         if self.response == "LWA":
             waveform_plus = cp.asarray([waveform_plus.real, waveform_plus.imag])
 
@@ -799,9 +887,20 @@ class StableEMRIFisher:
             print(self.param_names[i],' = ', temp[self.param_names[i]])
             
         temp_vals = list(temp.values())
-        waveform_2plus = cp.asarray(self.waveform_generator(
+        
+        try:
+        
+            waveform_2plus = cp.asarray(self.waveform_generator(
                                     *temp_vals,
                                     mich=self.mich,\
+                                    T = self.T,\
+                                    dt = self.dt
+                                    ))
+                                    
+        except:
+        
+            waveform_2plus = cp.asarray(self.waveform_generator(
+                                    *temp_vals,
                                     T = self.T,\
                                     dt = self.dt
                                     ))
@@ -834,9 +933,18 @@ class StableEMRIFisher:
             print(self.param_names[i],' = ', temp[self.param_names[i]])
             
         temp_vals = list(temp.values())
-        waveform_3plus = cp.asarray(self.waveform_generator(
+        
+        try:
+        
+            waveform_3plus = cp.asarray(self.waveform_generator(
                                     *temp_vals,
                                     mich=self.mich,
+                                    T = self.T,
+                                    dt = self.dt
+                                    ))
+        except:
+            waveform_3plus = cp.asarray(self.waveform_generator(
+                                    *temp_vals,
                                     T = self.T,
                                     dt = self.dt
                                     ))
@@ -856,9 +964,20 @@ class StableEMRIFisher:
             print(self.param_names[i],' = ', temp[self.param_names[i]])
             
         temp_vals = list(temp.values())
-        waveform_4plus = cp.asarray(self.waveform_generator(
+        
+        try:
+        
+            waveform_4plus = cp.asarray(self.waveform_generator(
                         *temp_vals,
                         mich=self.mich,
+                        T = self.T,
+                        dt = self.dt
+                        ))
+                        
+        except:
+        
+            waveform_4plus = cp.asarray(self.waveform_generator(
+                        *temp_vals,
                         T = self.T,
                         dt = self.dt
                         ))
@@ -903,12 +1022,24 @@ class StableEMRIFisher:
             print(self.param_names[i],' = ', temp[self.param_names[i]])
         
         temp_vals = list(temp.values())
-        waveform_minus = cp.asarray(self.waveform_generator(
+        
+        try:
+        
+            waveform_minus = cp.asarray(self.waveform_generator(
                                     *temp_vals,
                                     mich=self.mich,\
                                     T = self.T,\
                                     dt = self.dt
                                     ))
+                                    
+        except:
+        
+            waveform_minus = cp.asarray(self.waveform_generator(
+                                    *temp_vals,
+                                    T = self.T,\
+                                    dt = self.dt
+                                    ))  
+                                                                  
         if self.response == "LWA":
             waveform_minus = cp.asarray([waveform_minus.real, waveform_minus.imag])
 
@@ -925,9 +1056,20 @@ class StableEMRIFisher:
             print(self.param_names[i],' = ', temp[self.param_names[i]])
             
         temp_vals = list(temp.values())
-        waveform_2minus = cp.asarray(self.waveform_generator(
+        
+        try:
+        
+            waveform_2minus = cp.asarray(self.waveform_generator(
                                     *temp_vals,
                                     mich=self.mich,\
+                                    T = self.T,\
+                                    dt = self.dt
+                                    ))
+                                    
+        except:
+        
+            waveform_2minus = cp.asarray(self.waveform_generator(
+                                    *temp_vals,
                                     T = self.T,\
                                     dt = self.dt
                                     ))
@@ -960,9 +1102,20 @@ class StableEMRIFisher:
             print(self.param_names[i],' = ', temp[self.param_names[i]])
             
         temp_vals = list(temp.values())
-        waveform_3minus = cp.asarray(self.waveform_generator(
+        
+        try:
+        
+            waveform_3minus = cp.asarray(self.waveform_generator(
                                     *temp_vals,
                                     mich=self.mich,
+                                    T = self.T,
+                                    dt = self.dt
+                                    ))
+                                    
+        except:
+        
+            waveform_3minus = cp.asarray(self.waveform_generator(
+                                    *temp_vals,
                                     T = self.T,
                                     dt = self.dt
                                     ))
@@ -982,9 +1135,20 @@ class StableEMRIFisher:
             print(self.param_names[i],' = ', temp[self.param_names[i]])
             
         temp_vals = list(temp.values())
-        waveform_4minus = cp.asarray(self.waveform_generator(
+        
+        try:
+        
+            waveform_4minus = cp.asarray(self.waveform_generator(
                         *temp_vals,
                         mich=self.mich,
+                        T = self.T,
+                        dt = self.dt
+                        ))
+                        
+        except:
+        
+            waveform_4minus = cp.asarray(self.waveform_generator(
+                        *temp_vals,
                         T = self.T,
                         dt = self.dt
                         ))
@@ -1047,13 +1211,10 @@ class StableEMRIFisher:
                 else:
                     # print("For a choice of delta =",delta_init[k])
                     
-                    minmax = {'Phi_phi0':[0.1,2*np.pi-0.1],'Phi_r0':[0.1,np.pi-0.1],'Phi_theta0':[0.1,np.pi-0.1],
-                              'qS':[0.1,np.pi-0.1],'qK':[0.1,np.pi-0.1],'phiS':[0.1,2*np.pi-0.1],'phiK':[0.1,2*np.pi-0.1]}
-                    
-                    if self.param_names[i] in ['Phi_phi0','Phi_r0','Phi_theta0','qS','qK','phiS','phiK']:
-                        if self.wave_params[self.param_names[i]] <= minmax[self.param_names[i]][0]:
+                    if self.param_names[i] in list(self.minmax.keys()):
+                        if self.wave_params[self.param_names[i]] <= self.minmax[self.param_names[i]][0]:
                             del_k = self.forward_derivative(i,delta_init[k])
-                        elif self.wave_params[self.param_names[i]] >= minmax[self.param_names[i]][1]:
+                        elif self.wave_params[self.param_names[i]] > self.minmax[self.param_names[i]][1]:
                             del_k = self.backward_derivative(i,delta_init[k])
                         else:
                             del_k = self.derivative(i,delta_init[k])
@@ -1067,7 +1228,11 @@ class StableEMRIFisher:
             
             if relerr_flag == False:
                 Gamma = cp.asnumpy(cp.array(Gamma))
-                relerr = np.abs(Gamma[1:] - Gamma[:-1])/Gamma[1:]
+                
+                if (Gamma[1:] == 0.).any(): #handle non-contributing parameters
+                    relerr = np.ones(len(Gamma)-1)
+                else:    
+                    relerr = np.abs(Gamma[1:] - Gamma[:-1])/Gamma[1:]
                 if self.SFN:
                     print(relerr)
                 
@@ -1089,7 +1254,7 @@ class StableEMRIFisher:
         self.save_deltas()
 
     def save_deltas(self):
-        if self.filename != None:
+        if self.filename != '':
             if self.suffix != None:
                 with open(f"{self.filename}/stable_deltas_{self.suffix}.txt", "w", newline="") as file:
                     file.write(str(self.deltas))
@@ -1111,14 +1276,11 @@ class StableEMRIFisher:
                 warnings.warn(f"{self.param_names[i]} unmeasurable in {self.waveform_model_choice} EMRI model.")
             elif self.waveform_model_choice == "KerrEccentricEquatorial" and self.param_names[i] in ['Y0', 'Phi_theta0']: 
                 warnings.warn(f"{self.param_names[i]} unmeasurable in {self.waveform_model_choice} EMRI model.")
-
-            minmax = {'Phi_phi0':[0.1,2*np.pi-0.1],'Phi_r0':[0.1,np.pi-0.1],'Phi_theta0':[0.1,np.pi-0.1],
-                      'qS':[0.1,np.pi-0.1],'qK':[0.1,np.pi-0.1],'phiS':[0.1,2*np.pi-0.1],'phiK':[0.1,2*np.pi-0.1]}
                     
-            if self.param_names[i] in ['Phi_phi0','Phi_r0','Phi_theta0','qS','qK','phiS','phiK']:
-                if self.wave_params[self.param_names[i]] <= minmax[self.param_names[i]][0]:
+            if self.param_names[i] in list(self.minmax.keys()):
+                if self.wave_params[self.param_names[i]] <= self.minmax[self.param_names[i]][0]:
                     dtv.append(self.forward_derivative(i,self.deltas[self.param_names[i]]))
-                elif self.wave_params[self.param_names[i]] >= minmax[self.param_names[i]][1]:
+                elif self.wave_params[self.param_names[i]] > self.minmax[self.param_names[i]][1]:
                     dtv.append(self.backward_derivative(i,self.deltas[self.param_names[i]]))
                 else:
                     dtv.append(self.derivative(i,self.deltas[self.param_names[i]]))
@@ -1149,7 +1311,7 @@ class StableEMRIFisher:
             print("Calculated Fisher is *atleast* positive-definite.")
 
         
-        if self.filename == None:
+        if self.filename == '':
             pass
         else:
             if self.suffix != None:

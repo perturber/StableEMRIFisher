@@ -383,23 +383,22 @@ class StableEMRIFisher:
                     relerr = np.ones(len(Gamma)-1)
                 else:    
                     relerr = np.abs(Gamma[1:] - Gamma[:-1])/Gamma[1:]
-                if self.SFN:
-                    logger.debug(relerr)
+
+                logger.debug(relerr)
                 
                 relerr_min_i, = np.where(np.isclose(relerr, np.min(relerr),rtol=1e-1*np.min(relerr),atol=1e-1*np.min(relerr)))
                 if len(relerr_min_i) > 1:
                     relerr_min_i = relerr_min_i[-1]
 
-                if self.SFN:
-                    logger.debug(relerr_min_i)
+                logger.debug(relerr_min_i)
                 
                 if np.min(relerr) >= 0.01:
                     logger.warning('minimum relative error is greater than 1%. Fisher may be unstable!')
 
                 deltas[self.param_names[i]] = delta_init[relerr_min_i].item()
              
-        if self.SFN:
-            logger.debug(f'stable deltas: {deltas}')
+        logger.debug(f'stable deltas: {deltas}')
+        
         self.deltas = deltas
         self.save_deltas()
 

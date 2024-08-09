@@ -1,5 +1,5 @@
 import numpy as np
-from utils import padding
+from stableemrifisher.utils import padding
 import warnings
 
 try:

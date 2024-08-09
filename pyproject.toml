@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["stableemrifisher", "stableemrifisher.fisher"]
+
+[project]
+name = "stableemrifisher"
+version = "0.0.1a"
+requires-python = ">=3.9"
+authors = [
+  {name = "Shubham Kejriwal", email = "shubhamkejriwal@u.nus.edu"},
+  {name = "Ollie Burke", email = "ollie.burke@l2it.in2p3.fr"},
+  {name = "Christian Chapman-Bird", email = "c.chapmanbird@gmail.com"},
+]

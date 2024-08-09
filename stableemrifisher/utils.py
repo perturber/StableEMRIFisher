@@ -83,13 +83,16 @@ def inner_product(a, b, PSD, dt, window = None, use_gpu=False):
     PSD = xp.atleast_2d(PSD)
 
     # Compute inner products over given channels
-    inner_product = 4 * df * ((a_fft.conj() * b_fft).real / PSD).sum()
+    inner_prod = 4 * df * ((a_fft.conj() * b_fft).real / PSD).sum()
 
     #clearing cupy cache  TODO: do we need this any more?
     cache = xp.fft.config.get_plan_cache()
     cache.clear()
     
-    return inner_product
+    if use_gpu:
+        inner_prod = inner_prod.get()
+
+    return inner_prod
 
 def padding(a, b, use_gpu=False):
     """

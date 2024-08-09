@@ -6,7 +6,7 @@ import sys
 from few.trajectory.inspiral import EMRIInspiral
 from few.utils.constants import YRSID_SI
 from stableemrifisher.fisher.derivatives import derivative, handle_a_flip
-from stableemrifisher.utils import inner_product
+from stableemrifisher.utils import inner_product, get_inspiral_overwrite_fun
 from stableemrifisher.noise import noise_PSD_AE, sensitivity_LWA
 from stableemrifisher.plot import CovEllipsePlot
 
@@ -30,8 +30,8 @@ class StableEMRIFisher:
     
     def __init__(self, M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
                  Phi_phi0, Phi_theta0, Phi_r0, dt = 10., T = 1.0, param_args = None, EMRI_waveform_gen = None, window = None,
-                 param_names=None, deltas=None, der_order=2, Ndelta=8, CovMat=False, CovEllipse=False,
-                 Live_Dangerously = False, filename=None, suffix=None, stats_for_nerds=True, use_gpu=False):
+                 param_names=None, deltas=None, der_order=2, Ndelta=8, CovMat=False, CovEllipse=False, interpolation_factor=10,
+                 Live_Dangerously = False, filename=None, suffix=None, stats_for_nerds=True, use_gpu=False, waveform_kwargs=None):
         """
             This class computes the Fisher matrix for an Extreme Mass Ratio Inspiral (EMRI) system.
     
@@ -99,29 +99,53 @@ class StableEMRIFisher:
         if stats_for_nerds:
             logger.setLevel("DEBUG")
 
+        # =============== Initialise Waveform generator ================
+        self.waveform_generator = EMRI_waveform_gen
+
 		# Determine what version of TDI to use or whether to use the LWA 
         try:
-            if EMRI_waveform_gen.response_model.tdi == '1st generation':
+            if self.waveform_generator.response_model.tdi == '1st generation':
                 self.response = "TDI1"
-            elif EMRI_waveform_gen.response_model.tdi == '2nd generation': 
+            elif self.waveform_generator.response_model.tdi == '2nd generation': 
                 self.response = "TDI2"
         except:
             self.response = "LWA"
 
-        self.waveform_kwargs = dict(
-            dt=self.dt,
-            T=self.T
-        )
+        # filthy method for applying our post-trajectory upsampling to curb the erroneous behaviour in current FEW
+        # dont feel bad if you are confused by wtf is going on here, because it is bad practice
+        repl_fun = get_inspiral_overwrite_fun(interpolation_factor=interpolation_factor)
+        
+        if self.response in ["TDI1", "TDI2"]:
+            if hasattr(self.waveform_generator.wave_gen.waveform_generator.inspiral_generator, "get_inspiral_inner"):
+                pass
+            else:
+
+                self.waveform_generator.wave_gen.waveform_generator.inspiral_generator.get_inspiral_inner = self.waveform_generator.wave_gen.waveform_generator.inspiral_generator.get_inspiral.__get__(
+                    self.waveform_generator.wave_gen.waveform_generator.inspiral_generator
+                )
+
+                self.waveform_generator.wave_gen.waveform_generator.inspiral_generator.get_inspiral = repl_fun.__get__(self.waveform_generator.wave_gen.waveform_generator.inspiral_generator)
+        else:
+            if hasattr(self.waveform_generator.waveform_generator.inspiral_generator, "get_inspiral_inner"):
+                pass
+            else:
+                self.waveform_generator.waveform_generator.inspiral_generator.get_inspiral_inner = self.waveform_generator.waveform_generator.inspiral_generator.get_inspiral.__get__(self.waveform_generator.waveform_generator.inspiral_generator)
+                self.waveform_generator.waveform_generator.inspiral_generator.get_inspiral = repl_fun.__get__(self.waveform_generator.waveform_generator.inspiral_generator)
+
+        if waveform_kwargs is None:
+            waveform_kwargs = {}
+
+        self.waveform_kwargs = waveform_kwargs
 
         if self.response in ["TDI1", "TDI2"]:
             self.channels = ["A", "E"]
-            self.traj_module = EMRI_waveform_gen.waveform_gen.waveform_generator.inspiral_generator
-            self.traj_module_func = EMRI_waveform_gen.waveform_gen.waveform_generator.inspiral_kwargs['func']
+            self.traj_module = self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator
+            self.traj_module_func = self.waveform_generator.waveform_gen.waveform_generator.inspiral_kwargs['func']
         else:
             self.channels = ["I", "II"]
             self.waveform_kwargs["mich"] = True
-            self.traj_module = EMRI_waveform_gen.waveform_generator.inspiral_generator
-            self.traj_module_func = EMRI_waveform_gen.waveform_generator.inspiral_kwargs['func']
+            self.traj_module = self.waveform_generator.waveform_generator.inspiral_generator
+            self.traj_module_func = self.waveform_generator.waveform_generator.inspiral_kwargs['func']
 
         # Define what EMRI waveform model we are using  
         if 'Schwarz' in self.traj_module_func:
@@ -137,10 +161,6 @@ class StableEMRIFisher:
             elif self.waveform_model_choice == "KerrEccentricEquatorial" and self.param_names[i] in ['Y0', 'Phi_theta0']: 
                 logger.warning(f"{self.param_names[i]} unmeasurable in {self.waveform_model_choice} EMRI model.")
         
-        # =============== Initialise Waveform generator ================
-        self.waveform_generator = EMRI_waveform_gen
-
-
         #initializing param dictionary
         self.wave_params = {'M':M,
                       'mu':mu,
@@ -160,7 +180,7 @@ class StableEMRIFisher:
 
         self.wave_params_list = list(self.wave_params.values())
 
-        self.minmax = {'Phi_phi0':[0.1,2*np.pi*(0.99)],'Phi_r0':[0.1,np.pi*(0.99)],'Phi_theta0':[0.1,np.pi*(0.99)],
+        self.minmax = {'Phi_phi0':[0.1,2*np.pi*(0.99)],'Phi_r0':[0.1,2*np.pi*(0.99)],'Phi_theta0':[0.1,2*np.pi*(0.99)],
                               'qS':[0.1,np.pi*(0.99)],'qK':[0.1,np.pi*(0.99)],'phiS':[0.1,2*np.pi*(0.99)],'phiK':[0.1,2*np.pi*(0.99)]}
                                             
         self.traj_params = dict(list(self.wave_params.items())[:6]) 
@@ -196,6 +216,9 @@ class StableEMRIFisher:
         final_time = self.check_if_plunging()
         self.T = final_time/YRSID_SI # Years
     
+        self.waveform_kwargs.update(dict(dt=self.dt, T=self.T))
+
+
     def __call__(self):
 
         # Compute SNR 
@@ -228,6 +251,7 @@ class StableEMRIFisher:
             danger_delta_dict.update(delta_dict_final_params)
             
             self.deltas = danger_delta_dict
+            self.save_deltas()
 
         #2. Given the deltas, we calculate the Fisher Matrix
         start = time.time()
@@ -262,7 +286,7 @@ class StableEMRIFisher:
             xp = cp
         else:
             xp = np
-        # breakpoint()
+
         self.waveform = xp.asarray(self.waveform_generator(*self.wave_params_list, **self.waveform_kwargs))
         
         # If we use LWA, extract real and imaginary components (channels 1 and 2)
@@ -301,7 +325,7 @@ class StableEMRIFisher:
         Notes:
             This method computes the trajectory of the body using the EMRIInspiral module 
             and checks if the final time of the trajectory is less than a threshold. If 
-            the body is plunging, it adjusts the final time by subtracting 4 hours. If 
+            the body is plunging, it adjusts the final time by subtracting 6 hours. If 
             not, it keeps the final time unchanged. The adjusted final time is returned.
 
         Raises:
@@ -316,8 +340,8 @@ class StableEMRIFisher:
 
         if t_traj[-1] < self.T*YRSID_SI:
             logger.warning("Body is plunging! Expect instabilities.")
-            final_time = t_traj[-1] - 4*60*60 # Remove 4 hours of final inspiral
-            logger.warning(f"Removed last 4 hours of inspiral. New evolution time: {final_time/YRSID_SI} years")
+            final_time = t_traj[-1] - 6*60*60 # Remove 12 hours of final inspiral
+            logger.warning(f"Removed last 6 hours of inspiral. New evolution time: {final_time/YRSID_SI} years")
         else:
             logger.info("Body is not plunging, Fisher should be stable.")
             final_time = self.T * YRSID_SI

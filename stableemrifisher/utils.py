@@ -1,4 +1,6 @@
 import numpy as np
+from scipy.interpolate import make_interp_spline
+
 try:
     import cupy as cp
     cp.ones(5)
@@ -113,3 +115,22 @@ def padding(a, b, use_gpu=False):
 
     else:
         return a
+
+
+def get_inspiral_overwrite_fun(interpolation_factor):
+    def func(self, *args, **kwargs):
+
+        traj_output = self.get_inspiral_inner(*args, **kwargs)
+        t, p, e, x, Phi_phi, Phi_theta, Phi_r = traj_output
+        out = np.vstack((p, e, x, Phi_phi, Phi_theta, Phi_r))
+        t_new = np.interp(
+            np.arange((len(t) - 1) * interpolation_factor + 1), 
+            np.arange(0, interpolation_factor*len(t), interpolation_factor), 
+            t
+        )
+        spl = make_interp_spline(t,out,k=7, axis=1)
+        upsampled = spl(t_new)
+
+        return (t_new.copy(),) + tuple(upsampled.copy())
+
+    return func    

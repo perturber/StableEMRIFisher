@@ -54,7 +54,8 @@ def derivative(waveform_generator, parameters, param_to_vary, delta, order=6, ki
     order = int(order)
 
     if waveform is None:
-        waveform = xp.asarray(waveform_generator(*list(parameters), **waveform_kwargs))
+        parameters = handle_a_flip(parameters)
+        waveform = xp.asarray(waveform_generator(*list(parameters.values()), **waveform_kwargs))
         if waveform.ndim == 1:
             waveform = xp.asarray([waveform.real, waveform.imag])
 

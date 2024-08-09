@@ -44,7 +44,7 @@ sum_kwargs = {
 amplitude_kwargs = {
     }
 
-outdir = 'basic_usage_nostability_outdir'
+outdir = 'basic_usage_stability_outdir'
 
 Path(outdir).mkdir(exist_ok=True)
 waveform_model = GenerateEMRIWaveform('FastSchwarzschildEccentricFlux', return_list=True, inspiral_kwargs=inspiral_kwargs, sum_kwargs=sum_kwargs, use_gpu=use_gpu)
@@ -66,7 +66,7 @@ param_names = ['M','mu','p0','e0']
 fish = StableEMRIFisher(M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
               Phi_phi0, Phi_theta0, Phi_r0, dt=dt, T=T, EMRI_waveform_gen=waveform_model,
               param_names=param_names, stats_for_nerds=True, use_gpu=True,
-              filename=outdir, CovMat=True, CovEllipse=True, Live_Dangerously=True)
+              filename=outdir, CovMat=True, CovEllipse=True, Live_Dangerously=False)
 
 
 #execution

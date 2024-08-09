@@ -21,7 +21,7 @@ To use this package you will require the following dependences; follow their ins
 - LISA-on-gpu (https://github.com/mikekatz04/lisa-on-gpu)
 
 ### Example usage
-See the `examples` directory for examples of basic usage of this package.
+See the `examples` directory for examples of basic usage of this package, and `validation` for a comparison against some MCMC results.
 
 Documentation coming soon...
 

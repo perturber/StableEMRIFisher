@@ -1,6 +1,7 @@
 import numpy as np
 try:
-    import cupy as xp
+    import cupy as cp
+    cp.ones(5)
     GPU_AVAILABLE = True
 except ImportError or ModuleNotFoundError:
     xp = np
@@ -53,18 +54,15 @@ def inner_product(a, b, PSD, dt, window = None, use_gpu=False):
     Returns:
         float: The frequency-domain inner product of the two signals.
 
-    Note:
-        This function requires a GPU for execution.
-
     """
-    if not use_gpu:
-        xp = np
+    if use_gpu:
+        xp = cp
     else:
-        assert GPU_AVAILABLE
+        xp = np
 
-    a = xp.asarray(a)
-    b = xp.asarray(b)
-    PSD = xp.asarray(PSD)
+    a = xp.atleast_2d(a)
+    b = xp.atleast_2d(b)
+    PSD = xp.atleast_2d(xp.asarray(PSD))  # handle passing the same PSD for multiple channels
 
     N = a.shape[1]
 
@@ -77,10 +75,8 @@ def inner_product(a, b, PSD, dt, window = None, use_gpu=False):
     else:
         a_in, b_in = a, b
 
-    a_fft = dt * xp.fft.rfft(a_in, axis=1)[:,1:]
-    b_fft = dt * xp.fft.rfft(b_in, axis=1)[:,1:]
-
-    PSD = xp.atleast_2d(PSD)
+    a_fft = dt * xp.fft.rfft(a_in, axis=-1)[:,1:]
+    b_fft = dt * xp.fft.rfft(b_in, axis=-1)[:,1:]
 
     # Compute inner products over given channels
     inner_prod = 4 * df * ((a_fft.conj() * b_fft).real / PSD).sum()
@@ -101,10 +97,11 @@ def padding(a, b, use_gpu=False):
 
     returns padded 'a'
     """
-    if not use_gpu:
-        xp = np
+    if use_gpu:
+        xp = cp
     else:
-        assert GPU_AVAILABLE
+        xp = np
+
     a = xp.asarray(a)
     b = xp.asarray(b)
 

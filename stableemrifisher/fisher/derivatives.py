@@ -1,9 +1,13 @@
 import numpy as np
 from stableemrifisher.utils import padding
-import warnings
+import logging
+import sys
+logger = logging.getLogger("stableemrifisher")
 
 try:
-    import cupy as xp
+    import cupy as cp
+    cp.ones(5)
+    GPU_AVAILABLE = True
 except ImportError or ModuleNotFoundError:
     xp = np
     GPU_AVAILABLE=False
@@ -36,27 +40,25 @@ def handle_a_flip(params):
         params['Y0'] = -1.
     return params
 
-def derivative(waveform_generator, parameters, i, delta, order=6, kind="central", SFN=False, use_gpu=False, waveform=None, waveform_kwargs=None):
+def derivative(waveform_generator, parameters, param_to_vary, delta, order=6, kind="central", use_gpu=False, waveform=None, waveform_kwargs=None):
     if kind not in ["central", "forward", "backward"]:
         raise ValueError('"kind" must be one of ("central", "forward", "backward") ')
-    if not use_gpu:
-        xp = np
+    if use_gpu:
+        xp = cp
     else:
-        assert GPU_AVAILABLE
+        xp = np
 
     if waveform_kwargs is None:
         waveform_kwargs = {}
 
     order = int(order)
 
-    parameter_names = list(parameters.keys())
-
     if waveform is None:
         waveform = xp.asarray(waveform_generator(*list(parameters), **waveform_kwargs))
         if waveform.ndim == 1:
             waveform = xp.asarray([waveform.real, waveform.imag])
 
-    if parameter_names[i] == "dist":
+    if param_to_vary == "dist":
         # Compute derivative analytically for the distance
         derivative = (-1/parameters["dist"]) * waveform
         return derivative
@@ -69,13 +71,11 @@ def derivative(waveform_generator, parameters, i, delta, order=6, kind="central"
         if kind == "central":
             # backwards deltas
             for _ in range(order // 2):
-                temp[parameter_names[i]] -= delta
+                temp[param_to_vary] -= delta
                 temp = handle_a_flip(temp)
 
-                # Print details if wanted
-                if SFN:    
-                    print("For parameter",parameter_names[i])
-                    print(parameter_names[i],' = ', temp[parameter_names[i]])
+                logger.debug(f"For parameter {param_to_vary}")
+                logger.debug(f"{param_to_vary} = {temp[param_to_vary]}")
                 
                 temp_vals = list(temp.values())
                 
@@ -93,13 +93,11 @@ def derivative(waveform_generator, parameters, i, delta, order=6, kind="central"
             temp = parameters.copy()
 
             for _ in range(order // 2):
-                temp[parameter_names[i]] += delta
+                temp[param_to_vary] += delta
                 temp = handle_a_flip(temp)
 
-                # Print details if wanted
-                if SFN:    
-                    print("For parameter",parameter_names[i])
-                    print(parameter_names[i],' = ', temp[parameter_names[i]])
+                logger.debug(f"For parameter {param_to_vary}")
+                logger.debug(f"{param_to_vary} = {temp[param_to_vary]}")
                 
                 temp_vals = list(temp.values())
                 
@@ -108,7 +106,7 @@ def derivative(waveform_generator, parameters, i, delta, order=6, kind="central"
                 if waveform_delta.ndim == 1:
                     waveform_delta = xp.asarray([waveform_delta.real, waveform_delta.imag])
 
-                waveform_delta = padding(waveform_delta, waveform)
+                waveform_delta = padding(waveform_delta, waveform, use_gpu=use_gpu)
 
                 delta_waveforms.append(waveform_delta)
 
@@ -118,17 +116,15 @@ def derivative(waveform_generator, parameters, i, delta, order=6, kind="central"
             delta_waveforms = [waveform, ]
 
             if order > 4:
-                warnings.warn('forward derivatives only available to 4th order accuracy. Setting der_order = 4')
+                logger.warn('forward derivatives only available to 4th order accuracy. Setting der_order = 4')
                 order = 4
 
             for _ in range(order):
-                temp[parameter_names[i]] += delta
+                temp[param_to_vary] += delta
                 temp = handle_a_flip(temp)
 
-                # Print details if wanted
-                if SFN:    
-                    print("For parameter",parameter_names[i])
-                    print(parameter_names[i],' = ', temp[parameter_names[i]])
+                logger.debug(f"For parameter {param_to_vary}")
+                logger.debug(f"{param_to_vary} = {temp[param_to_vary]}")
                 
                 temp_vals = list(temp.values())
                 
@@ -137,7 +133,7 @@ def derivative(waveform_generator, parameters, i, delta, order=6, kind="central"
                 if waveform_delta.ndim == 1:
                     waveform_delta = xp.asarray([waveform_delta.real, waveform_delta.imag])
 
-                waveform_delta = padding(waveform_delta, waveform)
+                waveform_delta = padding(waveform_delta, waveform, use_gpu=use_gpu)
 
                 delta_waveforms.append(waveform_delta)
 
@@ -147,17 +143,15 @@ def derivative(waveform_generator, parameters, i, delta, order=6, kind="central"
             delta_waveforms = []
 
             if order > 4:
-                warnings.warn('backward derivatives only available to 4th order accuracy. Setting der_order = 4')
+                logger.warn('backward derivatives only available to 4th order accuracy. Setting der_order = 4')
                 order = 4
 
             for _ in range(order):
-                temp[parameter_names[i]] -= delta
+                temp[param_to_vary] -= delta
                 temp = handle_a_flip(temp)
-
-                # Print details if wanted
-                if SFN:    
-                    print("For parameter",parameter_names[i])
-                    print(parameter_names[i],' = ', temp[parameter_names[i]])
+    
+                logger.debug(f"For parameter {param_to_vary}")
+                logger.debug(f"{param_to_vary} = {temp[param_to_vary]}")
                 
                 temp_vals = list(temp.values())
                 
@@ -166,7 +160,7 @@ def derivative(waveform_generator, parameters, i, delta, order=6, kind="central"
                 if waveform_delta.ndim == 1:
                     waveform_delta = xp.asarray([waveform_delta.real, waveform_delta.imag])
 
-                waveform_delta = padding(waveform_delta, waveform)
+                waveform_delta = padding(waveform_delta, waveform, use_gpu=use_gpu)
 
                 delta_waveforms.append(waveform_delta)
             
@@ -175,7 +169,7 @@ def derivative(waveform_generator, parameters, i, delta, order=6, kind="central"
             delta_waveforms.append(waveform)
 
         try:
-            derivative = xp.asarray(stencils[kind][order]) * xp.asarray(delta_waveforms) / delta
+            derivative = (xp.asarray(stencils[kind][order])[:,None,None] * xp.asarray(delta_waveforms)).sum(0) / delta
         except KeyError:
             raise ValueError(f"Order '{order}' of derivative '{kind}' not supported")
         

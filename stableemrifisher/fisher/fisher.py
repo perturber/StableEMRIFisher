@@ -30,7 +30,7 @@ class StableEMRIFisher:
     
     def __init__(self, M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
                  Phi_phi0, Phi_theta0, Phi_r0, dt = 10., T = 1.0, param_args = None, EMRI_waveform_gen = None, window = None,
-                 param_names=None, deltas=None, der_order=2, Ndelta=8, CovEllipse=False, interpolation_factor=10,
+                 param_names=None, deltas=None, der_order=2, Ndelta=8, CovEllipse=False, interpolation_factor=10, spline_order=7,
                  live_dangerously = False, filename=None, suffix=None, stats_for_nerds=False, use_gpu=False, waveform_kwargs=None):
         """
             This class computes the Fisher matrix for an Extreme Mass Ratio Inspiral (EMRI) system.
@@ -56,6 +56,8 @@ class StableEMRIFisher:
                 Ndelta (int, optional): Density of the delta range grid for calculation of stable deltas. Default is 8.
                 CovEllise (bool, optional): If True, compute the inverse Fisher matrix, i.e., the Covariance Matrix for the given parameters and the covariance triangle plot.
 
+                interpolation_factor (int, optional): factor by which to upsample the inspiral trajectory. This trades stability for expense. Default is 10.
+                spline_order (int, optional): order of interpolation spline used to calculate the upsampled trajectory points. valid values are '3', '5', '7'. Default is 7.
                 live_dangerously (bool, optional): If True, perform calculations without basic consistency checks. Default is False.
                 filename (string, optional): If not None, save the Fisher matrix, stable deltas, and covariance triangle plot in the folder with the same filename.
                 suffix (string, optional): Used in case multiple Fishers are to be stored under the same filename.
@@ -113,7 +115,7 @@ class StableEMRIFisher:
 
         # filthy method for applying our post-trajectory upsampling to curb the erroneous behaviour in current FEW
         # dont feel bad if you are confused by wtf is going on here, because it is bad practice
-        repl_fun = get_inspiral_overwrite_fun(interpolation_factor=interpolation_factor)
+        repl_fun = get_inspiral_overwrite_fun(interpolation_factor=interpolation_factor, spline_order=spline_order)
         
         if self.response in ["TDI1", "TDI2"]:
             if hasattr(self.waveform_generator.wave_gen.waveform_generator.inspiral_generator, "get_inspiral_inner"):

@@ -40,7 +40,7 @@ def tukey(N, alpha=0.5, use_gpu=False):
     window[condition2] = 0.5 * (1 + xp.cos(2 * xp.pi / alpha * (t[condition2] - alpha / 2)))
     return window
 
-def inner_product(a, b, PSD, dt, window = None, use_gpu=False):
+def inner_product(a, b, PSD, dt, window=None, use_gpu=False):
     """
     Compute the frequency domain inner product of two time-domain arrays.
 
@@ -127,7 +127,7 @@ def padding(a, b, use_gpu=False):
         return a
 
 
-def get_inspiral_overwrite_fun(interpolation_factor):
+def get_inspiral_overwrite_fun(interpolation_factor, spline_order=7):
     def func(self, *args, **kwargs):
 
         traj_output = self.get_inspiral_inner(*args, **kwargs)
@@ -138,7 +138,14 @@ def get_inspiral_overwrite_fun(interpolation_factor):
             np.arange(0, interpolation_factor*len(t), interpolation_factor), 
             t
         )
-        spl = make_interp_spline(t,out,k=7, axis=1)
+        
+        valid_spline_orders = [3, 5, 7]
+        
+        if spline_order in valid_spline_orders:
+            spl = make_interp_spline(t,out,k=spline_order, axis=1)
+        else:
+            raise ValueError(f'spline_order should be one of {valid_spline_orders}')
+            
         upsampled = spl(t_new)
 
         return (t_new.copy(),) + tuple(upsampled.copy())

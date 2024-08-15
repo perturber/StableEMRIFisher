@@ -30,11 +30,11 @@ class StableEMRIFisher:
     
     def __init__(self, M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
                  Phi_phi0, Phi_theta0, Phi_r0, dt = 10., T = 1.0, param_args = None, EMRI_waveform_gen = None, window = None,
-                 param_names=None, deltas=None, der_order=2, Ndelta=8, CovMat=False, CovEllipse=False, interpolation_factor=10,
-                 Live_Dangerously = False, filename=None, suffix=None, stats_for_nerds=True, use_gpu=False, waveform_kwargs=None):
+                 param_names=None, deltas=None, der_order=2, Ndelta=8, CovEllipse=False, interpolation_factor=10,
+                 live_dangerously = False, filename=None, suffix=None, stats_for_nerds=False, use_gpu=False, waveform_kwargs=None):
         """
             This class computes the Fisher matrix for an Extreme Mass Ratio Inspiral (EMRI) system.
-    
+
             Args:
                 M (float): Mass of the Massive Black Hole (MBH).
                 mu (float): Mass of the Compact Object (CO).
@@ -54,12 +54,12 @@ class StableEMRIFisher:
                 deltas (np.ndarray, optional): Range of stable deltas for numerical differentiation of each parameter. Default is None.
                 der_order (int, optional): Order at which to calculate the numerical derivatives. Default is 2.
                 Ndelta (int, optional): Density of the delta range grid for calculation of stable deltas. Default is 8.
-                CovMat (bool, optional): If True, compute the inverse Fisher matrix, i.e., the Covariance Matrix for the given parameters.
-                
-                Live_Dangerously (bool, optional): If True, perform calculations without basic consistency checks. Default is False.
+                CovEllise (bool, optional): If True, compute the inverse Fisher matrix, i.e., the Covariance Matrix for the given parameters and the covariance triangle plot.
+
+                live_dangerously (bool, optional): If True, perform calculations without basic consistency checks. Default is False.
                 filename (string, optional): If not None, save the Fisher matrix, stable deltas, and covariance triangle plot in the folder with the same filename.
                 suffix (string, optional): Used in case multiple Fishers are to be stored under the same filename.
-                stats_for_nerds (bool, optional): print special stats for development purposes. Default is True.
+                stats_for_nerds (bool, optional): print special stats for development purposes. Default is False.
         """
         self.waveform = None
 
@@ -180,8 +180,8 @@ class StableEMRIFisher:
 
         self.wave_params_list = list(self.wave_params.values())
 
-        self.minmax = {'Phi_phi0':[0.1,2*np.pi*(0.99)],'Phi_r0':[0.1,2*np.pi*(0.99)],'Phi_theta0':[0.1,2*np.pi*(0.99)],
-                              'qS':[0.1,np.pi*(0.99)],'qK':[0.1,np.pi*(0.99)],'phiS':[0.1,2*np.pi*(0.99)],'phiK':[0.1,2*np.pi*(0.99)]}
+        self.minmax = {'Phi_phi0':[0.1,2*np.pi*(0.9)],'Phi_r0':[0.1,2*np.pi*(0.9)],'Phi_theta0':[0.1,2*np.pi*(0.9)],
+                              'qS':[0.1,np.pi*(0.9)],'qK':[0.1,np.pi*(0.9)],'phiS':[0.1,2*np.pi*(0.9)],'phiK':[0.1,2*np.pi*(0.9)]}
                                             
         self.traj_params = dict(list(self.wave_params.items())[:6]) 
 
@@ -206,11 +206,10 @@ class StableEMRIFisher:
         self.deltas = deltas #Use deltas == None as a Flag
         
         #initializing other Flags:
-        self.CovMat = CovMat
         self.CovEllipse = CovEllipse
         self.filename = filename
         self.suffix = suffix
-        self.Live_Dangerously = Live_Dangerously
+        self.live_dangerously = live_dangerously
         
         # Redefine final time if small body is plunging. More stable FMs.
         final_time = self.check_if_plunging()
@@ -228,6 +227,9 @@ class StableEMRIFisher:
 
         logger.info(f'Waveform Generated. SNR: {rho}')
         
+        if rho <= 20:
+            logger.critical('The optimal source SNR is <= 20. The Fisher approximation may not be valid!')
+        
         #making parent folder
         if self.filename != '':
             if not os.path.exists(self.filename):
@@ -235,7 +237,7 @@ class StableEMRIFisher:
                 
         #1. If deltas not provided, calculating the stable deltas
         # print("Computing stable deltas")
-        if self.Live_Dangerously == False:
+        if self.live_dangerously == False:
             if self.deltas == None:
                 start = time.time()
                 self.Fisher_Stability() # Attempts to compute stable delta values. 
@@ -260,11 +262,6 @@ class StableEMRIFisher:
         logger.info(f"Time taken to compute FM is {end} seconds")
         
         #3. If requested, calculate the covariance Matrix
-        if self.CovMat:
-            covariance = np.linalg.inv(Fisher)
-        else:
-            covariance = None
-        
         if self.CovEllipse:
             covariance = np.linalg.inv(Fisher)
             # TODO just get the user to pass filename paths in for the plots etc. It's easier to develop and gives the user more control

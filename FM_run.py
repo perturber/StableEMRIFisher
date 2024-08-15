@@ -230,7 +230,7 @@ param_args = [0]
 sef = StableEMRIFisher(M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
               Phi_phi0, Phi_theta0, Phi_r0, dt, T, param_args = param_args, EMRI_waveform_gen=EMRI_TDI,
               param_names=param_names, stats_for_nerds=True, 
-              filename='TestRun', CovMat=True, CovEllipse=True)
+              filename='TestRun', CovEllipse=True)
 
 #execution
 print("Computing FM")

@@ -6,7 +6,7 @@ import sys
 from few.trajectory.inspiral import EMRIInspiral
 from few.utils.constants import YRSID_SI
 from stableemrifisher.fisher.derivatives import derivative, handle_a_flip
-from stableemrifisher.utils import inner_product, get_inspiral_overwrite_fun
+from stableemrifisher.utils import inner_product, get_inspiral_overwrite_fun, SNRcalc
 from stableemrifisher.noise import noise_PSD_AE, sensitivity_LWA
 from stableemrifisher.plot import CovEllipsePlot
 
@@ -30,7 +30,7 @@ class StableEMRIFisher:
     
     def __init__(self, M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
                  Phi_phi0, Phi_theta0, Phi_r0, dt = 10., T = 1.0, param_args = None, EMRI_waveform_gen = None, window = None,
-                 param_names=None, deltas=None, der_order=2, Ndelta=8, CovEllipse=False, interpolation_factor=10,
+                 param_names=None, deltas=None, der_order=2, Ndelta=8, CovEllipse=False, interpolation_factor=10, spline_order=7,
                  live_dangerously = False, filename=None, suffix=None, stats_for_nerds=False, use_gpu=False, waveform_kwargs=None):
         """
             This class computes the Fisher matrix for an Extreme Mass Ratio Inspiral (EMRI) system.
@@ -56,6 +56,8 @@ class StableEMRIFisher:
                 Ndelta (int, optional): Density of the delta range grid for calculation of stable deltas. Default is 8.
                 CovEllise (bool, optional): If True, compute the inverse Fisher matrix, i.e., the Covariance Matrix for the given parameters and the covariance triangle plot.
 
+                interpolation_factor (int, optional): factor by which to upsample the inspiral trajectory. This trades stability for expense. Default is 10.
+                spline_order (int, optional): order of interpolation spline used to calculate the upsampled trajectory points. valid values are '3', '5', '7'. Default is 7.
                 live_dangerously (bool, optional): If True, perform calculations without basic consistency checks. Default is False.
                 filename (string, optional): If not None, save the Fisher matrix, stable deltas, and covariance triangle plot in the folder with the same filename.
                 suffix (string, optional): Used in case multiple Fishers are to be stored under the same filename.
@@ -113,7 +115,7 @@ class StableEMRIFisher:
 
         # filthy method for applying our post-trajectory upsampling to curb the erroneous behaviour in current FEW
         # dont feel bad if you are confused by wtf is going on here, because it is bad practice
-        repl_fun = get_inspiral_overwrite_fun(interpolation_factor=interpolation_factor)
+        repl_fun = get_inspiral_overwrite_fun(interpolation_factor=interpolation_factor, spline_order=spline_order)
         
         if self.response in ["TDI1", "TDI2"]:
             if hasattr(self.waveform_generator.wave_gen.waveform_generator.inspiral_generator, "get_inspiral_inner"):
@@ -219,9 +221,42 @@ class StableEMRIFisher:
 
 
     def __call__(self):
+    
+        #generate PSD
+        if self.use_gpu:
+            xp = cp
+        else:
+            xp = np
 
-        # Compute SNR 
-        rho = self.SNRcalc()
+        self.waveform = xp.asarray(self.waveform_generator(*self.wave_params_list, **self.waveform_kwargs))
+        
+        # If we use LWA, extract real and imaginary components (channels 1 and 2)
+        if self.waveform.ndim == 1:
+            self.waveform = xp.asarray([self.waveform.real, self.waveform.imag])
+                        
+        # Extract fourier frequencies
+        self.length = len(self.waveform[0])
+        self.freq = xp.fft.rfftfreq(self.length)/self.dt
+        self.df = 1/(self.length * self.dt)
+
+        # Compute evolution time of EMRI 
+        T = (self.df * YRSID_SI)**-1
+
+        freq_np = xp.asnumpy(self.freq) # Compute frequencies
+
+        # TODO perform all of this setup in the __init__
+        # Generate PSDs given LWA/TDI variables
+        if self.response == "TDI1" or self.response == "TDI2":
+            PSD = 2*[noise_PSD_AE(freq_np[1:], TDI = self.response)]
+        else:
+            PSD = 2*[sensitivity_LWA(freq_np[1:])]  
+        PSD_cp = [xp.asarray(item) for item in PSD] # Convert to cupy array
+        
+        self.PSD_funcs = PSD_cp[0:len(self.channels)] # Choose which channels to include
+
+        # Compute SNR
+        logger.info(f"Computing SNR for parameters: {self.wave_params}") 
+        rho = SNRcalc(self.waveform, self.PSD_funcs, dt=self.dt, window=self.window, use_gpu=self.use_gpu)
 
         self.SNR2 = rho**2
 
@@ -268,49 +303,6 @@ class StableEMRIFisher:
             CovEllipsePlot(self.param_names, self.wave_params, covariance, filename=os.path.join(self.filename, "covariance_ellipses.png"))
 
         return Fisher, covariance
-
-
-    def SNRcalc(self):
-        """
-        Give the SNR of a given waveform after SEF initialization.
-
-        Returns:
-            float: SNR of the source.
-        """
-        logger.info(f"Computing SNR for parameters: {self.wave_params}")
-
-        if self.use_gpu:
-            xp = cp
-        else:
-            xp = np
-
-        self.waveform = xp.asarray(self.waveform_generator(*self.wave_params_list, **self.waveform_kwargs))
-        
-        # If we use LWA, extract real and imaginary components (channels 1 and 2)
-        if self.waveform.ndim == 1:
-            self.waveform = xp.asarray([self.waveform.real, self.waveform.imag])
-                        
-        # Extract fourier frequencies
-        self.length = len(self.waveform[0])
-        self.freq = xp.fft.rfftfreq(self.length)/self.dt
-        self.df = 1/(self.length * self.dt)
-
-        # Compute evolution time of EMRI 
-        T = (self.df * YRSID_SI)**-1
-
-        freq_np = xp.asnumpy(self.freq) # Compute frequencies
-
-        # TODO perform all of this setup in the __init__
-        # Generate PSDs given LWA/TDI variables
-        if self.response == "TDI1" or self.response == "TDI2":
-            PSD = 2*[noise_PSD_AE(freq_np[1:], TDI = self.response)]
-        else:
-            PSD = 2*[sensitivity_LWA(freq_np[1:])]  
-        PSD_cp = [xp.asarray(item) for item in PSD] # Convert to cupy array
-        
-        self.PSD_funcs = PSD_cp[0:len(self.channels)] # Choose which channels to include
-        
-        return np.sqrt(inner_product(self.waveform,self.waveform, self.PSD_funcs, self.dt , window=self.window, use_gpu=self.use_gpu))
     
     def check_if_plunging(self):
         """

@@ -66,7 +66,7 @@ param_names = ['M','mu','p0','e0']
 fish = StableEMRIFisher(M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
               Phi_phi0, Phi_theta0, Phi_r0, dt=dt, T=T, EMRI_waveform_gen=waveform_model,
               param_names=param_names, stats_for_nerds=True, use_gpu=True,
-              filename=outdir, CovMat=True, CovEllipse=True, Live_Dangerously=False)
+              filename=outdir, CovEllipse=True, live_dangerously=False)
 
 
 #execution

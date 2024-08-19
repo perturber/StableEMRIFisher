@@ -8,7 +8,7 @@ from few.utils.constants import YRSID_SI
 from stableemrifisher.fisher.derivatives import derivative, handle_a_flip
 from stableemrifisher.utils import inner_product, get_inspiral_overwrite_fun, SNRcalc
 from stableemrifisher.noise import noise_PSD_AE, sensitivity_LWA
-from stableemrifisher.plot import CovEllipsePlot
+from stableemrifisher.plot import CovEllipsePlot, StabilityPlot
 
 import logging
 logger = logging.getLogger("stableemrifisher")
@@ -30,7 +30,7 @@ class StableEMRIFisher:
     
     def __init__(self, M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
                  Phi_phi0, Phi_theta0, Phi_r0, dt = 10., T = 1.0, param_args = None, EMRI_waveform_gen = None, window = None,
-                 param_names=None, deltas=None, der_order=2, Ndelta=8, CovEllipse=False, interpolation_factor=10, spline_order=7,
+                 param_names=None, deltas=None, der_order=2, Ndelta=8, CovEllipse=False, stability_plot=False, interpolation_factor=10, spline_order=7,
                  live_dangerously = False, filename=None, suffix=None, stats_for_nerds=False, use_gpu=False, waveform_kwargs=None):
         """
             This class computes the Fisher matrix for an Extreme Mass Ratio Inspiral (EMRI) system.
@@ -209,6 +209,7 @@ class StableEMRIFisher:
         
         #initializing other Flags:
         self.CovEllipse = CovEllipse
+        self.stability_plot = stability_plot
         self.filename = filename
         self.suffix = suffix
         self.live_dangerously = live_dangerously
@@ -266,7 +267,7 @@ class StableEMRIFisher:
             logger.critical('The optimal source SNR is <= 20. The Fisher approximation may not be valid!')
         
         #making parent folder
-        if self.filename != '':
+        if self.filename != None:
             if not os.path.exists(self.filename):
                 os.makedirs(self.filename)
                 
@@ -300,7 +301,11 @@ class StableEMRIFisher:
         if self.CovEllipse:
             covariance = np.linalg.inv(Fisher)
             # TODO just get the user to pass filename paths in for the plots etc. It's easier to develop and gives the user more control
-            CovEllipsePlot(self.param_names, self.wave_params, covariance, filename=os.path.join(self.filename, "covariance_ellipses.png"))
+            if self.filename != None:
+                if self.suffix != None:
+                    CovEllipsePlot(self.param_names, self.wave_params, covariance, filename=os.path.join(self.filename, f"covariance_ellipses_{self.suffix}.png"))
+                else:
+                    CovEllipsePlot(self.param_names, self.wave_params, covariance, filename=os.path.join(self.filename, "covariance_ellipses.png"))                
 
         return Fisher, covariance
     
@@ -409,7 +414,15 @@ class StableEMRIFisher:
                     logger.warning('minimum relative error is greater than 1%. Fisher may be unstable!')
 
                 deltas[self.param_names[i]] = delta_init[relerr_min_i].item()
-             
+                
+                if self.stability_plot:
+                    if self.filename != None:
+                        if self.suffix != None:
+                            StabilityPlot(delta_init,Gamma,param_name=self.param_names[i],filename=os.path.join(self.filename,f'stability_{self.suffix}_{self.param_names[i]}.png'))
+                        else:
+                            StabilityPlot(delta_init,Gamma,param_name=self.param_names[i],filename=os.path.join(self.filename,'stability_{self.param_names[i]}.png'))
+                    else:
+                        StabilityPlot(delta_init,Gamma,param_name=self.param_name[i])
         logger.debug(f'stable deltas: {deltas}')
         
         self.deltas = deltas
@@ -472,7 +485,7 @@ class StableEMRIFisher:
             logger.info("Calculated Fisher is *atleast* positive-definite.")
 
         
-        if self.filename == '':
+        if self.filename == None:
             pass
         else:
             if self.suffix != None:

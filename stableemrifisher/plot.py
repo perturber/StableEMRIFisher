@@ -97,3 +97,19 @@ def CovEllipsePlot(param_names, wave_params, covariance, filename=None):
             return fig, ax
         else:
             plt.savefig(filename,dpi=300,bbox_inches='tight')
+            
+def StabilityPlot(deltas,Gammas,param_name=None,filename=None):
+    
+    plt.figure(figsize=(12,5))
+    plt.loglog(deltas,Gammas,'ro-')
+    
+    if param_name != None:
+        plt.xlabel(r'$\Delta\theta_i$',fontsize=12)
+    
+    plt.ylabel(r'$\left.\langle \frac{\partial h}{\partial \theta_i}\right|\frac{\partial h}{\partial \theta_i}\rangle$',fontsize=14)
+    plt.title(r'$\theta_i = $'+f'${param_name}$',fontsize=12)
+    plt.grid(True)
+    
+    if filename != None:
+        plt.savefig(filename,dpi=300,bbox_inches='tight')
+        

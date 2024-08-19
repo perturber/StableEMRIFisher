@@ -41,6 +41,7 @@ def handle_a_flip(params):
     return params
 
 def derivative(waveform_generator, parameters, param_to_vary, delta, order=4, kind="central", use_gpu=False, waveform=None, waveform_kwargs=None):
+    
     if kind not in ["central", "forward", "backward"]:
         raise ValueError('"kind" must be one of ("central", "forward", "backward") ')
     if use_gpu:
@@ -74,7 +75,7 @@ def derivative(waveform_generator, parameters, param_to_vary, delta, order=4, ki
             for _ in range(order // 2):
                 temp[param_to_vary] -= delta
                 temp = handle_a_flip(temp)
-
+                
                 logger.debug(f"For parameter {param_to_vary}")
                 logger.debug(f"{param_to_vary} = {temp[param_to_vary]}")
                 

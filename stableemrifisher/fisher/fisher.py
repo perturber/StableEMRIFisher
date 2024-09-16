@@ -104,7 +104,7 @@ class StableEMRIFisher:
         # =============== Initialise Waveform generator ================
         self.waveform_generator = EMRI_waveform_gen
 
-		# Determine what version of TDI to use or whether to use the LWA 
+	# Determine what version of TDI to use or whether to use the LWA 
         try:
             if self.waveform_generator.response_model.tdi == '1st generation':
                 self.response = "TDI1"
@@ -117,23 +117,25 @@ class StableEMRIFisher:
         # dont feel bad if you are confused by wtf is going on here, because it is bad practice
         repl_fun = get_inspiral_overwrite_fun(interpolation_factor=interpolation_factor, spline_order=spline_order)
         
+        
         if self.response in ["TDI1", "TDI2"]:
-            if hasattr(self.waveform_generator.wave_gen.waveform_generator.inspiral_generator, "get_inspiral_inner"):
+            if hasattr(self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator, "get_inspiral_inner"):
                 pass
             else:
 
-                self.waveform_generator.wave_gen.waveform_generator.inspiral_generator.get_inspiral_inner = self.waveform_generator.wave_gen.waveform_generator.inspiral_generator.get_inspiral.__get__(
-                    self.waveform_generator.wave_gen.waveform_generator.inspiral_generator
+                self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator.get_inspiral_inner = self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator.get_inspiral.__get__(
+                    self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator
                 )
 
-                self.waveform_generator.wave_gen.waveform_generator.inspiral_generator.get_inspiral = repl_fun.__get__(self.waveform_generator.wave_gen.waveform_generator.inspiral_generator)
+                self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator.get_inspiral = repl_fun.__get__(self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator)
         else:
             if hasattr(self.waveform_generator.waveform_generator.inspiral_generator, "get_inspiral_inner"):
                 pass
             else:
                 self.waveform_generator.waveform_generator.inspiral_generator.get_inspiral_inner = self.waveform_generator.waveform_generator.inspiral_generator.get_inspiral.__get__(self.waveform_generator.waveform_generator.inspiral_generator)
                 self.waveform_generator.waveform_generator.inspiral_generator.get_inspiral = repl_fun.__get__(self.waveform_generator.waveform_generator.inspiral_generator)
-
+	
+	
         if waveform_kwargs is None:
             waveform_kwargs = {}
 
@@ -223,41 +225,8 @@ class StableEMRIFisher:
 
     def __call__(self):
     
-        #generate PSD
-        if self.use_gpu:
-            xp = cp
-        else:
-            xp = np
-
-        self.waveform = xp.asarray(self.waveform_generator(*self.wave_params_list, **self.waveform_kwargs))
         
-        # If we use LWA, extract real and imaginary components (channels 1 and 2)
-        if self.waveform.ndim == 1:
-            self.waveform = xp.asarray([self.waveform.real, self.waveform.imag])
-                        
-        # Extract fourier frequencies
-        self.length = len(self.waveform[0])
-        self.freq = xp.fft.rfftfreq(self.length)/self.dt
-        self.df = 1/(self.length * self.dt)
-
-        # Compute evolution time of EMRI 
-        T = (self.df * YRSID_SI)**-1
-
-        freq_np = xp.asnumpy(self.freq) # Compute frequencies
-
-        # TODO perform all of this setup in the __init__
-        # Generate PSDs given LWA/TDI variables
-        if self.response == "TDI1" or self.response == "TDI2":
-            PSD = 2*[noise_PSD_AE(freq_np[1:], TDI = self.response)]
-        else:
-            PSD = 2*[sensitivity_LWA(freq_np[1:])]  
-        PSD_cp = [xp.asarray(item) for item in PSD] # Convert to cupy array
-        
-        self.PSD_funcs = PSD_cp[0:len(self.channels)] # Choose which channels to include
-
-        # Compute SNR
-        logger.info(f"Computing SNR for parameters: {self.wave_params}") 
-        rho = SNRcalc(self.waveform, self.PSD_funcs, dt=self.dt, window=self.window, use_gpu=self.use_gpu)
+        rho = self.SNRcalc_SEF()
 
         self.SNR2 = rho**2
 
@@ -308,6 +277,45 @@ class StableEMRIFisher:
                     CovEllipsePlot(self.param_names, self.wave_params, covariance, filename=os.path.join(self.filename, "covariance_ellipses.png"))                
 
         return Fisher, covariance
+        
+    def SNRcalc_SEF(self):
+    	#generate PSD
+        if self.use_gpu:
+            xp = cp
+        else:
+            xp = np
+
+        self.waveform = xp.asarray(self.waveform_generator(*self.wave_params_list, **self.waveform_kwargs))
+        
+        # If we use LWA, extract real and imaginary components (channels 1 and 2)
+        if self.waveform.ndim == 1:
+            self.waveform = xp.asarray([self.waveform.real, self.waveform.imag])
+                        
+        # Extract fourier frequencies
+        self.length = len(self.waveform[0])
+        self.freq = xp.fft.rfftfreq(self.length)/self.dt
+        self.df = 1/(self.length * self.dt)
+
+        # Compute evolution time of EMRI 
+        T = (self.df * YRSID_SI)**-1
+
+        freq_np = xp.asnumpy(self.freq) # Compute frequencies
+
+        # TODO perform all of this setup in the __init__
+        # Generate PSDs given LWA/TDI variables
+        if self.response == "TDI1" or self.response == "TDI2":
+            PSD = 2*[noise_PSD_AE(freq_np[1:], TDI = self.response)]
+        else:
+            PSD = 2*[sensitivity_LWA(freq_np[1:])]  
+        PSD_cp = [xp.asarray(item) for item in PSD] # Convert to cupy array
+        
+        self.PSD_funcs = PSD_cp[0:len(self.channels)] # Choose which channels to include
+
+        # Compute SNR
+        logger.info(f"Computing SNR for parameters: {self.wave_params}") 
+        
+        return SNRcalc(self.waveform, self.PSD_funcs, dt=self.dt, window=self.window, use_gpu=self.use_gpu)
+        
     
     def check_if_plunging(self):
         """

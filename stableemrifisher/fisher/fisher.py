@@ -119,15 +119,27 @@ class StableEMRIFisher:
         
         
         if self.response in ["TDI1", "TDI2"]:
-            if hasattr(self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator, "get_inspiral_inner"):
-                pass
-            else:
+            try:
+                if hasattr(self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator, "get_inspiral_inner"):
+                    pass
+                else:
+                    self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator.get_inspiral_inner = self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator.get_inspiral.__get__(
+		            self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator
+		        )
+		        
+                    self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator.get_inspiral = repl_fun.__get__(self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator)
+		
+            except:
+                if hasattr(self.waveform_generator.wave_gen.waveform_generator.inspiral_generator, "get_inspiral_inner"):
+                    pass
+                else:
+                    self.waveform_generator.wave_gen.waveform_generator.inspiral_generator.get_inspiral_inner = self.waveform_generator.wave_gen.waveform_generator.inspiral_generator.get_inspiral.__get__(
+                    self.waveform_generator.wave_gen.waveform_generator.inspiral_generator
+		        )
 
-                self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator.get_inspiral_inner = self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator.get_inspiral.__get__(
-                    self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator
-                )
-
-                self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator.get_inspiral = repl_fun.__get__(self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator)
+                    self.waveform_generator.wave_gen.waveform_generator.inspiral_generator.get_inspiral = repl_fun.__get__(self.waveform_generator.wave_gen.waveform_generator.inspiral_generator)
+		
+		
         else:
             if hasattr(self.waveform_generator.waveform_generator.inspiral_generator, "get_inspiral_inner"):
                 pass

@@ -443,7 +443,7 @@ class StableEMRIFisher:
                         if self.suffix != None:
                             StabilityPlot(delta_init,Gamma,param_name=self.param_names[i],filename=os.path.join(self.filename,f'stability_{self.suffix}_{self.param_names[i]}.png'))
                         else:
-                            StabilityPlot(delta_init,Gamma,param_name=self.param_names[i],filename=os.path.join(self.filename,'stability_{self.param_names[i]}.png'))
+                            StabilityPlot(delta_init,Gamma,param_name=self.param_names[i],filename=os.path.join(self.filename,f'stability_{self.param_names[i]}.png'))
                     else:
                         StabilityPlot(delta_init,Gamma,param_name=self.param_name[i])
         logger.debug(f'stable deltas: {deltas}')

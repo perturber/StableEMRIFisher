@@ -288,7 +288,10 @@ class StableEMRIFisher:
                 else:
                     CovEllipsePlot(self.param_names, self.wave_params, covariance, filename=os.path.join(self.filename, "covariance_ellipses.png"))                
 
-        return Fisher, covariance
+            return Fisher, covariance
+            
+        else:
+            return Fisher
         
     def SNRcalc_SEF(self):
     	#generate PSD

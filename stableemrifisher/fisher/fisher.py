@@ -29,7 +29,7 @@ except:
 class StableEMRIFisher:
     
     def __init__(self, M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
-                 Phi_phi0, Phi_theta0, Phi_r0, dt = 10., T = 1.0, param_args = None, EMRI_waveform_gen = None, window = None,
+                 Phi_phi0, Phi_theta0, Phi_r0, dt = 10., T = 1.0, param_args = None, EMRI_waveform_gen = None, PSD = None, window = None,
                  param_names=None, deltas=None, der_order=2, Ndelta=8, CovEllipse=False, stability_plot=False, interpolation_factor=10, spline_order=7,
                  live_dangerously = False, filename=None, suffix=None, stats_for_nerds=False, use_gpu=False, waveform_kwargs=None):
         """
@@ -218,6 +218,9 @@ class StableEMRIFisher:
         # elif param_args != None and additional_args_flag == False
         #     raise ValueError("param_args must not be a list if there are additional_args_flag is False") 
         
+        # Define PSD if available 
+        self.PSD = PSD
+        
         #initializing deltas
         self.deltas = deltas #Use deltas == None as a Flag
         
@@ -294,7 +297,6 @@ class StableEMRIFisher:
             return Fisher
         
     def SNRcalc_SEF(self):
-    	#generate PSD
         if self.use_gpu:
             xp = cp
         else:
@@ -318,13 +320,17 @@ class StableEMRIFisher:
 
         # TODO perform all of this setup in the __init__
         # Generate PSDs given LWA/TDI variables
-        if self.response == "TDI1" or self.response == "TDI2":
-            PSD = 2*[noise_PSD_AE(freq_np[1:], TDI = self.response)]
-        else:
-            PSD = 2*[sensitivity_LWA(freq_np[1:])]  
-        PSD_cp = [xp.asarray(item) for item in PSD] # Convert to cupy array
+        if self.PSD is None:  # If we do not provide a PSD, set up default
+            if self.response == "TDI1" or self.response == "TDI2":
+                PSD = 2*[noise_PSD_AE(freq_np[1:], TDI = self.response)]
+            else:
+                PSD = 2*[sensitivity_LWA(freq_np[1:])]  
+            PSD_cp = [xp.asarray(item) for item in PSD] # Convert to cupy array
         
-        self.PSD_funcs = PSD_cp[0:len(self.channels)] # Choose which channels to include
+            self.PSD_funcs = PSD_cp[0:len(self.channels)] # Choose which channels to include
+        else:   # Take in user defined PSD.
+            PSD_cp = 2*[xp.asarray(self.PSD(freq_np[1:]))]
+            self.PSD_funcs = PSD_cp[0:len(self.channels)]
 
         # Compute SNR
         logger.info(f"Computing SNR for parameters: {self.wave_params}") 

@@ -53,7 +53,7 @@ def normal(mean, var, x):
     return np.exp(-(mean-x)**2/var/2)
 
 def CovEllipsePlot(param_names, wave_params, covariance, filename=None):
-        fig, axs = plt.subplots(len(param_names),len(param_names), figsize=(20,20))
+        fig, axs = plt.subplots(len(param_names),len(param_names), figsize=(10,10))
 
         #first param index
         for i in range(len(param_names)):

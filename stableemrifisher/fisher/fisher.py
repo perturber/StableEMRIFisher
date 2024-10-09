@@ -9,6 +9,7 @@ from stableemrifisher.fisher.derivatives import derivative, handle_a_flip
 from stableemrifisher.utils import inner_product, get_inspiral_overwrite_fun, SNRcalc
 from stableemrifisher.noise import noise_PSD_AE, sensitivity_LWA
 from stableemrifisher.plot import CovEllipsePlot, StabilityPlot
+import matplotlib.pyplot as plt
 
 import logging
 logger = logging.getLogger("stableemrifisher")
@@ -29,7 +30,7 @@ except:
 class StableEMRIFisher:
     
     def __init__(self, M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
-                 Phi_phi0, Phi_theta0, Phi_r0, dt = 10., T = 1.0, param_args = None, EMRI_waveform_gen = None, window = None,
+                 Phi_phi0, Phi_theta0, Phi_r0, dt = 10., T = 1.0, param_args = None, EMRI_waveform_gen = None, window = None, return_derivs = False,
                  param_names=None, deltas=None, der_order=2, Ndelta=8, CovEllipse=False, stability_plot=False, interpolation_factor=10, spline_order=7,
                  live_dangerously = False, filename=None, suffix=None, stats_for_nerds=False, use_gpu=False, waveform_kwargs=None):
         """
@@ -227,6 +228,7 @@ class StableEMRIFisher:
         self.filename = filename
         self.suffix = suffix
         self.live_dangerously = live_dangerously
+        self.return_derivs = return_derivs
         
         # Redefine final time if small body is plunging. More stable FMs.
         final_time = self.check_if_plunging()
@@ -274,7 +276,10 @@ class StableEMRIFisher:
 
         #2. Given the deltas, we calculate the Fisher Matrix
         start = time.time()
-        Fisher = self.FisherCalc()
+        if self.return_derivs:
+            dtv, Fisher = self.FisherCalc()
+        else:
+            Fisher = self.FisherCalc()
         end = time.time() - start
         logger.info(f"Time taken to compute FM is {end} seconds")
         
@@ -287,8 +292,11 @@ class StableEMRIFisher:
                     CovEllipsePlot(self.param_names, self.wave_params, covariance, filename=os.path.join(self.filename, f"covariance_ellipses_{self.suffix}.png"))
                 else:
                     CovEllipsePlot(self.param_names, self.wave_params, covariance, filename=os.path.join(self.filename, "covariance_ellipses.png"))                
-
-        return Fisher, covariance
+            return Fisher, covariance
+        elif self.return_derivs == False:
+            return Fisher
+        elif self.return_derivs == True:
+            return dtv, Fisher
         
     def SNRcalc_SEF(self):
     	#generate PSD
@@ -352,7 +360,7 @@ class StableEMRIFisher:
                                         Phi_theta0=self.wave_params["Phi_theta0"], Phi_r0=self.wave_params["Phi_r0"], 
                                         T = self.T) 
 
-        if t_traj[-1] < self.T*YRSID_SI:
+        if round(t_traj[-1]) < round(self.T*YRSID_SI):
             logger.warning("Body is plunging! Expect instabilities.")
             final_time = t_traj[-1] - 6*60*60 # Remove 12 hours of final inspiral
             logger.warning(f"Removed last 6 hours of inspiral. New evolution time: {final_time/YRSID_SI} years")
@@ -408,9 +416,16 @@ class StableEMRIFisher:
                             del_k = derivative(self.waveform_generator, self.wave_params, self.param_names[i], delta_init[k], use_gpu=self.use_gpu, waveform=self.waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
                     else:
                         del_k = derivative(self.waveform_generator, self.wave_params, self.param_names[i], delta_init[k], use_gpu=self.use_gpu, waveform=self.waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
+                
 
+                    # fig,ax = plt.subplots(1,1,figsize = (12,12))
+                    # ax.plot(xp.asnumpy(del_k[0]), label = delta_init[k])
+                    # ax.legend()
+                    # plt.savefig("deriv_plot.pdf",bbox_inches="tight")
+                    # breakpoint()
                 #Calculating the Fisher Elements
                 Gammai = inner_product(del_k,del_k, self.PSD_funcs, self.dt, window=self.window, use_gpu=self.use_gpu)
+                # print("gammai=",Gammai)
                 Gamma.append(Gammai)
 
             
@@ -440,7 +455,7 @@ class StableEMRIFisher:
                         if self.suffix != None:
                             StabilityPlot(delta_init,Gamma,param_name=self.param_names[i],filename=os.path.join(self.filename,f'stability_{self.suffix}_{self.param_names[i]}.png'))
                         else:
-                            StabilityPlot(delta_init,Gamma,param_name=self.param_names[i],filename=os.path.join(self.filename,'stability_{self.param_names[i]}.png'))
+                            StabilityPlot(delta_init,Gamma,param_name=self.param_names[i],filename=os.path.join(self.filename,f'stability_{self.param_names[i]}.png'))
                     else:
                         StabilityPlot(delta_init,Gamma,param_name=self.param_name[i])
         logger.debug(f'stable deltas: {deltas}')
@@ -512,5 +527,8 @@ class StableEMRIFisher:
                 np.save(f'{self.filename}/Fisher_{self.suffix}.npy',Fisher)
             else:
                 np.save(f'{self.filename}/Fisher.npy',Fisher)
-                    
-        return Fisher
+        
+        if self.return_derivs == False:   
+            return Fisher
+        else:
+            return dtv, Fisher

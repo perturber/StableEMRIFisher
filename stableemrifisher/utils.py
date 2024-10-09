@@ -63,9 +63,9 @@ def inner_product(a, b, PSD, dt, window=None, use_gpu=False):
     else:
         xp = np
 
-    a = xp.atleast_2d(a)
-    b = xp.atleast_2d(b)
-    PSD = xp.atleast_2d(xp.asarray(PSD))  # handle passing the same PSD for multiple channels
+    # a = xp.atleast_2d(a)
+    # b = xp.atleast_2d(b)
+    # PSD = xp.atleast_2d(xp.asarray(PSD))  # handle passing the same PSD for multiple channels
 
     N = a.shape[1]
 
@@ -78,18 +78,24 @@ def inner_product(a, b, PSD, dt, window=None, use_gpu=False):
     else:
         a_in, b_in = a, b
 
-    a_fft = dt * xp.fft.rfft(a_in, axis=-1)[:,1:]
-    b_fft = dt * xp.fft.rfft(b_in, axis=-1)[:,1:]
+    # PSD = PSD[0]
+    a_fft = [dt * xp.fft.rfft(a[i])[1:] for i in range(2)]
+    b_fft = [dt * xp.fft.rfft(b[i])[1:] for i in range(2)]
 
-    # Compute inner products over given channels
-    inner_prod = 4 * df * ((a_fft.conj() * b_fft).real / PSD).sum()
+    inner_prod = 4 * df * xp.real(xp.sum(xp.asarray([a_fft[i] * b_fft[i].conj()/PSD[i] for i in range(2)])))
 
-    #clearing cupy cache  TODO: do we need this any more?
-    cache = xp.fft.config.get_plan_cache()
-    cache.clear()
+    # a_fft = dt * xp.fft.rfft(a_in, axis=-1)[:,1:]
+    # b_fft = dt * xp.fft.rfft(b_in, axis=-1)[:,1:]
+
+    # # Compute inner products over given channels
+    # inner_prod = 4 * df * ((a_fft.conj() * b_fft).real / PSD).sum()
+
+    # #clearing cupy cache  TODO: do we need this any more?
+    # cache = xp.fft.config.get_plan_cache()
+    # cache.clear()
     
-    if use_gpu:
-        inner_prod = inner_prod.get()
+    # if use_gpu:
+    #     inner_prod = inner_prod.get()
 
     return inner_prod
     

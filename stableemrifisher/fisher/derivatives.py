@@ -41,6 +41,7 @@ def handle_a_flip(params):
     return params
 
 def derivative(waveform_generator, parameters, param_to_vary, delta, order=4, kind="central", use_gpu=False, waveform=None, waveform_kwargs=None):
+
     
     if kind not in ["central", "forward", "backward"]:
         raise ValueError('"kind" must be one of ("central", "forward", "backward") ')
@@ -112,6 +113,8 @@ def derivative(waveform_generator, parameters, param_to_vary, delta, order=4, ki
 
                 delta_waveforms.append(waveform_delta)
 
+
+
         elif kind == "forward":
             # forwards deltas
             temp = parameters.copy()
@@ -171,7 +174,9 @@ def derivative(waveform_generator, parameters, param_to_vary, delta, order=4, ki
             delta_waveforms.append(waveform)
 
         try:
-            derivative = (xp.asarray(stencils[kind][order])[:,None,None] * xp.asarray(delta_waveforms)).sum(0) / delta
+            # print("sum of waveform, convergence?", xp.sum(abs(xp.asarray(delta_waveforms)[0])**2))
+            numerator = (xp.asarray(stencils[kind][order])[:,None,None] * xp.asarray(delta_waveforms)).sum(0)  
+            derivative = numerator / delta
         except KeyError:
             raise ValueError(f"Order '{order}' of derivative '{kind}' not supported")
         

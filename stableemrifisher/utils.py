@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.interpolate import make_interp_spline
 from stableemrifisher.noise import noise_PSD_AE, sensitivity_LWA
+from few.utils.constants import YRSID_SI
 
 try:
     import cupy as cp
@@ -39,6 +40,61 @@ def tukey(N, alpha=0.5, use_gpu=False):
     window[condition1] = 0.5 * (1 + xp.cos(2 * xp.pi / alpha * ((t[condition1] - 1 + alpha / 2) - 1)))
     window[condition2] = 0.5 * (1 + xp.cos(2 * xp.pi / alpha * (t[condition2] - alpha / 2)))
     return window
+    
+
+def generate_PSD(waveform, dt, noise_PSD=noise_PSD_AE, channels = ["A","E"], noise_kwargs={}, use_gpu=False):
+    """
+    generate the power spectral density for a given waveform, noise_PSD function,
+    requested number of response channels, and response generation
+    
+    Args:
+        waveform (nd.array): the waveform which will decide some properties of the PSD.
+        dt (float): time step in seconds at which the waveform is samples.
+        noise_PSD (func): function to calculate the noise of the instrument at a given frequency and noise configuration (default is noise_PSD_AE)
+        channels (list): list of LISA response channels (default is ["A","E"]
+        noise_kwargs (dict): additional keyword arguments to be provided to the noise function
+        
+    returns:
+        nd.array: power spectral density of the requested noise model and of the size of the input waveform.
+    """
+    #generate PSD
+    if use_gpu:
+        xp = cp
+    else:
+        xp = np
+        
+    try:
+        response = noise_kwargs["TDI"]
+        print(f"TDI detected. response = {response}") 
+    except:
+        print("TDI not found. Setting response as 'LWA'")
+        response = "LWA"
+        channels = ["I","II"]
+        
+    # If we use LWA, extract real and imaginary components (channels 1 and 2)
+    if waveform.ndim == 1:
+        waveform = xp.asarray([waveform.real, waveform.imag])
+
+    # Extract fourier frequencies
+    length = len(waveform[0])
+    freq = xp.fft.rfftfreq(length)/dt
+    df = 1/(length * dt)
+
+    # Compute evolution time of EMRI 
+    T = (df * YRSID_SI)**-1
+
+    freq_np = xp.asnumpy(freq) # Compute frequencies
+
+    # Generate PSDs given LWA/TDI variables
+    if response == "TDI1" or response == "TDI2":
+        PSD = 2*[noise_PSD(freq_np[1:], **noise_kwargs)]
+    else:
+        PSD = 2*[sensitivity_LWA(freq_np[1:])]  
+    PSD_cp = [xp.asarray(item) for item in PSD] # Convert to cupy array
+    
+    #PSD_funcs = PSD_cp[0:len(PSD_cp)] # Choose which channels to include
+    return PSD_cp[0:len(channels)]    
+
 
 def inner_product(a, b, PSD, dt, window=None, use_gpu=False):
     """

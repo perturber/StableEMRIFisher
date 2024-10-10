@@ -1,4 +1,6 @@
 from stableemrifisher.fisher import StableEMRIFisher
+from stableemrifisher.noise import noise_PSD_AE, sensitivity_LWA
+
 from few.waveform import GenerateEMRIWaveform
 import matplotlib.pyplot as plt
 import os
@@ -6,6 +8,10 @@ from pathlib import Path
 import cupy as xp
 import numpy as np
 use_gpu=True
+
+def define_PSD(f):
+    # return (noise_PSD_AE(f,TDI = "TDI2"))
+    return sensitivity_LWA(f)
 
 #set initial parameters
 M = 1e6
@@ -31,7 +37,7 @@ T = 0.1
 inspiral_kwargs = {
         "DENSE_STEPPING": 0,
         "max_init_len": int(1e3),
-        "err": 1e-10,  # To be set within the class
+        "err": 1e-14,  # To be set within the class
         "use_rk4": True,
         }
 
@@ -62,10 +68,12 @@ plt.close()
 #varied parameters
 param_names = ['M','mu','p0','e0']
 
+#set up PSD function
+breakpoint()
 #initialization
 fish = StableEMRIFisher(M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
               Phi_phi0, Phi_theta0, Phi_r0, dt=dt, T=T, EMRI_waveform_gen=waveform_model,
-              param_names=param_names, stats_for_nerds=True, use_gpu=True,
+              param_names=param_names, PSD = define_PSD, stats_for_nerds=True, use_gpu=True, 
               filename=outdir, CovEllipse=True, live_dangerously=True)
 
 

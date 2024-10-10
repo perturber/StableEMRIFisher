@@ -4,7 +4,9 @@ gpu_available = True
 
 import sys
 sys.path.append("..")
-from fisher import StableEMRIFisher
+from stableemrifisher.fisher import StableEMRIFisher
+from stableemrifisher.noise import noise_PSD_AE, sensitivity_LWA
+
 import matplotlib.pyplot as plt
 
 from few.waveform import Pn5AAKWaveform, GenerateEMRIWaveform, KerrEquatorialEccentric, KerrEquatorialEccentricWaveformBase
@@ -25,11 +27,11 @@ from few.utils.utility import get_separatrix, Y_to_xI, get_p_at_t
 
 YRSID_SI = 31558149.763545603
 
-orbit_file = "../lisa-on-gpu/orbit_files/equalarmlength-trailing-fit.h5"
+orbit_file = "../../../Github_repositories/lisa-on-gpu/orbit_files/equalarmlength-trailing-fit.h5"
 orbit_kwargs = dict(orbit_file=orbit_file)
 
 # Using full Kerr model
-M = 1e6; mu = 10; a = 0.9; p0 = 8.58; e0 = 0.2; Y0 = np.cos(0.3)
+M = 1e6; mu = 10.0; a = 0.9; p0 = 9.05; e0 = 0.2; Y0 = np.cos(0.3)
 dist = 1.0; qS = 1.5; phiS = 0.7; qK = 1.2; phiK = 0.6
 Phi_phi0 = 2.0; Phi_theta0 = 3.0; Phi_r0 = 4.0
 
@@ -39,39 +41,9 @@ dt = 10.0;  # Sampling interval [seconds]
 T = 2.0     # Evolution time [years]
 
 use_gpu = True
-traj = EMRIInspiral(func="pn5")  # Set up trajectory module, pn5 AAK
+# traj = EMRIInspiral(func="pn5")  # Set up trajectory module, pn5 AAK
 # traj = EMRIInspiral(func="SchwarzEccFlux")  # Set up trajectory module, pn5 AAK
 # traj = EMRIInspiral(func="KerrEccentricEquatorial")  # Set up trajectory module, pn5 AAK
-
-t_traj, p_traj, e_traj, Y_traj, Phi_phi_traj, Phi_r_traj, Phi_theta_traj = traj(M, mu, a_val, p0, e0, Y0_val,
-                                             Phi_phi0=Phi_phi0, Phi_theta0=Phi_theta0, Phi_r0=Phi_r0, T=T)
-traj_args = [M, mu, a, e_traj[0], Y_traj[0]]
-index_of_p = 3
-
-# Check to see what value of semi-latus rectum is required to build inspiral lasting T years. 
-
-p_new = get_p_at_t(
-    traj,
-    T,
-    traj_args,
-    index_of_p=3,
-    index_of_a=2,
-    index_of_e=4,
-    index_of_x=5,
-    xtol=2e-12,
-    rtol=8.881784197001252e-16,
-    bounds=[None,13],
-)
-
-
-print("We require initial semi-latus rectum of ",p_new, "for inspiral lasting", T, "years")
-print("Your chosen semi-latus rectum is", p0)
-if p0 < p_new:
-    print("Careful, the smaller body is plunging. Expect instabilities.")
-else:
-    print("Body is not plunging.") 
-print("Final point in semilatus rectum achieved is", p_traj[-1])
-print("Separatrix : ", get_separatrix(a, e_traj[-1], Y_traj[-1]))
 
 model_choice = "Pn5AAKWaveform"
 # model_choice = "FastSchwarzschildEccentricFlux"
@@ -81,8 +53,9 @@ if model_choice == "KerrEccentricEquatorialFlux":
     inspiral_kwargs = {
             "DENSE_STEPPING": 0,
             "max_init_len": int(1e3),
-            "err": 1e-12,  # To be set within the class
+            "err": 1e-13,  # To be set within the class
             "use_rk4": True,
+            "func":"KerrEccentricEquatorial"
         }
     # keyword arguments for summation generator (AAKSummation)
     sum_kwargs = {
@@ -90,8 +63,8 @@ if model_choice == "KerrEccentricEquatorialFlux":
         "pad_output": True,
     }
     amplitude_kwargs = {
-        "specific_spins":[0.80, 0.9, 0.95],
-        "use_gpu" : True
+        # "specific_spins":[0.80, 0.9, 0.95],
+        # "use_gpu" : True
         }
     
     Waveform_model = GenerateEMRIWaveform(
@@ -111,9 +84,8 @@ elif model_choice == "FastSchwarzschildEccentricFlux":
     inspiral_kwargs = {
             "DENSE_STEPPING": 0,
             "max_init_len": int(1e3),
-            "err": 1e-10,
+            "err": 1e-4,
             "use_rk4":True,
-            "integrate_phases":False
             }  
     sum_kwargs = {
         "use_gpu": True,  # GPU is availabel for this type of summation
@@ -124,7 +96,7 @@ elif model_choice == "Pn5AAKWaveform":
     inspiral_kwargs = {
             "DENSE_STEPPING": 0,
             "max_init_len": int(1e4),
-            "err": 1e-13,  # To be set within the class
+            "err": 1e-14,  # To be set within the class
             "use_rk4": True,
         }
     # keyword arguments for summation generator (AAKSummation)
@@ -144,30 +116,22 @@ index_lambda = 8
 index_beta = 7
 
 tdi_kwargs_esa = dict(
-    orbit_kwargs=orbit_kwargs, order=order, tdi=tdi_gen, tdi_chan="AET",
+    orbit_kwargs=orbit_kwargs, order=order, tdi=tdi_gen, tdi_chan="AE",
     )
 
 EMRI_TDI = ResponseWrapper(Waveform_model,T,dt,
                 index_lambda,index_beta,t0=t0,
                 flip_hx = True, use_gpu = use_gpu, is_ecliptic_latitude=False,
                 remove_garbage = "zero", **tdi_kwargs_esa)
-
 #varied parameters
-param_names = ['M','mu','a','p0','e0', "scalar_charge"]
-# param_names = ['M','mu','a','p0','e0']
-
-param_args = [0]
+param_names = ['M','mu','a','p0','e0','Y0','dist','qS','phiS','qK', 'phiK', 'Phi_phi0', 'Phi_theta0', 'Phi_r0']
 #initialization
-sef = StableEMRIFisher(M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
-              Phi_phi0, Phi_theta0, Phi_r0, dt, T, param_args = param_args, EMRI_waveform_gen=EMRI_TDI,
-              param_names=param_names, stats_for_nerds=True, 
-              filename='TestRun', CovEllipse=True)
+fish = StableEMRIFisher(M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
+              Phi_phi0, Phi_theta0, Phi_r0, dt=dt, T=T, EMRI_waveform_gen=EMRI_TDI,
+              param_names=param_names, PSD = None, stats_for_nerds=True, use_gpu=True, 
+              filename="FM_file") 
 
 #execution
-print("Computing FM")
-import time
-start = time.time()
-sef()
-end = time.time() - start
-print("Time taken to compute Fisher matrix and stable deltas is",end,"seconds")
-
+fisher_matrix = fish()
+breakpoint()
+Cov_Matrix = np.linalg.inv(fisher_matrix)

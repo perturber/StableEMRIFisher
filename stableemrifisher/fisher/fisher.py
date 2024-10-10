@@ -50,6 +50,7 @@ class StableEMRIFisher:
                 T (float, optional): Duration of the EMRI signal in years. Default is 1.
 
                 EMRI_waveform_gen (object, optional): EMRI waveform generator object. Default is None.
+                PSD (object, optional): A function that takes in one argument frequencies [np.ndarray] and outputs np.ndarray. Default is None.
                 param_names (np.ndarray, optional): Order in which Fisher matrix elements will be arranged. Default is None.
                 deltas (np.ndarray, optional): Range of stable deltas for numerical differentiation of each parameter. Default is None.
                 der_order (int, optional): Order at which to calculate the numerical derivatives. Default is 2.

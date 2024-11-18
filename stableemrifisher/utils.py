@@ -42,7 +42,7 @@ def tukey(N, alpha=0.5, use_gpu=False):
     return window
     
 
-def generate_PSD(waveform, dt, noise_PSD=noise_PSD_AE, channels = ["A","E"], noise_kwargs={}, use_gpu=False):
+def generate_PSD(waveform, dt, noise_PSD=noise_PSD_AE, channels = ["A","E"], noise_kwargs={"TDI":"TDI1"}, use_gpu=False):
     """
     generate the power spectral density for a given waveform, noise_PSD function,
     requested number of response channels, and response generation
@@ -63,14 +63,6 @@ def generate_PSD(waveform, dt, noise_PSD=noise_PSD_AE, channels = ["A","E"], noi
     else:
         xp = np
         
-    try:
-        response = noise_kwargs["TDI"]
-        print(f"TDI detected. response = {response}") 
-    except:
-        print("TDI not found. Setting response as 'LWA'")
-        response = "LWA"
-        channels = ["I","II"]
-        
     # If we use LWA, extract real and imaginary components (channels 1 and 2)
     if waveform.ndim == 1:
         waveform = xp.asarray([waveform.real, waveform.imag])
@@ -86,10 +78,11 @@ def generate_PSD(waveform, dt, noise_PSD=noise_PSD_AE, channels = ["A","E"], noi
     freq_np = xp.asnumpy(freq) # Compute frequencies
 
     # Generate PSDs given LWA/TDI variables
-    if response == "TDI1" or response == "TDI2":
-        PSD = 2*[noise_PSD(freq_np[1:], **noise_kwargs)]
+    if isinstance(noise_kwargs, list):
+        PSD = [noise_PSD(freq_np[1:], **noise_kwargs_temp) for noise_kwargs_temp in noise_kwargs]
     else:
-        PSD = 2*[sensitivity_LWA(freq_np[1:])]  
+        PSD = [noise_PSD(freq_np[1:], **noise_kwargs)]
+        
     PSD_cp = [xp.asarray(item) for item in PSD] # Convert to cupy array
     
     #PSD_funcs = PSD_cp[0:len(PSD_cp)] # Choose which channels to include

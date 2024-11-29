@@ -6,7 +6,7 @@ import sys
 from few.trajectory.inspiral import EMRIInspiral
 from few.utils.constants import YRSID_SI
 from stableemrifisher.fisher.derivatives import derivative, handle_a_flip
-from stableemrifisher.utils import inner_product, get_inspiral_overwrite_fun, SNRcalc
+from stableemrifisher.utils import inner_product, SNRcalc
 from stableemrifisher.noise import noise_PSD_AE, sensitivity_LWA
 from stableemrifisher.plot import CovEllipsePlot, StabilityPlot
 import matplotlib.pyplot as plt
@@ -31,7 +31,7 @@ class StableEMRIFisher:
     
     def __init__(self, M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
                  Phi_phi0, Phi_theta0, Phi_r0, dt = 10., T = 1.0, param_args = None, EMRI_waveform_gen = None, window = None, return_derivs = False,
-                 param_names=None, deltas=None, der_order=2, Ndelta=8, CovEllipse=False, stability_plot=False, interpolation_factor=10, spline_order=7,
+                 param_names=None, deltas=None, der_order=2, Ndelta=8, CovEllipse=False, stability_plot=False, 
                  live_dangerously = False, filename=None, suffix=None, stats_for_nerds=False, use_gpu=False, waveform_kwargs=None):
         """
             This class computes the Fisher matrix for an Extreme Mass Ratio Inspiral (EMRI) system.
@@ -57,8 +57,6 @@ class StableEMRIFisher:
                 Ndelta (int, optional): Density of the delta range grid for calculation of stable deltas. Default is 8.
                 CovEllise (bool, optional): If True, compute the inverse Fisher matrix, i.e., the Covariance Matrix for the given parameters and the covariance triangle plot.
 
-                interpolation_factor (int, optional): factor by which to upsample the inspiral trajectory. This trades stability for expense. Default is 10.
-                spline_order (int, optional): order of interpolation spline used to calculate the upsampled trajectory points. valid values are '3', '5', '7'. Default is 7.
                 live_dangerously (bool, optional): If True, perform calculations without basic consistency checks. Default is False.
                 filename (string, optional): If not None, save the Fisher matrix, stable deltas, and covariance triangle plot in the folder with the same filename.
                 suffix (string, optional): Used in case multiple Fishers are to be stored under the same filename.
@@ -112,42 +110,7 @@ class StableEMRIFisher:
             elif self.waveform_generator.response_model.tdi == '2nd generation': 
                 self.response = "TDI2"
         except:
-            self.response = "LWA"
-
-        # filthy method for applying our post-trajectory upsampling to curb the erroneous behaviour in current FEW
-        # dont feel bad if you are confused by wtf is going on here, because it is bad practice
-        repl_fun = get_inspiral_overwrite_fun(interpolation_factor=interpolation_factor, spline_order=spline_order)
-        
-        
-        if self.response in ["TDI1", "TDI2"]:
-            try:
-                if hasattr(self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator, "get_inspiral_inner"):
-                    pass
-                else:
-                    self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator.get_inspiral_inner = self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator.get_inspiral.__get__(
-		            self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator
-		        )
-		        
-                    self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator.get_inspiral = repl_fun.__get__(self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator)
-		
-            except:
-                if hasattr(self.waveform_generator.wave_gen.waveform_generator.inspiral_generator, "get_inspiral_inner"):
-                    pass
-                else:
-                    self.waveform_generator.wave_gen.waveform_generator.inspiral_generator.get_inspiral_inner = self.waveform_generator.wave_gen.waveform_generator.inspiral_generator.get_inspiral.__get__(
-                    self.waveform_generator.wave_gen.waveform_generator.inspiral_generator
-		        )
-
-                    self.waveform_generator.wave_gen.waveform_generator.inspiral_generator.get_inspiral = repl_fun.__get__(self.waveform_generator.wave_gen.waveform_generator.inspiral_generator)
-		
-		
-        else:
-            if hasattr(self.waveform_generator.waveform_generator.inspiral_generator, "get_inspiral_inner"):
-                pass
-            else:
-                self.waveform_generator.waveform_generator.inspiral_generator.get_inspiral_inner = self.waveform_generator.waveform_generator.inspiral_generator.get_inspiral.__get__(self.waveform_generator.waveform_generator.inspiral_generator)
-                self.waveform_generator.waveform_generator.inspiral_generator.get_inspiral = repl_fun.__get__(self.waveform_generator.waveform_generator.inspiral_generator)
-	
+            self.response = "LWA"	
 	
         if waveform_kwargs is None:
             waveform_kwargs = {}
@@ -157,27 +120,11 @@ class StableEMRIFisher:
         if self.response in ["TDI1", "TDI2"]:
             self.channels = ["A", "E"]
             self.traj_module = self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator
-            self.traj_module_func = self.waveform_generator.waveform_gen.waveform_generator.inspiral_kwargs['func']
         else:
             self.channels = ["I", "II"]
             self.waveform_kwargs["mich"] = True
             self.traj_module = self.waveform_generator.waveform_generator.inspiral_generator
-            self.traj_module_func = self.waveform_generator.waveform_generator.inspiral_kwargs['func']
 
-        # Define what EMRI waveform model we are using  
-        if 'Schwarz' in self.traj_module_func:
-            self.waveform_model_choice = "SchwarzEccFlux"
-        elif 'Kerr' in self.traj_module_func:
-            self.waveform_model_choice = "KerrEccentricEquatorial"
-        elif 'pn5' in self.traj_module_func:
-            self.waveform_model_choice = "Pn5AAKWaveform" 
-
-        for i in range(len(self.param_names)):
-            if self.waveform_model_choice == "SchwarzEccFlux" and self.param_names[i] in ['a', 'Y0', 'Phi_theta0']: 
-                logger.warning(f"{self.param_names[i]} unmeasurable in {self.waveform_model_choice} EMRI model.")
-            elif self.waveform_model_choice == "KerrEccentricEquatorial" and self.param_names[i] in ['Y0', 'Phi_theta0']: 
-                logger.warning(f"{self.param_names[i]} unmeasurable in {self.waveform_model_choice} EMRI model.")
-        
         #initializing param dictionary
         self.wave_params = {'M':M,
                       'mu':mu,

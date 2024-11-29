@@ -63,10 +63,6 @@ def inner_product(a, b, PSD, dt, window=None, use_gpu=False):
     else:
         xp = np
 
-    # a = xp.atleast_2d(a)
-    # b = xp.atleast_2d(b)
-    # PSD = xp.atleast_2d(xp.asarray(PSD))  # handle passing the same PSD for multiple channels
-
     N = a.shape[1]
 
     df = (N * dt) ** -1
@@ -78,24 +74,11 @@ def inner_product(a, b, PSD, dt, window=None, use_gpu=False):
     else:
         a_in, b_in = a, b
 
-    # PSD = PSD[0]
     a_fft = [dt * xp.fft.rfft(a[i])[1:] for i in range(2)]
     b_fft = [dt * xp.fft.rfft(b[i])[1:] for i in range(2)]
 
     inner_prod = 4 * df * xp.real(xp.sum(xp.asarray([a_fft[i] * b_fft[i].conj()/PSD[i] for i in range(2)])))
 
-    # a_fft = dt * xp.fft.rfft(a_in, axis=-1)[:,1:]
-    # b_fft = dt * xp.fft.rfft(b_in, axis=-1)[:,1:]
-
-    # # Compute inner products over given channels
-    # inner_prod = 4 * df * ((a_fft.conj() * b_fft).real / PSD).sum()
-
-    # #clearing cupy cache  TODO: do we need this any more?
-    # cache = xp.fft.config.get_plan_cache()
-    # cache.clear()
-    
-    # if use_gpu:
-    #     inner_prod = inner_prod.get()
 
     return inner_prod
     
@@ -131,29 +114,3 @@ def padding(a, b, use_gpu=False):
 
     else:
         return a
-
-
-def get_inspiral_overwrite_fun(interpolation_factor, spline_order=7):
-    def func(self, *args, **kwargs):
-
-        traj_output = self.get_inspiral_inner(*args, **kwargs)
-        t, p, e, x, Phi_phi, Phi_theta, Phi_r = traj_output
-        out = np.vstack((p, e, x, Phi_phi, Phi_theta, Phi_r))
-        t_new = np.interp(
-            np.arange((len(t) - 1) * interpolation_factor + 1), 
-            np.arange(0, interpolation_factor*len(t), interpolation_factor), 
-            t
-        )
-        
-        valid_spline_orders = [3, 5, 7]
-        
-        if spline_order in valid_spline_orders:
-            spl = make_interp_spline(t,out,k=spline_order, axis=1)
-        else:
-            raise ValueError(f'spline_order should be one of {valid_spline_orders}')
-            
-        upsampled = spl(t_new)
-
-        return (t_new.copy(),) + tuple(upsampled.copy())
-
-    return func    

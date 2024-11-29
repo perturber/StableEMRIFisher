@@ -5,6 +5,7 @@ Testrun/
 *.npy
 *.h5
 *.pdf
+*.pyc
 
 # Byte-compiled / optimized / DLL files
 /stableemrifisher/__pycache__/

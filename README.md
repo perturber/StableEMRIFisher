@@ -25,6 +25,18 @@ See the `examples` directory for examples of basic usage of this package, and `v
 
 Documentation coming soon...
 
+### Citation
+```
+@software{kejriwal_2024_sef,
+  author       = {Shubham Kejriwal and
+                  Christian Chapman-bird and
+                  Ollie Burke},
+  title        = {perturber/StableEMRIFisher.},
+  publisher    = {Github},
+  year         = "manuscript under preparation",
+  url          = {https://github.com/perturber/StableEMRIFisher}
+}
+```
 <!-- 
 ### Processing the data
 

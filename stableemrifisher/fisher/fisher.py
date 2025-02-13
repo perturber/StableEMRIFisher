@@ -123,6 +123,7 @@ class StableEMRIFisher:
                 self.response = "TDI2"
                 self.channels = channels
         except:
+            logger.info("TDI not found. Invoking Linear Wavelength Approximation.")
             self.response = "LWA"
             self.channels = ["I","II"]
 
@@ -212,7 +213,7 @@ class StableEMRIFisher:
                       'Phi_r0':Phi_r0,
                       }
 
-        self.minmax = {'Phi_phi0':[0.1,2*np.pi*(0.9)],'Phi_r0':[0.1,2*np.pi*(0.9)],'Phi_theta0':[0.1,2*np.pi*(0.9)],
+        self.minmax = {'e0':[1e-2,0.99],'Phi_phi0':[0.1,2*np.pi*(0.9)],'Phi_r0':[0.1,2*np.pi*(0.9)],'Phi_theta0':[0.1,2*np.pi*(0.9)],
                               'qS':[0.1,np.pi*(0.9)],'qK':[0.1,np.pi*(0.9)],'phiS':[0.1,2*np.pi*(0.9)],'phiK':[0.1,2*np.pi*(0.9)]}
                                             
         self.traj_params = dict(list(self.wave_params.items())[:6]) 
@@ -414,10 +415,15 @@ class StableEMRIFisher:
             if relerr_flag == False:
                 Gamma = xp.asnumpy(xp.array(Gamma))
                 
-                if (Gamma[1:] == 0.).any(): #handle non-contributing parameters
+                if (Gamma[1:] == 0.).all(): #handle non-contributing parameters
                     relerr = np.ones(len(Gamma)-1)
-                else:    
-                    relerr = np.abs(Gamma[1:] - Gamma[:-1])/Gamma[1:]
+                else:
+                    relerr = []
+                    for m in range(len(Gamma)-1): 
+                        if Gamma[m+1] == 0.0: #handle partially null contributors
+                            relerr.append(1.0)
+                        else:
+                            relerr.append(np.abs(Gamma[m+1] - Gamma[m])/Gamma[m+1])   
 
                 logger.debug(relerr)
                 

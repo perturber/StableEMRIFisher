@@ -186,7 +186,6 @@ class StableEMRIFisher:
 
     def __call__(self):
     
-        
         rho = self.SNRcalc_SEF()
 
         self.SNR2 = rho**2
@@ -212,7 +211,7 @@ class StableEMRIFisher:
                 
         else:
             logger.debug("You have elected for dangerous living, I like it. ")
-            fudge_factor_intrinsic = 3*(self.wave_params["mu"]/self.wave_params["M"]) * (self.SNR2)**-1
+            fudge_factor_intrinsic = 3*(self.wave_params["mu"]/self.wave_params["M"]) * cp.asnumpy((self.SNR2))**-1
             delta_intrinsic = fudge_factor_intrinsic * np.array([self.wave_params["M"], self.wave_params["mu"], 1.0, 1.0, 1.0, 1.0])
             danger_delta_dict = dict(zip(self.param_names[0:7],delta_intrinsic))
             delta_dict_final_params = dict(zip(self.param_names[6:14],np.array(8*[1e-6])))
@@ -280,7 +279,7 @@ class StableEMRIFisher:
 
         # Compute SNR
         logger.info(f"Computing SNR for parameters: {self.wave_params}") 
-        
+
         return SNRcalc(self.waveform, self.PSD_funcs, dt=self.dt, window=self.window, use_gpu=self.use_gpu)
         
     
@@ -369,7 +368,6 @@ class StableEMRIFisher:
                     # ax.plot(xp.asnumpy(del_k[0]), label = delta_init[k])
                     # ax.legend()
                     # plt.savefig("deriv_plot.pdf",bbox_inches="tight")
-                    # breakpoint()
                 #Calculating the Fisher Elements
                 Gammai = inner_product(del_k,del_k, self.PSD_funcs, self.dt, window=self.window, use_gpu=self.use_gpu)
                 # print("gammai=",Gammai)
@@ -443,7 +441,8 @@ class StableEMRIFisher:
             else:
                 dtv.append(derivative(self.waveform_generator, self.wave_params, self.param_names[i], self.deltas[self.param_names[i]],use_gpu=self.use_gpu, waveform=self.waveform, order=self.order, waveform_kwargs=self.waveform_kwargs))
 
-        logger.info("Finished derivatives")
+
+
 
         for i in range(self.npar):
             for j in range(i,self.npar):
@@ -477,5 +476,5 @@ class StableEMRIFisher:
         
         if self.return_derivs == False:   
             return Fisher
-        else:
+        elif self.return_derivs == True:
             return dtv, Fisher

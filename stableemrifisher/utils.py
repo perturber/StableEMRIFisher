@@ -74,8 +74,8 @@ def inner_product(a, b, PSD, dt, window=None, use_gpu=False):
     else:
         a_in, b_in = a, b
 
-    a_fft = [dt * xp.fft.rfft(a[i])[1:] for i in range(2)]
-    b_fft = [dt * xp.fft.rfft(b[i])[1:] for i in range(2)]
+    a_fft = [dt * xp.fft.rfft(a_in[i])[1:] for i in range(2)]
+    b_fft = [dt * xp.fft.rfft(b_in[i])[1:] for i in range(2)]
 
     inner_prod = 4 * df * xp.real(xp.sum(xp.asarray([a_fft[i] * b_fft[i].conj()/PSD[i] for i in range(2)])))
 

@@ -75,7 +75,8 @@ def generate_PSD(waveform, dt, noise_PSD=noise_PSD_AE, channels = ["A","E"], noi
     # Compute evolution time of EMRI 
     T = (df * YRSID_SI)**-1
 
-    freq_np = xp.asnumpy(freq) # Compute frequencies
+    if use_gpu:
+        freq_np = xp.asnumpy(freq) # Compute frequencies
 
     # Generate PSDs given LWA/TDI variables
     if isinstance(noise_kwargs, list):
@@ -86,7 +87,7 @@ def generate_PSD(waveform, dt, noise_PSD=noise_PSD_AE, channels = ["A","E"], noi
     PSD_cp = [xp.asarray(item) for item in PSD] # Convert to cupy array
     
     #PSD_funcs = PSD_cp[0:len(PSD_cp)] # Choose which channels to include
-    return PSD_cp[0:len(channels)]    
+    return PSD_cp[0:len(channels)]      
 
 
 def inner_product(a, b, PSD, dt, window=None, use_gpu=False):

@@ -75,18 +75,19 @@ def generate_PSD(waveform, dt, noise_PSD=noise_PSD_AE, channels = ["A","E"], noi
     # Compute evolution time of EMRI 
     T = (df * YRSID_SI)**-1
 
-    freq_np = xp.asnumpy(freq) # Compute frequencies
+    if use_gpu:
+        freq_np = xp.asnumpy(freq) # Compute frequencies
 
     # Generate PSDs given LWA/TDI variables
     if isinstance(noise_kwargs, list):
         PSD = [noise_PSD(freq_np[1:], **noise_kwargs_temp) for noise_kwargs_temp in noise_kwargs]
     else:
-        PSD = [noise_PSD(freq_np[1:], **noise_kwargs)]
+        PSD = len(channels) * [noise_PSD(freq_np[1:], **noise_kwargs)]
         
     PSD_cp = [xp.asarray(item) for item in PSD] # Convert to cupy array
     
     #PSD_funcs = PSD_cp[0:len(PSD_cp)] # Choose which channels to include
-    return PSD_cp[0:len(channels)]    
+    return PSD_cp[0:len(channels)]      
 
 
 def inner_product(a, b, PSD, dt, window=None, use_gpu=False):
@@ -132,10 +133,6 @@ def inner_product(a, b, PSD, dt, window=None, use_gpu=False):
 
     # Compute inner products over given channels
     inner_prod = 4 * df * ((a_fft.conj() * b_fft).real / PSD).sum()
-
-    #clearing cupy cache  TODO: do we need this any more?
-    cache = xp.fft.config.get_plan_cache()
-    cache.clear()
     
     if use_gpu:
         inner_prod = inner_prod.get()

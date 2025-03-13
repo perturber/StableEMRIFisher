@@ -336,8 +336,8 @@ class StableEMRIFisher:
                                         Phi_theta0=self.wave_params["Phi_theta0"], Phi_r0=self.wave_params["Phi_r0"], 
                                         T = self.T, dt = self.dt) 
 
-        if t_traj[-1] > self.T*YRSID_SI - 6*60*60:
-            logger.warning("Body is within 6 hours of plunging! Expect instabilities.")
+        if t_traj[-1] < self.T*YRSID_SI:
+            logger.warning("Body is plunging! Expect instabilities.")
             final_time = t_traj[-1] - 6*60*60 # Remove 6 hours of final inspiral
             logger.warning(f"Removed last 6 hours of inspiral. New evolution time: {final_time/YRSID_SI} years")
         else:

@@ -2,6 +2,7 @@ import numpy as np
 import os
 import time 
 import sys
+import h5py
 
 from few.trajectory.inspiral import EMRIInspiral
 from few.utils.constants import YRSID_SI
@@ -29,7 +30,7 @@ except:
 class StableEMRIFisher:
     
     def __init__(self, M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
-                 Phi_phi0, Phi_theta0, Phi_r0, dt = 10., T = 1.0, add_param_args = None, waveform_kwargs=None, EMRI_waveform_gen = None, window = None, noise_model = noise_PSD_AE, noise_kwargs={"TDI":'TDI1'}, channels=["A","E"],
+                 Phi_phi0, Phi_theta0, Phi_r0, dt = 10., T = 1.0, add_param_args = None, waveform_kwargs=None, EMRI_waveform_gen = None, window = None, noise_weighted_waveform=False, noise_model = noise_PSD_AE, noise_kwargs={"TDI":'TDI1'}, channels=["A","E"],
                  param_names=None, deltas=None, der_order=2, Ndelta=8, CovEllipse=False, stability_plot=False, interpolation_factor=1, spline_order=7,
                  live_dangerously = False, filename=None, suffix=None, stats_for_nerds=False, use_gpu=False):
         """
@@ -51,8 +52,9 @@ class StableEMRIFisher:
 
                 add_param_args (dict, optional): names and values of additional model parameters in case of a beyond vacuum-GR waveform. Default is None.
                 waveform_kwargs (dict, optional): dictionary of any additional waveform arguments (for e.g. mich = True). Default is None. 
-                EMRI_waveform_gen (object, optional): EMRI waveform generator object. Default is None.
+                EMRI_waveform_gen (object, optional): EMRI waveform generator object. Can be GenerateEMRIWaveform object or ResponseWrapper object. Default is None.
                 window (np.ndarray, optional): window function for the waveform. Default is None.
+                noise_weighted_waveform (bool, optional): whether input waveform is already noise-weighted. If so, we don't weight by the PSD.
                 noise_model (func, optional): function to calculate the noise of the instrument at a given frequency and noise configuration. frequency should be the first argument. Default is noise_PSD_AE.
                 noise_kwargs (dict, optional): additional keyword arguments to be provided to the noise model function. Default is {"TDI":'TDI1'} (kwarg for noise_PSD_AE).
                 channels (list, optional): list of LISA response channels. Default is ["A","E"]
@@ -114,54 +116,56 @@ class StableEMRIFisher:
 
         self.noise_model = noise_model
         self.noise_kwargs = noise_kwargs
+        self.channels = channels
+        
 
-        try:
-            if self.waveform_generator.response_model.tdi == '1st generation':
-                self.response = "TDI1"
-                self.channels = channels
-            elif self.waveform_generator.response_model.tdi == '2nd generation': 
-                self.response = "TDI2"
-                self.channels = channels
-        except:
-            logger.info("TDI not found. Invoking Linear Wavelength Approximation.")
-            self.response = "LWA"
-            self.channels = ["I","II"]
+        #try:
+        #    if self.waveform_generator.response_model.tdi == '1st generation':
+        #        self.response = "TDI1"
+        #        self.channels = channels
+        #    elif self.waveform_generator.response_model.tdi == '2nd generation': 
+        #        self.response = "TDI2"
+        #        self.channels = channels
+        #except:
+        #    logger.info("TDI not found. Invoking Linear Wavelength Approximation.")
+        #    self.response = "LWA"
+        #    self.channels = ["I","II"]
 
-        if interpolation_factor > 1:
-            logger.info("upsampling.")
-            # filthy method for applying our post-trajectory upsampling to curb the erroneous behaviour in current FEW
-            # dont feel bad if you are confused by wtf is going on here, because it is bad practice
-            repl_fun = get_inspiral_overwrite_fun(interpolation_factor=interpolation_factor, spline_order=spline_order)
+        #if interpolation_factor > 1:
+        #    logger.info("upsampling.")
+        #    # filthy method for applying our post-trajectory upsampling to curb the erroneous behaviour in current FEW
+        #    # dont feel bad if you are confused by wtf is going on here, because it is bad practice
+        #    repl_fun = get_inspiral_overwrite_fun(interpolation_factor=interpolation_factor, spline_order=spline_order)
         
         
-            if self.response in ["TDI1", "TDI2"]:
-                try:
-                    if hasattr(self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator, "get_inspiral_inner"):
-                        pass
-                    else:
-                        self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator.get_inspiral_inner = self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator.get_inspiral.__get__(
-		            self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator
-		        )
+        #    if self.response in ["TDI1", "TDI2"]:
+        #        try:
+        #            if hasattr(self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator, "get_inspiral_inner"):
+        #                pass
+        #            else:
+        #                self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator.get_inspiral_inner = self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator.get_inspiral.__get__(
+	#	            self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator
+	#	        )
 		        
-                        self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator.get_inspiral = repl_fun.__get__(self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator)
+        #                self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator.get_inspiral = repl_fun.__get__(self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator)
 		
-                except:
-                    if hasattr(self.waveform_generator.wave_gen.waveform_generator.inspiral_generator, "get_inspiral_inner"):
-                        pass
-                    else:
-                        self.waveform_generator.wave_gen.waveform_generator.inspiral_generator.get_inspiral_inner = self.waveform_generator.wave_gen.waveform_generator.inspiral_generator.get_inspiral.__get__(
-                    self.waveform_generator.wave_gen.waveform_generator.inspiral_generator
-		        )
+        #        except:
+        #            if hasattr(self.waveform_generator.wave_gen.waveform_generator.inspiral_generator, "get_inspiral_inner"):
+        #                pass
+        #            else:
+        #                self.waveform_generator.wave_gen.waveform_generator.inspiral_generator.get_inspiral_inner = self.waveform_generator.wave_gen.waveform_generator.inspiral_generator.get_inspiral.__get__(
+        #            self.waveform_generator.wave_gen.waveform_generator.inspiral_generator
+	#	        )
 
-                        self.waveform_generator.wave_gen.waveform_generator.inspiral_generator.get_inspiral = repl_fun.__get__(self.waveform_generator.wave_gen.waveform_generator.inspiral_generator)
+        #                self.waveform_generator.wave_gen.waveform_generator.inspiral_generator.get_inspiral = repl_fun.__get__(self.waveform_generator.wave_gen.waveform_generator.inspiral_generator)
 		
 		
-            else:
-                if hasattr(self.waveform_generator.waveform_generator.inspiral_generator, "get_inspiral_inner"):
-                    pass
-                else:
-                    self.waveform_generator.waveform_generator.inspiral_generator.get_inspiral_inner = self.waveform_generator.waveform_generator.inspiral_generator.get_inspiral.__get__(self.waveform_generator.waveform_generator.inspiral_generator)
-                    self.waveform_generator.waveform_generator.inspiral_generator.get_inspiral = repl_fun.__get__(self.waveform_generator.waveform_generator.inspiral_generator)
+        #    else:
+        #        if hasattr(self.waveform_generator.waveform_generator.inspiral_generator, "get_inspiral_inner"):
+        #            pass
+        #        else:
+        #            self.waveform_generator.waveform_generator.inspiral_generator.get_inspiral_inner = self.waveform_generator.waveform_generator.inspiral_generator.get_inspiral.__get__(self.waveform_generator.waveform_generator.inspiral_generator)
+        #            self.waveform_generator.waveform_generator.inspiral_generator.get_inspiral = repl_fun.__get__(self.waveform_generator.waveform_generator.inspiral_generator)
 	
 	
         if waveform_kwargs is None:
@@ -169,32 +173,15 @@ class StableEMRIFisher:
 
         self.waveform_kwargs = waveform_kwargs
 
-        if self.response in ["TDI1", "TDI2"]:
+        #if self.response in ["TDI1", "TDI2"]:
+        
+        try: #if ResponseWrapper is provided
             self.traj_module = self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator
             self.traj_module_func = self.waveform_generator.waveform_gen.waveform_generator.inspiral_kwargs['func']
-            self.traj_use_rk4 = self.waveform_generator.waveform_gen.waveform_generator.inspiral_kwargs['use_rk4']
-        else:
+        except: #if GenerateEMRIWaveform is provided
             self.waveform_kwargs["mich"] = True
             self.traj_module = self.waveform_generator.waveform_generator.inspiral_generator
             self.traj_module_func = self.waveform_generator.waveform_generator.inspiral_kwargs['func']
-            self.traj_use_rk4 = self.waveform_generator.waveform_generator.inspiral_kwargs['use_rk4']
-            
-        if self.traj_use_rk4:
-            logger.info("using Runge-Kutta 4 integrator.")
-
-        # Define what EMRI waveform model we are using  
-        if 'Schwarz' in self.traj_module_func:
-            self.waveform_model_choice = "SchwarzEccFlux"
-        elif 'Kerr' in self.traj_module_func:
-            self.waveform_model_choice = "KerrEccentricEquatorial"
-        elif 'pn5' in self.traj_module_func:
-            self.waveform_model_choice = "Pn5AAKWaveform" 
-
-        for i in range(len(self.param_names)):
-            if self.waveform_model_choice == "SchwarzEccFlux" and self.param_names[i] in ['a', 'Y0', 'Phi_theta0']: 
-                logger.warning(f"{self.param_names[i]} unmeasurable in {self.waveform_model_choice} EMRI model.")
-            elif self.waveform_model_choice == "KerrEccentricEquatorial" and self.param_names[i] in ['Y0', 'Phi_theta0']: 
-                logger.warning(f"{self.param_names[i]} unmeasurable in {self.waveform_model_choice} EMRI model.")
         
         #initializing param dictionary
         self.wave_params = {'M':M,
@@ -347,10 +334,10 @@ class StableEMRIFisher:
         traj_vals = list(handle_a_flip(self.traj_params).values())
         t_traj, _, _, _, _, _, _ = self.traj_module(*traj_vals, Phi_phi0=self.wave_params["Phi_phi0"], 
                                         Phi_theta0=self.wave_params["Phi_theta0"], Phi_r0=self.wave_params["Phi_r0"], 
-                                        T = self.T, inspiral_kwargs={"use_rk4":self.traj_use_rk4}) 
+                                        T = self.T, dt = self.dt) 
 
-        if t_traj[-1] < self.T*YRSID_SI - 6*60*60:
-            logger.warning("Body is within 6 hours of plunging! Expect instabilities.")
+        if t_traj[-1] < self.T*YRSID_SI:
+            logger.warning("Body is plunging! Expect instabilities.")
             final_time = t_traj[-1] - 6*60*60 # Remove 6 hours of final inspiral
             logger.warning(f"Removed last 6 hours of inspiral. New evolution time: {final_time/YRSID_SI} years")
         else:
@@ -409,7 +396,11 @@ class StableEMRIFisher:
                 #Calculating the Fisher Elements
                 Gammai = inner_product(del_k,del_k, self.PSD_funcs, self.dt, window=self.window, use_gpu=self.use_gpu)
                 logger.debug(f"Gamma_ii: {Gammai}")
-                Gamma.append(Gammai)
+                if np.isnan(Gammai):
+                    Gamma.append(0.0) #handle nan's
+                    logger.warning('NaN type encountered during Fisher calculation! Replacing with 0.0.')	
+                else:
+                    Gamma.append(Gammai)
 
             
             if relerr_flag == False:
@@ -512,8 +503,10 @@ class StableEMRIFisher:
             pass
         else:
             if self.suffix != None:
-                np.save(f'{self.filename}/Fisher_{self.suffix}.npy',Fisher)
+                with h5py.File(f"{self.filename}/Fisher_{self.suffix}.h5", "w") as f:
+                    f.create_dataset("Fisher",data=Fisher)
             else:
-                np.save(f'{self.filename}/Fisher.npy',Fisher)
+                with h5py.File(f"{self.filename}/Fisher.h5", "w") as f:
+                    f.create_dataset("Fisher",data=Fisher)
                     
         return Fisher

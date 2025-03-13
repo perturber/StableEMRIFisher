@@ -200,7 +200,7 @@ class StableEMRIFisher:
                       'Phi_r0':Phi_r0,
                       }
 
-        self.minmax = {'e0':[1e-2,0.99],'Phi_phi0':[0.1,2*np.pi*(0.9)],'Phi_r0':[0.1,2*np.pi*(0.9)],'Phi_theta0':[0.1,2*np.pi*(0.9)],
+        self.minmax = {'e0':[1e-3,0.8],'Phi_phi0':[0.1,2*np.pi*(0.9)],'Phi_r0':[0.1,2*np.pi*(0.9)],'Phi_theta0':[0.1,2*np.pi*(0.9)],
                               'qS':[0.1,np.pi*(0.9)],'qK':[0.1,np.pi*(0.9)],'phiS':[0.1,2*np.pi*(0.9)],'phiK':[0.1,2*np.pi*(0.9)]}
                                             
         self.traj_params = dict(list(self.wave_params.items())[:6]) 
@@ -367,7 +367,7 @@ class StableEMRIFisher:
             elif self.param_names[i] == 'a' or self.param_names[i] == 'p0' or self.param_names[i] == 'e0' or self.param_names[i] == 'Y0':
                 delta_init = np.geomspace(1e-4*self.wave_params[self.param_names[i]],1e-9*self.wave_params[self.param_names[i]],Ndelta)
             else:
-                delta_init = np.geomspace(1e-1*self.wave_params[self.param_names[i]],1e-10*self.wave_params[self.param_names[i]],Ndelta)
+                delta_init = np.geomspace(1e-1*self.wave_params[self.param_names[i]],1e-6*self.wave_params[self.param_names[i]],Ndelta)
  
             Gamma = []
             orderofmag = []

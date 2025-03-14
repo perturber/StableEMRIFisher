@@ -178,10 +178,12 @@ class StableEMRIFisher:
         try: #if ResponseWrapper is provided
             self.traj_module = self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator
             self.traj_module_func = self.waveform_generator.waveform_gen.waveform_generator.inspiral_kwargs['func']
+            self.ResponseWrapper = True
         except: #if GenerateEMRIWaveform is provided
             self.waveform_kwargs["mich"] = True
             self.traj_module = self.waveform_generator.waveform_generator.inspiral_generator
             self.traj_module_func = self.waveform_generator.waveform_generator.inspiral_kwargs['func']
+            self.ResponseWrapper = False
         
         #initializing param dictionary
         self.wave_params = {'M':M,
@@ -354,7 +356,19 @@ class StableEMRIFisher:
         logger.info('calculating stable deltas...')
         Ndelta = self.Ndelta
         deltas = {}
-
+        
+        #if ResponseWrapper provided, strip it before calculating stable deltas. 
+        #this should improve speed. We switch back to EMRI_TDI before the final Fisher calculation of course.
+        if self.ResponseWrapper:
+            waveform_generator = self.waveform_generator.waveform_gen #stripped waveform generator
+            waveform = xp.asarray(waveform_generator(*self.wave_params_list, **self.waveform_kwargs))
+            waveform = xp.asarray([waveform.real, waveform.imag]) #ndim == 2
+            PSD_funcs = generate_PSD(waveform=waveform, dt=self.dt,use_gpu=self.use_gpu) #produce 2-channel default PSD
+        else:
+            waveform_generator = self.waveform_generator
+            waveform = self.waveform
+            PSD_funcs = self.PSD_funcs
+            
         for i in range(len(self.param_names)):
 
             # If a specific parameter equals zero, then consider stepsizes around zero.
@@ -375,7 +389,7 @@ class StableEMRIFisher:
             relerr_flag = False
             for k in range(Ndelta):
                 if self.param_names[i] == 'dist':
-                    del_k = derivative(self.waveform_generator, self.wave_params, self.param_names[i], delta_init[k], use_gpu=self.use_gpu, waveform=self.waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
+                    del_k = derivative(waveform_generator, self.wave_params, self.param_names[i], delta_init[k], use_gpu=self.use_gpu, waveform=waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
                     
                     relerr_flag = True
                     deltas['dist'] = 0.0
@@ -385,16 +399,16 @@ class StableEMRIFisher:
                     
                     if self.param_names[i] in list(self.minmax.keys()):
                         if self.wave_params[self.param_names[i]] <= self.minmax[self.param_names[i]][0]:
-                            del_k = derivative(self.waveform_generator, self.wave_params, self.param_names[i], delta_init[k], kind="forward", use_gpu=self.use_gpu, waveform=self.waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
+                            del_k = derivative(waveform_generator, self.wave_params, self.param_names[i], delta_init[k], kind="forward", use_gpu=self.use_gpu, waveform=waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
                         elif self.wave_params[self.param_names[i]] > self.minmax[self.param_names[i]][1]:
-                            del_k = derivative(self.waveform_generator, self.wave_params, self.param_names[i], delta_init[k], kind="backward", use_gpu=self.use_gpu, waveform=self.waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
+                            del_k = derivative(waveform_generator, self.wave_params, self.param_names[i], delta_init[k], kind="backward", use_gpu=self.use_gpu, waveform=waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
                         else:
-                            del_k = derivative(self.waveform_generator, self.wave_params, self.param_names[i], delta_init[k], use_gpu=self.use_gpu, waveform=self.waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
+                            del_k = derivative(waveform_generator, self.wave_params, self.param_names[i], delta_init[k], use_gpu=self.use_gpu, waveform=waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
                     else:
-                        del_k = derivative(self.waveform_generator, self.wave_params, self.param_names[i], delta_init[k], use_gpu=self.use_gpu, waveform=self.waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
+                        del_k = derivative(waveform_generator, self.wave_params, self.param_names[i], delta_init[k], use_gpu=self.use_gpu, waveform=waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
 
                 #Calculating the Fisher Elements
-                Gammai = inner_product(del_k,del_k, self.PSD_funcs, self.dt, window=self.window, use_gpu=self.use_gpu)
+                Gammai = inner_product(del_k,del_k, PSD_funcs, self.dt, window=self.window, use_gpu=self.use_gpu)
                 logger.debug(f"Gamma_ii: {Gammai}")
                 if np.isnan(Gammai):
                     Gamma.append(0.0) #handle nan's

@@ -338,7 +338,7 @@ class StableEMRIFisher:
                                         Phi_theta0=self.wave_params["Phi_theta0"], Phi_r0=self.wave_params["Phi_r0"], 
                                         T = self.T, dt = self.dt) 
 
-        if t_traj[-1] < self.T*YRSID_SI:
+        if t_traj[-1] < self.T*YRSID_SI - 1.0: #1.0 is a buffer because self.traj_module can produce trajectories slightly smaller than T*YRSID_SI even if not plunging!
             logger.warning("Body is plunging! Expect instabilities.")
             final_time = t_traj[-1] - 6*60*60 # Remove 6 hours of final inspiral
             logger.warning(f"Removed last 6 hours of inspiral. New evolution time: {final_time/YRSID_SI} years")

@@ -26,11 +26,15 @@ stencils = {
     },
     "forward": {
         2: np.asarray([-3/2, 2, -1/2]),
-        4: np.asarray([-25/12, 4, -3, 4/3, -1/4])
+        4: np.asarray([-25/12, 4, -3, 4/3, -1/4]),
+        6: np.asarray([-49/20, 6, -15/2, 20/3, -15/4, 6/5, -1/6]),
+        8: np.asarray([-761/280, 8, -14, 56/3, -35/2, 56/5, -14/3, 8/7, -1/8]) #Fornberg 1988: https://doi.org/10.1090%2FS0025-5718-1988-0935077-0
     },
     "backward": {
         2: np.asarray([1/2, -2, 3/2]),
-        4: np.asarray([1/4, -4/3, 3, -4, 25/12])
+        4: np.asarray([1/4, -4/3, 3, -4, 25/12]),
+        6: np.asarray([1/6, -6/5, 15/4, -20/3, 15/2, -6, 49/20]),
+        8: np.asarray([1/8, -8/7, 14/3, -56/5, 35/2, -56/3, 14, -8, 761/280]) #Fornberg 1988: https://doi.org/10.1090%2FS0025-5718-1988-0935077-0
     }
 }
 
@@ -117,9 +121,9 @@ def derivative(waveform_generator, parameters, param_to_vary, delta, order=4, ki
             temp = parameters.copy()
             delta_waveforms = [waveform, ]
 
-            if order > 4:
-                logger.warn('forward derivatives only available to 4th order accuracy. Setting der_order = 4')
-                order = 4
+            #if order > 4:
+            #    logger.warn('forward derivatives only available to 4th order accuracy. Setting der_order = 4')
+            #    order = 4
 
             for _ in range(order):
                 temp[param_to_vary] += delta
@@ -144,9 +148,9 @@ def derivative(waveform_generator, parameters, param_to_vary, delta, order=4, ki
             temp = parameters.copy()
             delta_waveforms = []
 
-            if order > 4:
-                logger.warn('backward derivatives only available to 4th order accuracy. Setting der_order = 4')
-                order = 4
+            #if order > 4:
+            #    logger.warn('backward derivatives only available to 4th order accuracy. Setting der_order = 4')
+            #    order = 4
 
             for _ in range(order):
                 temp[param_to_vary] -= delta

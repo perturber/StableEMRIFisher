@@ -121,10 +121,6 @@ def derivative(waveform_generator, parameters, param_to_vary, delta, order=4, ki
             temp = parameters.copy()
             delta_waveforms = [waveform, ]
 
-            #if order > 4:
-            #    logger.warn('forward derivatives only available to 4th order accuracy. Setting der_order = 4')
-            #    order = 4
-
             for _ in range(order):
                 temp[param_to_vary] += delta
                 temp = handle_a_flip(temp)
@@ -147,10 +143,6 @@ def derivative(waveform_generator, parameters, param_to_vary, delta, order=4, ki
             # backwards deltas
             temp = parameters.copy()
             delta_waveforms = []
-
-            #if order > 4:
-            #    logger.warn('backward derivatives only available to 4th order accuracy. Setting der_order = 4')
-            #    order = 4
 
             for _ in range(order):
                 temp[param_to_vary] -= delta

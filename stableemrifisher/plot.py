@@ -53,50 +53,51 @@ def normal(mean, var, x):
     return np.exp(-(mean-x)**2/var/2)
 
 def CovEllipsePlot(param_names, wave_params, covariance, filename=None):
-        fig, axs = plt.subplots(len(param_names),len(param_names), figsize=(20,20))
+    fig, axs = plt.subplots(len(param_names),len(param_names), figsize=(20,20))
 
-        #first param index
-        for i in range(len(param_names)):
-            #second param index
-            for j in range(i,len(param_names)):
+    #first param index
+    for i in range(len(param_names)):
+        #second param index
+        for j in range(i,len(param_names)):
 
-                if i != j:
-                    cov = np.array(((covariance[i][i],covariance[i][j]),(covariance[j][i],covariance[j][j])))
-                    #print(cov)
-                    mean = np.array((wave_params[param_names[i]],wave_params[param_names[j]]))
+            if i != j:
+                cov = np.array(((covariance[i][i],covariance[i][j]),(covariance[j][i],covariance[j][j])))
+                #print(cov)
+                mean = np.array((wave_params[param_names[i]],wave_params[param_names[j]]))
 
-                    cov_ellipse(mean,cov,axs[j,i],lw=2,edgecolor='blue')
+                cov_ellipse(mean,cov,axs[j,i],lw=2,edgecolor='blue')
 
-                    #custom setting the x-y lim for each plot
-                    axs[j,i].set_xlim([wave_params[param_names[i]]-2.5*np.sqrt(covariance[i][i]), wave_params[param_names[i]]+2.5*np.sqrt(covariance[i][i])])
-                    axs[j,i].set_ylim([wave_params[param_names[j]]-2.5*np.sqrt(covariance[j][j]), wave_params[param_names[j]]+2.5*np.sqrt(covariance[j][j])])
+                #custom setting the x-y lim for each plot
+                axs[j,i].set_xlim([wave_params[param_names[i]]-2.5*np.sqrt(covariance[i][i]), wave_params[param_names[i]]+2.5*np.sqrt(covariance[i][i])])
+                axs[j,i].set_ylim([wave_params[param_names[j]]-2.5*np.sqrt(covariance[j][j]), wave_params[param_names[j]]+2.5*np.sqrt(covariance[j][j])])
 
-                    axs[j,i].set_xlabel(param_names[i],labelpad=20,fontsize=16)
-                    axs[j,i].set_ylabel(param_names[j],labelpad=20,fontsize=16)
+                axs[j,i].set_xlabel(param_names[i],labelpad=20,fontsize=16)
+                axs[j,i].set_ylabel(param_names[j],labelpad=20,fontsize=16)
 
-                else:
-                    mean = wave_params[param_names[i]]
-                    var = covariance[i][i]
+            else:
+                mean = wave_params[param_names[i]]
+                var = covariance[i][i]
 
-                    x = np.linspace(mean-3*np.sqrt(var),mean+3*np.sqrt(var))
+                x = np.linspace(mean-3*np.sqrt(var),mean+3*np.sqrt(var))
 
-                    axs[j,i].plot(x,normal(mean,var,x),c='blue')
-                    axs[j,i].set_xlim([wave_params[param_names[i]]-2.5*np.sqrt(covariance[i][i]), wave_params[param_names[i]]+2.5*np.sqrt(covariance[i][i])])
-                    axs[j,i].set_xlabel(param_names[i],labelpad=20,fontsize=16)
-                    if i == j and j == 0:
-                        axs[j,i].set_ylabel(param_names[i],labelpad=20,fontsize=16)
+                axs[j,i].plot(x,normal(mean,var,x),c='blue')
+                axs[j,i].set_xlim([wave_params[param_names[i]]-2.5*np.sqrt(covariance[i][i]), wave_params[param_names[i]]+2.5*np.sqrt(covariance[i][i])])
+                axs[j,i].set_xlabel(param_names[i],labelpad=20,fontsize=16)
+                if i == j and j == 0:
+                    axs[j,i].set_ylabel(param_names[i],labelpad=20,fontsize=16)
 
-        for ax in fig.get_axes():
-            ax.label_outer()
+    for ax in fig.get_axes():
+        ax.label_outer()
 
-        for i in range(len(param_names)):
-            for j in range(i+1,len(param_names)):
-                fig.delaxes(axs[i,j])
+    for i in range(len(param_names)):
+        for j in range(i+1,len(param_names)):
+            fig.delaxes(axs[i,j])
 
-        if filename is None:
-            return fig, ax
-        else:
-            plt.savefig(filename,dpi=300,bbox_inches='tight')
+    if filename is None:
+        return fig, ax
+    else:
+        plt.savefig(filename,dpi=300,bbox_inches='tight')
+        plt.close()
             
 def StabilityPlot(deltas,Gammas,param_name=None,filename=None):
     
@@ -112,4 +113,7 @@ def StabilityPlot(deltas,Gammas,param_name=None,filename=None):
     
     if filename != None:
         plt.savefig(filename,dpi=300,bbox_inches='tight')
+        plt.close()
+    else:
+        plt.close()
         

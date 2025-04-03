@@ -41,7 +41,7 @@ def noise_PSD_AE(f, TDI = 'TDI1'):
     """
     # Define constants
     L = 2.5e9
-    c = 299758492
+    c = 299758492 #check the speed of light
     x = 2*np.pi*(L/c)*f
     
     # Test mass acceleration

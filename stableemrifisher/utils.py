@@ -1,15 +1,16 @@
 import numpy as np
+import cupy as cp
 from scipy.interpolate import make_interp_spline
 from stableemrifisher.noise import noise_PSD_AE, sensitivity_LWA
 from few.utils.constants import YRSID_SI
 
-try:
-    import cupy as cp
-    cp.ones(5)
-    GPU_AVAILABLE = True
-except ImportError or ModuleNotFoundError:
-    xp = np
-    GPU_AVAILABLE = False
+#try:
+#    import cupy as cp
+#    cp.ones(5)
+#    GPU_AVAILABLE = True
+#except: #ImportError or ModuleNotFoundError or CUDARuntimeError:
+#    xp = np
+#    GPU_AVAILABLE = False
 
 def tukey(N, alpha=0.5, use_gpu=False):
     """
@@ -28,10 +29,10 @@ def tukey(N, alpha=0.5, use_gpu=False):
     with N points. The function computes the values of the Tukey window function at each point in t using GPU-accelerated 
     operations and returns the resulting window as a CuPy array.
     """
-    if not use_gpu:
-        xp = np
+    if use_gpu:
+        xp = cp
     else:
-        assert GPU_AVAILABLE
+        xp = np
 
     t = xp.linspace(0., 1., N)
     window = xp.ones(N)
@@ -77,6 +78,8 @@ def generate_PSD(waveform, dt, noise_PSD=noise_PSD_AE, channels = ["A","E"], noi
 
     if use_gpu:
         freq_np = xp.asnumpy(freq) # Compute frequencies
+    else:
+        freq_np = freq
 
     # Generate PSDs given LWA/TDI variables
     if isinstance(noise_kwargs, list):
@@ -151,7 +154,7 @@ def SNRcalc(waveform, PSD, dt, window=None, use_gpu=False):
 def padding(a, b, use_gpu=False):
     """
     Make time series 'a' the same length as time series 'b'.
-    Both 'a' and 'b' must be cupy array.
+    Both 'a' and 'b' must be cupy array of the same shape.
 
     returns padded 'a'
     """
@@ -163,15 +166,30 @@ def padding(a, b, use_gpu=False):
     a = xp.asarray(a)
     b = xp.asarray(b)
 
-    if len(a) < len(b):
-        return xp.concatenate((a,xp.zeros(len(b)-len(a))))
-
-    elif len(a) > len(b):
-        return a[:len(b)]
+    assert a.ndim == b.ndim
+    
+    if a.ndim > 1:
+        a_temp = []
+        
+        for i in range(len(a)):
+            if len(a[i]) < len(b[i]):
+                a_temp.append(xp.concatenate((a,xp.zeros(len(b[i])-len(a[i])))))
+        
+            elif len(a[i]) > len(b[i]):
+                a_temp.append(a[i][:len(b[i])])
+                
+            else:
+                a_temp.append(a[i])
+        
+        a = xp.array(a_temp)
 
     else:
-        return a
-
+        if len(a) < len(b):
+            a = xp.concatenate((a,xp.zeros(len(b)-len(a))))
+        elif len(a) > len(b):
+            a = a[:len(b)]
+            
+    return a
 
 def get_inspiral_overwrite_fun(interpolation_factor, spline_order=7):
     def func(self, *args, **kwargs):

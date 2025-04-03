@@ -1,4 +1,5 @@
 import numpy as np
+import cupy as cp
 import os
 import time 
 import sys
@@ -18,20 +19,20 @@ logger.addHandler(handler)
 logger.setLevel("INFO")
 logger.info("startup")
 
-try:
-    import cupy as cp
-    cp.ones(5)
-    GPU_AVAILABLE=True
+#try:
+#    import cupy as cp
+#    cp.ones(5)
+#    GPU_AVAILABLE=True
 
-except:
-    GPU_AVAILABLE=False
-    logger.warning("CuPy failed to import and initialise; disabling GPU usage.")
+#except:
+#    GPU_AVAILABLE=False
+#    logger.warning("CuPy failed to import and initialise; disabling GPU usage.")
 
 class StableEMRIFisher:
     
     def __init__(self, M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
                  Phi_phi0, Phi_theta0, Phi_r0, dt = 10., T = 1.0, add_param_args = None, waveform_kwargs=None, EMRI_waveform_gen = None, window = None, noise_weighted_waveform=False, noise_model = noise_PSD_AE, noise_kwargs={"TDI":'TDI1'}, channels=["A","E"],
-                 param_names=None, deltas=None, der_order=2, Ndelta=8, CovEllipse=False, stability_plot=False, interpolation_factor=1, spline_order=7,
+                 param_names=None, deltas=None, der_order=2, Ndelta=8, CovEllipse=False, stability_plot=False, save_derivatives=False,
                  live_dangerously = False, filename=None, suffix=None, stats_for_nerds=False, use_gpu=False):
         """
             This class computes the Fisher matrix for an Extreme Mass Ratio Inspiral (EMRI) system.
@@ -64,9 +65,7 @@ class StableEMRIFisher:
                 Ndelta (int, optional): Density of the delta range grid for calculation of stable deltas. Default is 8.
                 CovEllise (bool, optional): If True, compute the inverse Fisher matrix, i.e., the Covariance Matrix for the given parameters and the covariance triangle plot. Default is False.
                 stability_plot (bool, optional): If True, plot the stability surfaces for the delta grid for all measured parameters. Default is False.
-
-                interpolation_factor (int, optional): factor by which to upsample the inspiral trajectory. This trades stability for expense. Default is 1.
-                spline_order (int, optional): order of interpolation spline used to calculate the upsampled trajectory points. valid values are '3', '5', '7'. Default is 7.
+                save_derivatives (bool, optional): If True, save the derivatives with keyword "derivatives" in the h5py file.
                 live_dangerously (bool, optional): If True, perform calculations without basic consistency checks. Default is False.
                 filename (string, optional): If not None, save the Fisher matrix, stable deltas, and covariance triangle plot in the folder with the same filename.
                 suffix (string, optional): Used in case multiple Fishers are to be stored under the same filename.
@@ -77,8 +76,9 @@ class StableEMRIFisher:
         self.waveform = None
 
         self.use_gpu = use_gpu
-        if use_gpu and not GPU_AVAILABLE:
-            raise ValueError("CuPy failed to import; GPU is not available.")
+        
+        #if use_gpu and not GPU_AVAILABLE:
+        #    raise ValueError("CuPy failed to import; GPU is not available.")
         #Basic Consistency Checks
 
         #initializing param_names list
@@ -117,56 +117,6 @@ class StableEMRIFisher:
         self.noise_model = noise_model
         self.noise_kwargs = noise_kwargs
         self.channels = channels
-        
-
-        #try:
-        #    if self.waveform_generator.response_model.tdi == '1st generation':
-        #        self.response = "TDI1"
-        #        self.channels = channels
-        #    elif self.waveform_generator.response_model.tdi == '2nd generation': 
-        #        self.response = "TDI2"
-        #        self.channels = channels
-        #except:
-        #    logger.info("TDI not found. Invoking Linear Wavelength Approximation.")
-        #    self.response = "LWA"
-        #    self.channels = ["I","II"]
-
-        #if interpolation_factor > 1:
-        #    logger.info("upsampling.")
-        #    # filthy method for applying our post-trajectory upsampling to curb the erroneous behaviour in current FEW
-        #    # dont feel bad if you are confused by wtf is going on here, because it is bad practice
-        #    repl_fun = get_inspiral_overwrite_fun(interpolation_factor=interpolation_factor, spline_order=spline_order)
-        
-        
-        #    if self.response in ["TDI1", "TDI2"]:
-        #        try:
-        #            if hasattr(self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator, "get_inspiral_inner"):
-        #                pass
-        #            else:
-        #                self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator.get_inspiral_inner = self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator.get_inspiral.__get__(
-	#	            self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator
-	#	        )
-		        
-        #                self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator.get_inspiral = repl_fun.__get__(self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator)
-		
-        #        except:
-        #            if hasattr(self.waveform_generator.wave_gen.waveform_generator.inspiral_generator, "get_inspiral_inner"):
-        #                pass
-        #            else:
-        #                self.waveform_generator.wave_gen.waveform_generator.inspiral_generator.get_inspiral_inner = self.waveform_generator.wave_gen.waveform_generator.inspiral_generator.get_inspiral.__get__(
-        #            self.waveform_generator.wave_gen.waveform_generator.inspiral_generator
-	#	        )
-
-        #                self.waveform_generator.wave_gen.waveform_generator.inspiral_generator.get_inspiral = repl_fun.__get__(self.waveform_generator.wave_gen.waveform_generator.inspiral_generator)
-		
-		
-        #    else:
-        #        if hasattr(self.waveform_generator.waveform_generator.inspiral_generator, "get_inspiral_inner"):
-        #            pass
-        #        else:
-        #            self.waveform_generator.waveform_generator.inspiral_generator.get_inspiral_inner = self.waveform_generator.waveform_generator.inspiral_generator.get_inspiral.__get__(self.waveform_generator.waveform_generator.inspiral_generator)
-        #            self.waveform_generator.waveform_generator.inspiral_generator.get_inspiral = repl_fun.__get__(self.waveform_generator.waveform_generator.inspiral_generator)
-	
 	
         if waveform_kwargs is None:
             waveform_kwargs = {}
@@ -178,10 +128,12 @@ class StableEMRIFisher:
         try: #if ResponseWrapper is provided
             self.traj_module = self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator
             self.traj_module_func = self.waveform_generator.waveform_gen.waveform_generator.inspiral_kwargs['func']
+            self.ResponseWrapper = True
         except: #if GenerateEMRIWaveform is provided
             self.waveform_kwargs["mich"] = True
             self.traj_module = self.waveform_generator.waveform_generator.inspiral_generator
             self.traj_module_func = self.waveform_generator.waveform_generator.inspiral_kwargs['func']
+            self.ResponseWrapper = False
         
         #initializing param dictionary
         self.wave_params = {'M':M,
@@ -200,7 +152,7 @@ class StableEMRIFisher:
                       'Phi_r0':Phi_r0,
                       }
 
-        self.minmax = {'e0':[1e-2,0.99],'Phi_phi0':[0.1,2*np.pi*(0.9)],'Phi_r0':[0.1,2*np.pi*(0.9)],'Phi_theta0':[0.1,2*np.pi*(0.9)],
+        self.minmax = {'a':[0.05,0.95],'e0':[0.01,0.7],'Phi_phi0':[0.1,2*np.pi*(0.9)],'Phi_r0':[0.1,2*np.pi*(0.9)],'Phi_theta0':[0.1,2*np.pi*(0.9)],
                               'qS':[0.1,np.pi*(0.9)],'qK':[0.1,np.pi*(0.9)],'phiS':[0.1,2*np.pi*(0.9)],'phiK':[0.1,2*np.pi*(0.9)]}
                                             
         self.traj_params = dict(list(self.wave_params.items())[:6]) 
@@ -220,6 +172,7 @@ class StableEMRIFisher:
         #initializing other Flags:
         self.CovEllipse = CovEllipse
         self.stability_plot = stability_plot
+        self.save_derivatives = save_derivatives
         self.filename = filename
         self.suffix = suffix
         self.live_dangerously = live_dangerously
@@ -336,7 +289,7 @@ class StableEMRIFisher:
                                         Phi_theta0=self.wave_params["Phi_theta0"], Phi_r0=self.wave_params["Phi_r0"], 
                                         T = self.T, dt = self.dt) 
 
-        if t_traj[-1] < self.T*YRSID_SI:
+        if t_traj[-1] < self.T*YRSID_SI - 1.0: #1.0 is a buffer because self.traj_module can produce trajectories slightly smaller than T*YRSID_SI even if not plunging!
             logger.warning("Body is plunging! Expect instabilities.")
             final_time = t_traj[-1] - 6*60*60 # Remove 6 hours of final inspiral
             logger.warning(f"Removed last 6 hours of inspiral. New evolution time: {final_time/YRSID_SI} years")
@@ -354,7 +307,19 @@ class StableEMRIFisher:
         logger.info('calculating stable deltas...')
         Ndelta = self.Ndelta
         deltas = {}
-
+        
+        #if ResponseWrapper provided, strip it before calculating stable deltas. 
+        #this should improve speed. We switch back to EMRI_TDI before the final Fisher calculation of course.
+        if self.ResponseWrapper:
+            waveform_generator = self.waveform_generator.waveform_gen #stripped waveform generator
+            waveform = xp.asarray(waveform_generator(*self.wave_params_list, **self.waveform_kwargs))
+            waveform = xp.asarray([waveform.real, waveform.imag]) #ndim == 2
+            PSD_funcs = generate_PSD(waveform=waveform, dt=self.dt,use_gpu=self.use_gpu) #produce 2-channel default PSD
+        else:
+            waveform_generator = self.waveform_generator
+            waveform = self.waveform
+            PSD_funcs = self.PSD_funcs
+            
         for i in range(len(self.param_names)):
 
             # If a specific parameter equals zero, then consider stepsizes around zero.
@@ -367,7 +332,7 @@ class StableEMRIFisher:
             elif self.param_names[i] == 'a' or self.param_names[i] == 'p0' or self.param_names[i] == 'e0' or self.param_names[i] == 'Y0':
                 delta_init = np.geomspace(1e-4*self.wave_params[self.param_names[i]],1e-9*self.wave_params[self.param_names[i]],Ndelta)
             else:
-                delta_init = np.geomspace(1e-1*self.wave_params[self.param_names[i]],1e-10*self.wave_params[self.param_names[i]],Ndelta)
+                delta_init = np.geomspace(1e-1*self.wave_params[self.param_names[i]],1e-6*self.wave_params[self.param_names[i]],Ndelta)
  
             Gamma = []
             orderofmag = []
@@ -375,7 +340,7 @@ class StableEMRIFisher:
             relerr_flag = False
             for k in range(Ndelta):
                 if self.param_names[i] == 'dist':
-                    del_k = derivative(self.waveform_generator, self.wave_params, self.param_names[i], delta_init[k], use_gpu=self.use_gpu, waveform=self.waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
+                    del_k = derivative(waveform_generator, self.wave_params, self.param_names[i], delta_init[k], use_gpu=self.use_gpu, waveform=waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
                     
                     relerr_flag = True
                     deltas['dist'] = 0.0
@@ -385,16 +350,16 @@ class StableEMRIFisher:
                     
                     if self.param_names[i] in list(self.minmax.keys()):
                         if self.wave_params[self.param_names[i]] <= self.minmax[self.param_names[i]][0]:
-                            del_k = derivative(self.waveform_generator, self.wave_params, self.param_names[i], delta_init[k], kind="forward", use_gpu=self.use_gpu, waveform=self.waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
+                            del_k = derivative(waveform_generator, self.wave_params, self.param_names[i], delta_init[k], kind="forward", use_gpu=self.use_gpu, waveform=waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
                         elif self.wave_params[self.param_names[i]] > self.minmax[self.param_names[i]][1]:
-                            del_k = derivative(self.waveform_generator, self.wave_params, self.param_names[i], delta_init[k], kind="backward", use_gpu=self.use_gpu, waveform=self.waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
+                            del_k = derivative(waveform_generator, self.wave_params, self.param_names[i], delta_init[k], kind="backward", use_gpu=self.use_gpu, waveform=waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
                         else:
-                            del_k = derivative(self.waveform_generator, self.wave_params, self.param_names[i], delta_init[k], use_gpu=self.use_gpu, waveform=self.waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
+                            del_k = derivative(waveform_generator, self.wave_params, self.param_names[i], delta_init[k], use_gpu=self.use_gpu, waveform=waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
                     else:
-                        del_k = derivative(self.waveform_generator, self.wave_params, self.param_names[i], delta_init[k], use_gpu=self.use_gpu, waveform=self.waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
+                        del_k = derivative(waveform_generator, self.wave_params, self.param_names[i], delta_init[k], use_gpu=self.use_gpu, waveform=waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
 
                 #Calculating the Fisher Elements
-                Gammai = inner_product(del_k,del_k, self.PSD_funcs, self.dt, window=self.window, use_gpu=self.use_gpu)
+                Gammai = inner_product(del_k,del_k, PSD_funcs, self.dt, window=self.window, use_gpu=self.use_gpu)
                 logger.debug(f"Gamma_ii: {Gammai}")
                 if np.isnan(Gammai):
                     Gamma.append(0.0) #handle nan's
@@ -402,9 +367,11 @@ class StableEMRIFisher:
                 else:
                     Gamma.append(Gammai)
 
-            
             if relerr_flag == False:
-                Gamma = xp.asnumpy(xp.array(Gamma))
+                if self.use_gpu:
+                    Gamma = xp.asnumpy(xp.array(Gamma))
+                else:
+                    Gamma = xp.array(Gamma)
                 
                 if (Gamma[1:] == 0.).all(): #handle non-contributing parameters
                     relerr = np.ones(len(Gamma)-1)
@@ -476,10 +443,25 @@ class StableEMRIFisher:
                 dtv.append(derivative(self.waveform_generator, self.wave_params, self.param_names[i], self.deltas[self.param_names[i]],use_gpu=self.use_gpu, waveform=self.waveform, order=self.order, waveform_kwargs=self.waveform_kwargs))
 
         logger.info("Finished derivatives")
+        
+        if self.save_derivatives:
+            dtv_save = xp.asarray(dtv)
+            if self.use_gpu:
+                dtv_save = xp.asnumpy(dtv_save)
+            if not self.filename == None:
+                if not self.suffix == None:
+                    with h5py.File(f"{self.filename}/Fisher_{self.suffix}.h5", "w") as f: 
+                        f.create_dataset("derivatives",data=dtv_save)
+                else:
+                    with h5py.File(f"{self.filename}/Fisher.h5", "w") as f:
+                        f.create_dataset("derivatives",data=dtv_save)
 
         for i in range(self.npar):
             for j in range(i,self.npar):
-                Fisher[i,j] = np.float64(xp.asnumpy(inner_product(dtv[i],dtv[j],self.PSD_funcs, self.dt, window=self.window, use_gpu=self.use_gpu).real))
+                if self.use_gpu:
+                    Fisher[i,j] = np.float64(xp.asnumpy(inner_product(dtv[i],dtv[j],self.PSD_funcs, self.dt, window=self.window, use_gpu=self.use_gpu).real))
+                else:
+                    Fisher[i,j] = np.float64((inner_product(dtv[i],dtv[j],self.PSD_funcs, self.dt, window=self.window, use_gpu=self.use_gpu).real))
 
                 #Exploiting symmetric property of the Fisher Matrix
                 Fisher[j,i] = Fisher[i,j]
@@ -502,11 +484,15 @@ class StableEMRIFisher:
         if self.filename == None:
             pass
         else:
-            if self.suffix != None:
-                with h5py.File(f"{self.filename}/Fisher_{self.suffix}.h5", "w") as f:
+            if self.save_derivatives:
+                mode = "a" #append
+            else:
+                mode = "w" #write new
+            if self.suffix != None:                    
+                with h5py.File(f"{self.filename}/Fisher_{self.suffix}.h5", mode) as f:
                     f.create_dataset("Fisher",data=Fisher)
             else:
-                with h5py.File(f"{self.filename}/Fisher.h5", "w") as f:
+                with h5py.File(f"{self.filename}/Fisher.h5", mode) as f:
                     f.create_dataset("Fisher",data=Fisher)
                     
         return Fisher

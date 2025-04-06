@@ -4,14 +4,6 @@ from scipy.interpolate import make_interp_spline
 from stableemrifisher.noise import noise_PSD_AE, sensitivity_LWA
 from few.utils.constants import YRSID_SI
 
-#try:
-#    import cupy as cp
-#    cp.ones(5)
-#    GPU_AVAILABLE = True
-#except: #ImportError or ModuleNotFoundError or CUDARuntimeError:
-#    xp = np
-#    GPU_AVAILABLE = False
-
 def tukey(N, alpha=0.5, use_gpu=False):
     """
     Generate a Tukey window function using GPU acceleration.

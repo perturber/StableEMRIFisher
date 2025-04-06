@@ -4,6 +4,12 @@ import time
 import sys
 import h5py
 
+try:
+    import cupy as cp
+except:
+    print("CuPy not found")
+    pass
+    
 from few.trajectory.inspiral import EMRIInspiral
 from few.utils.constants import YRSID_SI
 from stableemrifisher.fisher.derivatives import derivative, handle_a_flip

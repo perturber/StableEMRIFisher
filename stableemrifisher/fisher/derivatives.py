@@ -4,6 +4,13 @@ import logging
 import sys
 logger = logging.getLogger("stableemrifisher")
 
+try:
+    import cupy as cp
+except:
+    logger.info("CuPy not found")
+    pass
+
+
 # store the stencils of different orders here
 # stencils all count from - to +
 # forward stencils start with the zero-delta (i.e. the waveform)

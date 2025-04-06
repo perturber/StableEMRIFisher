@@ -18,15 +18,6 @@ logger.addHandler(handler)
 logger.setLevel("INFO")
 logger.info("startup")
 
-try:
-    import cupy as cp
-    cp.ones(5)
-    GPU_AVAILABLE=True
-
-except:
-    GPU_AVAILABLE=False
-    logger.warning("CuPy failed to import and initialise; disabling GPU usage.")
-
 class StableEMRIFisher:
     
     def __init__(self, M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
@@ -75,9 +66,6 @@ class StableEMRIFisher:
         self.waveform = None
 
         self.use_gpu = use_gpu
-        if use_gpu and not GPU_AVAILABLE:
-            raise ValueError("CuPy failed to import; GPU is not available.")
-        #Basic Consistency Checks
 
         #initializing param_names list
         if param_names == None: # TODO should this just operate over all parameters by default?

@@ -4,14 +4,6 @@ import logging
 import sys
 logger = logging.getLogger("stableemrifisher")
 
-try:
-    import cupy as cp
-    cp.ones(5)
-    GPU_AVAILABLE = True
-except ImportError or ModuleNotFoundError:
-    xp = np
-    GPU_AVAILABLE=False
-
 # store the stencils of different orders here
 # stencils all count from - to +
 # forward stencils start with the zero-delta (i.e. the waveform)

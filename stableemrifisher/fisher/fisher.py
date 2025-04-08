@@ -171,9 +171,9 @@ class StableEMRIFisher:
         self.live_dangerously = live_dangerously
         
         if plunge_check:
-	    # Redefine final time if small body is plunging. More stable FMs.
-	    final_time = self.check_if_plunging()
-	    self.T = final_time/YRSID_SI # Years
+            # Redefine final time if small body is plunging. More stable FMs.
+            final_time = self.check_if_plunging()
+            self.T = final_time/YRSID_SI # Years
     
         self.waveform_kwargs.update(dict(dt=self.dt, T=self.T))
 

@@ -29,7 +29,7 @@ class StableEMRIFisher:
     def __init__(self, M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
                  Phi_phi0, Phi_theta0, Phi_r0, dt = 10., T = 1.0, add_param_args = None, waveform_kwargs=None, EMRI_waveform_gen = None, window = None, noise_weighted_waveform=False, noise_model = noise_PSD_AE, noise_kwargs={"TDI":'TDI1'}, channels=["A","E"],
                  param_names=None, deltas=None, der_order=2, Ndelta=8, CovEllipse=False, stability_plot=False, save_derivatives=False,
-                 live_dangerously = False, filename=None, suffix=None, stats_for_nerds=False, use_gpu=False):
+                 live_dangerously = False, plunge_check=True, filename=None, suffix=None, stats_for_nerds=False, use_gpu=False):
         """
             This class computes the Fisher matrix for an Extreme Mass Ratio Inspiral (EMRI) system.
 
@@ -63,6 +63,7 @@ class StableEMRIFisher:
                 stability_plot (bool, optional): If True, plot the stability surfaces for the delta grid for all measured parameters. Default is False.
                 save_derivatives (bool, optional): If True, save the derivatives with keyword "derivatives" in the h5py file.
                 live_dangerously (bool, optional): If True, perform calculations without basic consistency checks. Default is False.
+                plunge_check (bool, optional): If True, check whether body is plunging, and adjust p0 accordingly.
                 filename (string, optional): If not None, save the Fisher matrix, stable deltas, and covariance triangle plot in the folder with the same filename.
                 suffix (string, optional): Used in case multiple Fishers are to be stored under the same filename.
                 stats_for_nerds (bool, optional): print special stats for development purposes. Default is False.
@@ -169,9 +170,10 @@ class StableEMRIFisher:
         self.suffix = suffix
         self.live_dangerously = live_dangerously
         
-        # Redefine final time if small body is plunging. More stable FMs.
-        final_time = self.check_if_plunging()
-        self.T = final_time/YRSID_SI # Years
+        if plunge_check:
+	    # Redefine final time if small body is plunging. More stable FMs.
+	    final_time = self.check_if_plunging()
+	    self.T = final_time/YRSID_SI # Years
     
         self.waveform_kwargs.update(dict(dt=self.dt, T=self.T))
 

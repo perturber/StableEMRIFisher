@@ -29,8 +29,9 @@ Documentation coming soon...
 ```
 @software{kejriwal_2024_sef,
   author       = {Shubham Kejriwal and
-                  Christian Chapman-Bird and
-                  Ollie Burke},
+                  Ollie Burke and
+                  Christian Chapman-Bird
+                  },
   title        = {perturber/StableEMRIFisher.},
   publisher    = {Github},
   year         = "manuscript under preparation",

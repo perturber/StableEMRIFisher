@@ -32,7 +32,7 @@ Documentation coming soon...
                   Ollie Burke and
                   Christian Chapman-Bird
                   },
-  title        = {perturber/StableEMRIFisher.},
+  title        = {StableEMRIFisher (SEF)},
   publisher    = {Github},
   year         = "manuscript under preparation",
   url          = {https://github.com/perturber/StableEMRIFisher}

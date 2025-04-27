@@ -34,7 +34,7 @@ Documentation coming soon...
                   },
   title        = {StableEMRIFisher (SEF)},
   publisher    = {Github},
-  year         = "manuscript under preparation",
+  year         = "manuscript in preparation",
   url          = {https://github.com/perturber/StableEMRIFisher}
 }
 ```

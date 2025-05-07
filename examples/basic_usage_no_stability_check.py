@@ -8,8 +8,8 @@ import numpy as np
 use_gpu=True
 
 #set initial parameters
-M = 1e6
-mu = 10
+m1 = 1e6
+m2 = 10
 a = 0.9
 p0 = 8.05
 e0 = 0.1
@@ -49,7 +49,7 @@ outdir = 'basic_usage_nostability_outdir'
 Path(outdir).mkdir(exist_ok=True)
 waveform_model = GenerateEMRIWaveform('FastSchwarzschildEccentricFlux', return_list=True, inspiral_kwargs=inspiral_kwargs, sum_kwargs=sum_kwargs, use_gpu=use_gpu)
 
-waveform = xp.asarray(waveform_model(M, mu, a, p0, e0, Y0, 
+waveform = xp.asarray(waveform_model(m1, m2, a, p0, e0, Y0, 
                           dist, qS, phiS, qK, phiK, 
                           Phi_phi0, Phi_theta0, Phi_r0, 
                           mich=mich, dt=dt, T=T)).get()
@@ -60,10 +60,10 @@ plt.savefig(os.path.join(outdir, "waveform.png"))
 plt.close()
 
 #varied parameters
-param_names = ['M','mu','p0','e0']
+param_names = ['m1','m2','p0','e0']
 
 #initialization
-fish = StableEMRIFisher(M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
+fish = StableEMRIFisher(m1, m2, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
               Phi_phi0, Phi_theta0, Phi_r0, dt=dt, T=T, EMRI_waveform_gen=waveform_model,
               param_names=param_names, stats_for_nerds=True, use_gpu=True,
               filename=outdir, CovEllipse=True, live_dangerously=True)

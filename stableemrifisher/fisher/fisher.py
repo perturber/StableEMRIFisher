@@ -26,7 +26,7 @@ logger.info("startup")
 
 class StableEMRIFisher:
     
-    def __init__(self, M, mu, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
+    def __init__(self, m1, m2, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
                  Phi_phi0, Phi_theta0, Phi_r0, dt = 10., T = 1.0, add_param_args = None, waveform_kwargs=None, EMRI_waveform_gen = None, window = None, noise_weighted_waveform=False, noise_model = noise_PSD_AE, noise_kwargs={"TDI":'TDI1'}, channels=["A","E"],
                  param_names=None, deltas=None, der_order=2, Ndelta=8, CovEllipse=False, stability_plot=False, save_derivatives=False,
                  live_dangerously = False, plunge_check=True, filename=None, suffix=None, stats_for_nerds=False, use_gpu=False):
@@ -34,8 +34,8 @@ class StableEMRIFisher:
             This class computes the Fisher matrix for an Extreme Mass Ratio Inspiral (EMRI) system.
 
             Args:
-                M (float): Mass of the Massive Black Hole (MBH).
-                mu (float): Mass of the Compact Object (CO).
+                m1 (float): Mass of the Massive Black Hole (MBH).
+                m2 (float): Mass of the Compact Object (CO).
                 a (float): Spin of the MBH.
                 p0 (float): Initial semi-latus rectum of the EMRI.
                 e0 (float): Initial eccentricity of the EMRI.
@@ -129,8 +129,8 @@ class StableEMRIFisher:
             self.ResponseWrapper = False
         
         #initializing param dictionary
-        self.wave_params = {'M':M,
-                      'mu':mu,
+        self.wave_params = {'m1':m1,
+                      'm2':m2,
                       'a':a,
                       'p0':p0,
                       'e0':e0,
@@ -206,8 +206,8 @@ class StableEMRIFisher:
                 
         else:
             logger.debug("You have elected for dangerous living, I like it. ")
-            fudge_factor_intrinsic = 3*(self.wave_params["mu"]/self.wave_params["M"]) * (self.SNR2)**-1
-            delta_intrinsic = fudge_factor_intrinsic * np.array([self.wave_params["M"], self.wave_params["mu"], 1.0, 1.0, 1.0, 1.0])
+            fudge_factor_intrinsic = 3*(self.wave_params["m2"]/self.wave_params["m1"]) * (self.SNR2)**-1
+            delta_intrinsic = fudge_factor_intrinsic * np.array([self.wave_params["m1"], self.wave_params["m2"], 1.0, 1.0, 1.0, 1.0])
             danger_delta_dict = dict(zip(self.param_names[0:7],delta_intrinsic))
             delta_dict_final_params = dict(zip(self.param_names[6:14],np.array(8*[1e-6])))
             danger_delta_dict.update(delta_dict_final_params)
@@ -321,7 +321,7 @@ class StableEMRIFisher:
                 delta_init = np.geomspace(1e-4,1e-9,Ndelta)
 
             # Compute Ndelta number of delta values to compute derivative. Testing stability.
-            elif self.param_names[i] == 'M' or self.param_names[i] == 'mu': 
+            elif self.param_names[i] == 'm1' or self.param_names[i] == 'm2': 
                 delta_init = np.geomspace(1e-4*self.wave_params[self.param_names[i]],1e-9*self.wave_params[self.param_names[i]],Ndelta)
             elif self.param_names[i] == 'a' or self.param_names[i] == 'p0' or self.param_names[i] == 'e0' or self.param_names[i] == 'Y0':
                 delta_init = np.geomspace(1e-4*self.wave_params[self.param_names[i]],1e-9*self.wave_params[self.param_names[i]],Ndelta)

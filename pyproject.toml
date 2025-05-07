@@ -7,7 +7,7 @@ packages = ["stableemrifisher", "stableemrifisher.fisher"]
 
 [project]
 name = "stableemrifisher"
-version = "0.0.1a"
+version = "1.0.0"
 requires-python = ">=3.9"
 authors = [
   {name = "Shubham Kejriwal", email = "shubhamkejriwal@u.nus.edu"},

@@ -1,4 +1,5 @@
 import numpy as np
+from few.utils.constants import SPEED_OF_LIGHT as C_SI
 
 def sensitivity_LWA(f):
     """
@@ -40,8 +41,8 @@ def noise_PSD_AE(f, TDI = 'TDI1'):
     TODO: Incorporate the background!! 
     """
     # Define constants
-    L = 2.5e9
-    c = 299758492
+    L = 2.5e9 #arm length
+    c = C_SI #speed of light as defined in FEW.
     x = 2*np.pi*(L/c)*f
     
     # Test mass acceleration

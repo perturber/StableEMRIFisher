@@ -28,7 +28,7 @@ class StableEMRIFisher:
     
     def __init__(self, m1, m2, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
                  Phi_phi0, Phi_theta0, Phi_r0, dt = 10., T = 1.0, add_param_args = None, waveform_kwargs=None, EMRI_waveform_gen = None, window = None, noise_weighted_waveform=False, noise_model = noise_PSD_AE, noise_kwargs={"TDI":'TDI1'}, channels=["A","E"],
-                 param_names=None, deltas=None, der_order=2, Ndelta=8, CovEllipse=False, stability_plot=False, save_derivatives=False,
+                 param_names=None, deltas=None, der_order=2, Ndelta=8, delta_range = None, CovEllipse=False, stability_plot=False, save_derivatives=False,
                  live_dangerously = False, plunge_check=True, filename=None, suffix=None, stats_for_nerds=False, use_gpu=False):
         """
             This class computes the Fisher matrix for an Extreme Mass Ratio Inspiral (EMRI) system.
@@ -59,6 +59,8 @@ class StableEMRIFisher:
                 deltas (np.ndarray, optional): Range of stable deltas for numerical differentiation of each parameter. Default is None.
                 der_order (int, optional): Order at which to calculate the numerical derivatives. Default is 2.
                 Ndelta (int, optional): Density of the delta range grid for calculation of stable deltas. Default is 8.
+                delta_range (dict or NoneType, optional): custom range of deltas over which Fisher stability is checked. Format: {"param_name": [list of deltas to check]}. Default is None.
+                
                 CovEllise (bool, optional): If True, compute the inverse Fisher matrix, i.e., the Covariance Matrix for the given parameters and the covariance triangle plot. Default is False.
                 stability_plot (bool, optional): If True, plot the stability surfaces for the delta grid for all measured parameters. Default is False.
                 save_derivatives (bool, optional): If True, save the derivatives with keyword "derivatives" in the h5py file.
@@ -162,6 +164,11 @@ class StableEMRIFisher:
         #initializing deltas
         self.deltas = deltas #Use deltas == None as a Flag
         
+        if not delta_range == None: 
+            self.delta_range = delta_range
+        else:
+            self.delta_range = {}
+        
         #initializing other Flags:
         self.CovEllipse = CovEllipse
         self.stability_plot = stability_plot
@@ -179,7 +186,6 @@ class StableEMRIFisher:
 
 
     def __call__(self):
-    
         
         rho = self.SNRcalc_SEF()
 
@@ -316,17 +322,22 @@ class StableEMRIFisher:
             
         for i in range(len(self.param_names)):
 
-            # If a specific parameter equals zero, then consider stepsizes around zero.
-            if self.wave_params[self.param_names[i]] == 0.0:
-                delta_init = np.geomspace(1e-4,1e-9,Ndelta)
+            try:
+                delta_init = self.delta_range[self.param_names[i]]
+                
+            except KeyError:
 
-            # Compute Ndelta number of delta values to compute derivative. Testing stability.
-            elif self.param_names[i] == 'm1' or self.param_names[i] == 'm2': 
-                delta_init = np.geomspace(1e-4*self.wave_params[self.param_names[i]],1e-9*self.wave_params[self.param_names[i]],Ndelta)
-            elif self.param_names[i] == 'a' or self.param_names[i] == 'p0' or self.param_names[i] == 'e0' or self.param_names[i] == 'Y0':
-                delta_init = np.geomspace(1e-4*self.wave_params[self.param_names[i]],1e-9*self.wave_params[self.param_names[i]],Ndelta)
-            else:
-                delta_init = np.geomspace(1e-1*self.wave_params[self.param_names[i]],1e-6*self.wave_params[self.param_names[i]],Ndelta)
+                # If a specific parameter equals zero, then consider stepsizes around zero.
+                if self.wave_params[self.param_names[i]] == 0.0:
+                    delta_init = np.geomspace(1e-4,1e-9,Ndelta)
+
+                # Compute Ndelta number of delta values to compute derivative. Testing stability.
+                elif self.param_names[i] == 'm1' or self.param_names[i] == 'm2': 
+                    delta_init = np.geomspace(1e-4*self.wave_params[self.param_names[i]],1e-9*self.wave_params[self.param_names[i]],Ndelta)
+                elif self.param_names[i] == 'a' or self.param_names[i] == 'p0' or self.param_names[i] == 'e0' or self.param_names[i] == 'Y0':
+                    delta_init = np.geomspace(1e-4*self.wave_params[self.param_names[i]],1e-9*self.wave_params[self.param_names[i]],Ndelta)
+                else:
+                    delta_init = np.geomspace(1e-1*self.wave_params[self.param_names[i]],1e-6*self.wave_params[self.param_names[i]],Ndelta)
  
             Gamma = []
             orderofmag = []

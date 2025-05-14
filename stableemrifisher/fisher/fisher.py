@@ -154,8 +154,8 @@ class StableEMRIFisher:
         full_EMRI_param = list(self.wave_params.keys())
         if not add_param_args == None:
             for i in range(len(add_param_args.keys())):
-                self.wave_params[add_param_args.keys()[i]] = add_param_args.values()[i]
-                self.traj_params[add_param_args.keys()[i]] = add_param_args.values()[i]
+                self.wave_params[add_param_args.keys()[i]] = list(add_param_args.values())[i]
+                self.traj_params[add_param_args.keys()[i]] = list(add_param_args.values())[i]
                 
         self.wave_params_list = list(self.wave_params.values())
         

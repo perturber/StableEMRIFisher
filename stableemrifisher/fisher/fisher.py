@@ -233,9 +233,9 @@ class StableEMRIFisher:
             # TODO just get the user to pass filename paths in for the plots etc. It's easier to develop and gives the user more control
             if self.filename != None:
                 if self.suffix != None:
-                    CovEllipsePlot(self.param_names, self.wave_params, covariance, filename=os.path.join(self.filename, f"covariance_ellipses_{self.suffix}.png"))
+                    CovEllipsePlot(covariance, self.param_names, self.wave_params,  filename=os.path.join(self.filename, f"covariance_ellipses_{self.suffix}.png"))
                 else:
-                    CovEllipsePlot(self.param_names, self.wave_params, covariance, filename=os.path.join(self.filename, "covariance_ellipses.png"))                
+                    CovEllipsePlot(covariance, self.param_names, self.wave_params, filename=os.path.join(self.filename, "covariance_ellipses.png"))                
 
             return Fisher, covariance
             

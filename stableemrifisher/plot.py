@@ -3,7 +3,7 @@ from matplotlib.patches import Ellipse
 from matplotlib import transforms
 import numpy as np
 
-def cov_ellipse(mean, cov, ax, n_std=1.0, edgecolor='blue', facecolor='none', lw=5, **kwargs):
+def cov_ellipse(mean, cov, ax, n_std=1.0, edgecolor='blue', facecolor='none', lw=5, linestyle='-', **kwargs):
     """
     Plot a covariance ellipse.
 
@@ -33,6 +33,7 @@ def cov_ellipse(mean, cov, ax, n_std=1.0, edgecolor='blue', facecolor='none', lw
         edgecolor=edgecolor,
         facecolor=facecolor,
         lw=lw,
+        linestyle=linestyle,
         **kwargs)
 
     scale_x = np.sqrt(cov[0, 0]) * n_std
@@ -52,49 +53,71 @@ def cov_ellipse(mean, cov, ax, n_std=1.0, edgecolor='blue', facecolor='none', lw
 def normal(mean, var, x):
     return np.exp(-(mean-x)**2/var/2)
 
-def CovEllipsePlot(param_names, wave_params, covariance, filename=None):
-    fig, axs = plt.subplots(len(param_names),len(param_names), figsize=(20,20))
+def CovEllipsePlot(covariance, param_names=None, wave_params=None, fig = None, axs = None, color='blue', linestyle='-', lw=2, filename=None):
+
+    if fig == None:
+        fig, axs = plt.subplots(len(covariance),len(covariance), figsize=(20,20))
 
     #first param index
-    for i in range(len(param_names)):
+    for i in range(len(covariance)):
         #second param index
-        for j in range(i,len(param_names)):
+        for j in range(i,len(covariance)):
 
             if i != j:
                 cov = np.array(((covariance[i][i],covariance[i][j]),(covariance[j][i],covariance[j][j])))
                 #print(cov)
-                mean = np.array((wave_params[param_names[i]],wave_params[param_names[j]]))
-
-                cov_ellipse(mean,cov,axs[j,i],lw=2,edgecolor='blue')
+                
+                if not wave_params == None:
+                    mean = np.array((wave_params[param_names[i]],wave_params[param_names[j]]))
+                else:
+                    mean = np.zeros(2)
+                    
+                cov_ellipse(mean,cov,axs[j,i],lw=lw,edgecolor=color, linestyle=linestyle)
 
                 #custom setting the x-y lim for each plot
-                axs[j,i].set_xlim([wave_params[param_names[i]]-2.5*np.sqrt(covariance[i][i]), wave_params[param_names[i]]+2.5*np.sqrt(covariance[i][i])])
-                axs[j,i].set_ylim([wave_params[param_names[j]]-2.5*np.sqrt(covariance[j][j]), wave_params[param_names[j]]+2.5*np.sqrt(covariance[j][j])])
+                
+                
+                axs[j,i].set_xlim([mean[0]-2.5*np.sqrt(covariance[i][i]), mean[0]+2.5*np.sqrt(covariance[i][i])])
+                axs[j,i].set_ylim([mean[1]-2.5*np.sqrt(covariance[j][j]), mean[1]+2.5*np.sqrt(covariance[j][j])])
 
-                axs[j,i].set_xlabel(param_names[i],labelpad=20,fontsize=16)
-                axs[j,i].set_ylabel(param_names[j],labelpad=20,fontsize=16)
+                if not param_names == None:
+                    axs[j,i].set_xlabel(param_names[i],labelpad=20,fontsize=16)
+                    axs[j,i].set_ylabel(param_names[j],labelpad=20,fontsize=16)
 
             else:
-                mean = wave_params[param_names[i]]
+                
+                if not wave_params == None:
+                    mean = wave_params[param_names[i]]
+                else:
+                    mean = 0.0
+                    
                 var = covariance[i][i]
 
                 x = np.linspace(mean-3*np.sqrt(var),mean+3*np.sqrt(var))
 
-                axs[j,i].plot(x,normal(mean,var,x),c='blue')
-                axs[j,i].set_xlim([wave_params[param_names[i]]-2.5*np.sqrt(covariance[i][i]), wave_params[param_names[i]]+2.5*np.sqrt(covariance[i][i])])
-                axs[j,i].set_xlabel(param_names[i],labelpad=20,fontsize=16)
-                if i == j and j == 0:
-                    axs[j,i].set_ylabel(param_names[i],labelpad=20,fontsize=16)
+                axs[j,i].plot(x,normal(mean,var,x),c=color, linestyle=linestyle, linewidth=lw)
+                
+                axs[j,i].set_xlim([mean - 2.5*np.sqrt(covariance[i][i]), mean + 2.5*np.sqrt(covariance[i][i])])
+                
+                if not param_names == None:
+                
+                    axs[j,i].set_xlabel(param_names[i],labelpad=20,fontsize=16)
+                    
+                    #if i == j and j == 0:
+                    #    axs[j,i].set_ylabel(param_names[i],labelpad=20,fontsize=16)
 
     for ax in fig.get_axes():
         ax.label_outer()
 
-    for i in range(len(param_names)):
-        for j in range(i+1,len(param_names)):
-            fig.delaxes(axs[i,j])
+    for i in range(len(covariance)):
+        for j in range(i+1,len(covariance)):
+            try:
+                fig.delaxes(axs[i,j])
+            except KeyError:
+                continue
 
     if filename is None:
-        return fig, ax
+        return fig, axs
     else:
         plt.savefig(filename,dpi=300,bbox_inches='tight')
         plt.close()

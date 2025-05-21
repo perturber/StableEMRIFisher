@@ -29,11 +29,12 @@ Documentation coming soon...
 ```
 @software{kejriwal_2024_sef,
   author       = {Shubham Kejriwal and
-                  Christian Chapman-Bird and
-                  Ollie Burke},
-  title        = {perturber/StableEMRIFisher.},
+                  Ollie Burke and
+                  Christian Chapman-Bird
+                  },
+  title        = {StableEMRIFisher (SEF)},
   publisher    = {Github},
-  year         = "manuscript under preparation",
+  year         = "manuscript in preparation",
   url          = {https://github.com/perturber/StableEMRIFisher}
 }
 ```

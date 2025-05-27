@@ -237,6 +237,10 @@ class StableEMRIFisher:
                 else:
                     CovEllipsePlot(covariance, self.param_names, self.wave_params, filename=os.path.join(self.filename, "covariance_ellipses.png"))                
 
+            else:
+                fig, axs = CovEllipsePlot(covariance, self.param_names, self.wave_params)
+                plt.show()
+
             return Fisher, covariance
             
         else:

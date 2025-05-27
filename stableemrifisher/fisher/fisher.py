@@ -3,6 +3,7 @@ import os
 import time 
 import sys
 import h5py
+import matplotlib.pyplot as plt
 
 try:
     import cupy as cp

@@ -60,6 +60,7 @@ def derivative(waveform_generator, parameters, param_to_vary, delta, order=4, ki
     if waveform is None:
         parameters = handle_a_flip(parameters)
         waveform = xp.asarray(waveform_generator(*list(parameters.values()), **waveform_kwargs))
+        
 
     if param_to_vary == "dist":
         # Compute derivative analytically for the distance
@@ -84,8 +85,8 @@ def derivative(waveform_generator, parameters, param_to_vary, delta, order=4, ki
                 
                 waveform_delta = xp.asarray(waveform_generator(*temp_vals, **waveform_kwargs))
 
-                #if waveform_delta.ndim == 1:
-                #    waveform_delta = xp.asarray([waveform_delta.real, waveform_delta.imag])
+                if (waveform_delta.ndim == 1) & (waveform.ndim == 2) :
+                    waveform_delta = xp.asarray([waveform_delta.copy() for _ in range(len(waveform))])/len(waveform) #we assume equal strength in all provided channels.
 
                 delta_waveforms.append(waveform_delta)
 
@@ -106,8 +107,8 @@ def derivative(waveform_generator, parameters, param_to_vary, delta, order=4, ki
                 
                 waveform_delta = xp.asarray(waveform_generator(*temp_vals, **waveform_kwargs))
 
-                #if waveform_delta.ndim == 1:
-                #    waveform_delta = xp.asarray([waveform_delta.real, waveform_delta.imag])
+                if (waveform_delta.ndim == 1) & (waveform.ndim == 2) :
+                    waveform_delta = xp.asarray([waveform_delta.copy() for _ in range(len(waveform))])/len(waveform) #we assume equal strength in all provided channels.
 
                 waveform_delta = padding(waveform_delta, waveform, use_gpu=use_gpu)
 
@@ -129,8 +130,8 @@ def derivative(waveform_generator, parameters, param_to_vary, delta, order=4, ki
                 
                 waveform_delta = xp.asarray(waveform_generator(*temp_vals, **waveform_kwargs))
 
-                #if waveform_delta.ndim == 1:
-                #    waveform_delta = xp.asarray([waveform_delta.real, waveform_delta.imag])
+                if (waveform_delta.ndim == 1) & (waveform.ndim == 2) :
+                    waveform_delta = xp.asarray([waveform_delta.copy() for _ in range(len(waveform))])/len(waveform) #we assume equal strength in all provided channels.
 
                 waveform_delta = padding(waveform_delta, waveform, use_gpu=use_gpu)
 
@@ -152,8 +153,8 @@ def derivative(waveform_generator, parameters, param_to_vary, delta, order=4, ki
                 
                 waveform_delta = xp.asarray(waveform_generator(*temp_vals, **waveform_kwargs))
 
-                #if waveform_delta.ndim == 1:
-                #    waveform_delta = xp.asarray([waveform_delta.real, waveform_delta.imag])
+                if (waveform_delta.ndim == 1) & (waveform.ndim == 2) :
+                    waveform_delta = xp.asarray([waveform_delta.copy() for _ in range(len(waveform))])/len(waveform) #we assume equal strength in all provided channels.
 
                 waveform_delta = padding(waveform_delta, waveform, use_gpu=use_gpu)
 

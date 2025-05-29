@@ -311,15 +311,19 @@ class StableEMRIFisher:
         logger.info('calculating stable deltas...')
         Ndelta = self.Ndelta
         deltas = {}
+
+        #waveform_generator = self.waveform_generator
+        #waveform = self.waveform
+        #PSD_funcs = self.PSD_funcs
         
         #if ResponseWrapper provided, strip it before calculating stable deltas. 
-        #this should improve speed. We switch back to EMRI_TDI before the final Fisher calculation of course.
+        #this should improve speed. We switch back to ResponseWrapper before the final Fisher calculation of course.
         if self.ResponseWrapper:
             waveform_generator = self.waveform_generator.waveform_gen #stripped waveform generator
             waveform = xp.asarray(waveform_generator(*self.wave_params_list, **self.waveform_kwargs))
             # stripped waveform of the form h+ - ihx, create copies equivalent to the number of channels.
-            self.waveform = xp.asarray([self.waveform.copy() for _ in range(len(self.channels))])/len(self.channels) #we assume equal strength in all provided channels.
-            PSD_funcs = generate_PSD(waveform=waveform, dt=self.dt,use_gpu=self.use_gpu) #produce 2-channel default PSD
+            waveform = xp.asarray([waveform.copy() for _ in range(len(self.channels))])/len(self.channels) #we assume equal strength in all provided channels.
+            PSD_funcs = generate_PSD(waveform=waveform, dt=self.dt,use_gpu=self.use_gpu, channels = self.channels) #produce an N-channel PSD assuming the default noise curve (noise_PSD_AE). Shouldn't matter much.
         else:
             waveform_generator = self.waveform_generator
             waveform = self.waveform
@@ -382,7 +386,10 @@ class StableEMRIFisher:
                     Gamma.append(Gammai)
 
             if relerr_flag == False:
-                Gamma = xp.asnumpy(xp.array(Gamma))
+                if self.use_gpu:
+                    Gamma = xp.asnumpy(xp.array(Gamma))
+                else:
+                    Gamma = xp.array(Gamma)
                 
                 if (Gamma[1:] == 0.).all(): #handle non-contributing parameters
                     relerr = np.ones(len(Gamma)-1)

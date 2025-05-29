@@ -41,7 +41,7 @@ def generate_PSD(waveform, dt, noise_PSD=noise_PSD_AE, channels = ["A","E"], noi
     requested number of response channels, and response generation
     
     Args:
-        waveform (nd.array): the waveform which will decide some properties of the PSD.
+        waveform (nd.array): the waveform which will decide some properties of the PSD. It should have dimensions (N_channels, N), where N is the length of the signal.
         dt (float): time step in seconds at which the waveform is samples.
         noise_PSD (func): function to calculate the noise of the instrument at a given frequency and noise configuration (default is noise_PSD_AE)
         channels (list): list of LISA response channels (default is ["A","E"]
@@ -55,10 +55,6 @@ def generate_PSD(waveform, dt, noise_PSD=noise_PSD_AE, channels = ["A","E"], noi
         xp = cp
     else:
         xp = np
-        
-    # If we use LWA, extract real and imaginary components (channels 1 and 2)
-    if waveform.ndim == 1:
-        waveform = xp.asarray([waveform.real, waveform.imag])
 
     # Extract fourier frequencies
     length = len(waveform[0])
@@ -123,11 +119,21 @@ def inner_product(a, b, PSD, dt, window=None, use_gpu=False):
     else:
         a_in, b_in = a, b
 
-    a_fft = dt * xp.fft.rfft(a_in, axis=-1)[:,1:]
-    b_fft = dt * xp.fft.rfft(b_in, axis=-1)[:,1:]
+    if xp.iscomplexobj(a_in):
+        a_fft_plus = dt * xp.fft.rfft(a_in.real, axis=-1)[:,1:]
+        a_fft_cross = dt * xp.fft.rfft(a_in.imag, axis=-1)[:,1:]
 
-    # Compute inner products over given channels
-    inner_prod = 4 * df * ((a_fft.conj() * b_fft).real / PSD).sum()
+        b_fft_plus = dt * xp.fft.rfft(b_in.real, axis=-1)[:,1:]
+        b_fft_cross = dt * xp.fft.rfft(b_in.imag, axis=-1)[:,1:]
+
+        inner_prod = 4 * df * ((a_fft_plus.conj() * b_fft_plus + a_fft_cross * b_fft_cross.conj()).real / PSD).sum()
+        
+    else:
+        a_fft = dt * xp.fft.rfft(a_in, axis=-1)[:,1:]
+        b_fft = dt * xp.fft.rfft(b_in, axis=-1)[:,1:]
+
+        # Compute inner products over given channels
+        inner_prod = 4 * df * ((a_fft.conj() * b_fft).real / PSD).sum()
     
     if use_gpu:
         inner_prod = inner_prod.get()

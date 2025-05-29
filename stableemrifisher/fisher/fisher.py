@@ -126,7 +126,6 @@ class StableEMRIFisher:
             self.traj_module_func = self.waveform_generator.waveform_gen.waveform_generator.inspiral_kwargs['func']
             self.ResponseWrapper = True
         except: #if GenerateEMRIWaveform is provided
-            self.waveform_kwargs["mich"] = True
             self.traj_module = self.waveform_generator.waveform_generator.inspiral_generator
             self.traj_module_func = self.waveform_generator.waveform_generator.inspiral_kwargs['func']
             self.ResponseWrapper = False
@@ -256,14 +255,14 @@ class StableEMRIFisher:
 
         self.waveform = xp.asarray(self.waveform_generator(*self.wave_params_list, **self.waveform_kwargs))
         
+        # If no response is provided and waveform of the form h+ - ihx, create copies equivalent to the number of channels.
+        if self.waveform.ndim == 1:
+            self.waveform = xp.asarray([self.waveform.copy() for _ in range(len(self.channels))])/len(self.channels) #we assume equal strength in all provided channels.
+            
         print("wave ndim: ", self.waveform.ndim)
         #Generate PSDs
         self.PSD_funcs = generate_PSD(waveform=self.waveform, dt=self.dt, noise_PSD=self.noise_model,
                      channels=self.channels,noise_kwargs=self.noise_kwargs,use_gpu=self.use_gpu)
-                     
-        # If we use LWA, extract real and imaginary components (channels 1 and 2)
-        if self.waveform.ndim == 1:
-            self.waveform = xp.asarray([self.waveform.real, self.waveform.imag])
         
         # Compute SNR
         logger.info(f"Computing SNR for parameters: {self.wave_params}") 
@@ -290,9 +289,9 @@ class StableEMRIFisher:
         # Compute trajectory 
         
         traj_vals = list(handle_a_flip(self.traj_params).values())
-        t_traj, _, _, _, _, _, _ = self.traj_module(*traj_vals, Phi_phi0=self.wave_params["Phi_phi0"], 
+        t_traj = self.traj_module(*traj_vals, Phi_phi0=self.wave_params["Phi_phi0"], 
                                         Phi_theta0=self.wave_params["Phi_theta0"], Phi_r0=self.wave_params["Phi_r0"], 
-                                        T = self.T, dt = self.dt) 
+                                        T = self.T, dt = self.dt)[0] 
 
         if t_traj[-1] < self.T*YRSID_SI - 1.0: #1.0 is a buffer because self.traj_module can produce trajectories slightly smaller than T*YRSID_SI even if not plunging!
             logger.warning("Body is plunging! Expect instabilities.")
@@ -318,7 +317,9 @@ class StableEMRIFisher:
         if self.ResponseWrapper:
             waveform_generator = self.waveform_generator.waveform_gen #stripped waveform generator
             waveform = xp.asarray(waveform_generator(*self.wave_params_list, **self.waveform_kwargs))
-            waveform = xp.asarray([waveform.real, waveform.imag]) #ndim == 2
+            # If no response is provided and waveform of the form h+ - ihx, create copies equivalent to the number of channels.
+            if self.waveform.ndim == 1:
+                self.waveform = xp.asarray([self.waveform.copy() for _ in range(len(self.channels))])/len(self.channels) #we assume equal strength in all provided channels.
             PSD_funcs = generate_PSD(waveform=waveform, dt=self.dt,use_gpu=self.use_gpu) #produce 2-channel default PSD
         else:
             waveform_generator = self.waveform_generator
@@ -368,6 +369,10 @@ class StableEMRIFisher:
                     else:
                         del_k = derivative(waveform_generator, self.wave_params, self.param_names[i], delta_init[k], use_gpu=self.use_gpu, waveform=waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
 
+                # If no response is provided and waveform of the form h+ - ihx, create copies equivalent to the number of channels.
+                if del_k.ndim == 1:
+                    del_k = xp.asarray([del_k.copy() for _ in range(len(self.channels))])/len(self.channels) #we assume equal strength in all provided channels.
+
                 #Calculating the Fisher Elements
                 Gammai = inner_product(del_k,del_k, PSD_funcs, self.dt, window=self.window, use_gpu=self.use_gpu)
                 logger.debug(f"Gamma_ii: {Gammai}")
@@ -377,7 +382,6 @@ class StableEMRIFisher:
                 else:
                     Gamma.append(Gammai)
 
-            
             if relerr_flag == False:
                 Gamma = xp.asnumpy(xp.array(Gamma))
                 
@@ -442,13 +446,19 @@ class StableEMRIFisher:
 
             if self.param_names[i] in list(self.minmax.keys()):
                 if self.wave_params[self.param_names[i]] <= self.minmax[self.param_names[i]][0]:
-                    dtv.append(derivative(self.waveform_generator, self.wave_params, self.param_names[i], self.deltas[self.param_names[i]], kind="forward", waveform=self.waveform, order=self.order, use_gpu=self.use_gpu, waveform_kwargs=self.waveform_kwargs))
+                    dtv_i = derivative(self.waveform_generator, self.wave_params, self.param_names[i], self.deltas[self.param_names[i]], kind="forward", waveform=self.waveform, order=self.order, use_gpu=self.use_gpu, waveform_kwargs=self.waveform_kwargs)
                 elif self.wave_params[self.param_names[i]] > self.minmax[self.param_names[i]][1]:
-                    dtv.append(derivative(self.waveform_generator, self.wave_params, self.param_names[i],self.deltas[self.param_names[i]], kind="backward", waveform=self.waveform, order=self.order, use_gpu=self.use_gpu, waveform_kwargs=self.waveform_kwargs))
+                    dtv_i = derivative(self.waveform_generator, self.wave_params, self.param_names[i],self.deltas[self.param_names[i]], kind="backward", waveform=self.waveform, order=self.order, use_gpu=self.use_gpu, waveform_kwargs=self.waveform_kwargs)
                 else:
-                    dtv.append(derivative(self.waveform_generator, self.wave_params, self.param_names[i],self.deltas[self.param_names[i]],use_gpu=self.use_gpu, waveform=self.waveform, order=self.order, waveform_kwargs=self.waveform_kwargs))
+                    dtv_i = derivative(self.waveform_generator, self.wave_params, self.param_names[i],self.deltas[self.param_names[i]],use_gpu=self.use_gpu, waveform=self.waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
             else:
-                dtv.append(derivative(self.waveform_generator, self.wave_params, self.param_names[i], self.deltas[self.param_names[i]],use_gpu=self.use_gpu, waveform=self.waveform, order=self.order, waveform_kwargs=self.waveform_kwargs))
+                dtv_i = derivative(self.waveform_generator, self.wave_params, self.param_names[i], self.deltas[self.param_names[i]],use_gpu=self.use_gpu, waveform=self.waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
+            
+            # If no response is provided and waveform of the form h+ - ihx, create copies equivalent to the number of channels.
+            if dtv_i.ndim == 1:
+                dtv_i = xp.asarray([dtv_i.copy() for _ in range(len(self.channels))])/len(self.channels) #we assume equal strength in all provided channels.
+
+            dtv.append(dtv_i)
 
         logger.info("Finished derivatives")
         
@@ -487,7 +497,6 @@ class StableEMRIFisher:
             logger.critical("Calculated Fisher is not positive-definite. Try lowering inspiral error tolerance or increasing the derivative order.")
         else:
             logger.info("Calculated Fisher is *atleast* positive-definite.")
-
         
         if self.filename == None:
             pass

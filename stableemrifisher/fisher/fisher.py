@@ -317,9 +317,8 @@ class StableEMRIFisher:
         if self.ResponseWrapper:
             waveform_generator = self.waveform_generator.waveform_gen #stripped waveform generator
             waveform = xp.asarray(waveform_generator(*self.wave_params_list, **self.waveform_kwargs))
-            # If no response is provided and waveform of the form h+ - ihx, create copies equivalent to the number of channels.
-            if self.waveform.ndim == 1:
-                self.waveform = xp.asarray([self.waveform.copy() for _ in range(len(self.channels))])/len(self.channels) #we assume equal strength in all provided channels.
+            # stripped waveform of the form h+ - ihx, create copies equivalent to the number of channels.
+            self.waveform = xp.asarray([self.waveform.copy() for _ in range(len(self.channels))])/len(self.channels) #we assume equal strength in all provided channels.
             PSD_funcs = generate_PSD(waveform=waveform, dt=self.dt,use_gpu=self.use_gpu) #produce 2-channel default PSD
         else:
             waveform_generator = self.waveform_generator

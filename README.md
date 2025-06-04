@@ -16,9 +16,9 @@ To use this package you will require the following dependences; follow their ins
 
 - FastEMRIWaveforms (https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms)
 
-- LISAAnalysisTools (https://github.com/mikekatz04/LISAanalysistools)
+- (optional) LISAAnalysisTools (https://github.com/mikekatz04/LISAanalysistools)
 
-- LISA-on-gpu (https://github.com/mikekatz04/lisa-on-gpu)
+- (optional) LISA-on-gpu (https://github.com/mikekatz04/lisa-on-gpu)
 
 ### Example usage
 See the `examples` directory for examples of basic usage of this package, and `validation` for a comparison against some MCMC results.

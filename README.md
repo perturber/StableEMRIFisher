@@ -12,7 +12,7 @@ For development work, you can use an editable installation with the `-e` flag:
 pip install -e .
 ```
 
-To use this package you will require the following dependences; follow their installation instructions to get started:
+To use this package you will require the following dependencies; follow their installation instructions to get started:
 
 - FastEMRIWaveforms (https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms)
 

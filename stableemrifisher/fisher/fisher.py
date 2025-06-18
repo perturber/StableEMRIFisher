@@ -503,7 +503,7 @@ class StableEMRIFisher:
         
         # Check for positive-definiteness
         if 'm1' in self.param_names:
-            index_of_m = np.where(self.param_names == 'm1')[0][0]
+            index_of_m = np.where(np.array(self.param_names) == 'm1')[0][0]
             Fisher_inv = fishinv(self.wave_params['m1'], Fisher, index_of_m = index_of_m)
         else:
             Fisher_inv = np.linalg.inv(Fisher)

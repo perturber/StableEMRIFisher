@@ -1,5 +1,10 @@
 import numpy as np
-import cupy as cp
+
+try:
+    import cupy as cp
+except:
+    pass
+
 from scipy.interpolate import make_interp_spline
 from stableemrifisher.noise import noise_PSD_AE, sensitivity_LWA
 from few.utils.constants import YRSID_SI

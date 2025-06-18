@@ -496,15 +496,12 @@ class StableEMRIFisher:
         if 0 in diag_elements:
             logger.critical("Nasty. We have a degeneracy. Can't measure a parameter")
             degen_index = np.argwhere(diag_elements == 0)[0][0]
-            Fisher[degen_index,degen_index] = 1e-10 #assign a small value other than zero.
-            for i in range(len(Fisher)):
-                Fisher[degen_index,i] = 0.0 #no correlation with degenerate parameter.
-                Fisher[i,degen_index] = 0.0 #no correlation with degenerate parameter.
+            Fisher[degen_index,degen_index] = 1.0
         
         # Check for positive-definiteness
         if 'm1' in self.param_names:
-            index_of_m = np.where(np.array(self.param_names) == 'm1')[0][0]
-            Fisher_inv = fishinv(self.wave_params['m1'], Fisher, index_of_m = index_of_m)
+            index_of_M = np.where(np.array(self.param_names) == 'm1')[0][0]
+            Fisher_inv = fishinv(self.wave_params['m1'], Fisher, index_of_M = index_of_M)
         else:
             Fisher_inv = np.linalg.inv(Fisher)
 

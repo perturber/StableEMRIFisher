@@ -218,3 +218,25 @@ def get_inspiral_overwrite_fun(interpolation_factor, spline_order=7):
         return (t_new.copy(),) + tuple(upsampled.copy())
 
     return func    
+
+def fishinv(M, Fisher, index_of_M = 0):
+    """ 
+    Calculate the Fisher inverse by transforming the index of M to lnM to improve conditionality of the matrix first. 
+    ONLY WORKS WITH INPUTS THAT HAVE PARAM M AT INDEX "index_of_M"!
+    Helps with stability of Fisher inversion.
+    """
+    
+    #Jacobian for Fisher = partial old/partial new, going from M -> lnM
+    
+    J = np.eye(len(Fisher))
+    J[index_of_M,index_of_M] = M
+
+    Fisher_lnM = J.T @ Fisher @ J
+
+    Fisher_lnM_inv = np.linalg.inv(Fisher_lnM)
+
+    #Jacobian for Covariance = partial new/partial old, going from lnM -> M
+
+    Fisher_inv = J.T @ Fisher_lnM_inv @ J
+    
+    return Fisher_inv

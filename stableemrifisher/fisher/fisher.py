@@ -14,7 +14,7 @@ except:
 from few.trajectory.inspiral import EMRIInspiral
 from few.utils.constants import YRSID_SI
 from stableemrifisher.fisher.derivatives import derivative, handle_a_flip
-from stableemrifisher.utils import inner_product, get_inspiral_overwrite_fun, SNRcalc, generate_PSD
+from stableemrifisher.utils import inner_product, get_inspiral_overwrite_fun, SNRcalc, generate_PSD, fishinv
 from stableemrifisher.noise import noise_PSD_AE, sensitivity_LWA
 from stableemrifisher.plot import CovEllipsePlot, StabilityPlot
 
@@ -496,11 +496,20 @@ class StableEMRIFisher:
         if 0 in diag_elements:
             logger.critical("Nasty. We have a degeneracy. Can't measure a parameter")
             degen_index = np.argwhere(diag_elements == 0)[0][0]
-            Fisher[degen_index,degen_index] = 1.0
+            Fisher[degen_index,degen_index] = 1e-10 #assign a small value other than zero.
+            for i in range(len(Fisher)):
+                Fisher[degen_index,i] = 0.0 #no correlation with degenerate parameter.
+                Fisher[i,degen_index] = 0.0 #no correlation with degenerate parameter.
         
         # Check for positive-definiteness
-        if (np.linalg.eigvals(Fisher) <= 0.0).any():
-            logger.critical("Calculated Fisher is not positive-definite. Try lowering inspiral error tolerance or increasing the derivative order.")
+        if 'm1' in self.param_names:
+            index_of_m = np.where(self.param_names == 'm1')[0][0]
+            Fisher_inv = fishinv(self.wave_params['m1'], Fisher, index_of_m = index_of_m)
+        else:
+            Fisher_inv = np.linalg.inv(Fisher)
+
+        if (np.linalg.eigvals(Fisher_inv) < 0.0).any():
+            logger.critical("Calculated Fisher is not positive semi-definite. Try lowering inspiral error tolerance or increasing the derivative order.")
         else:
             logger.info("Calculated Fisher is *atleast* positive-definite.")
         

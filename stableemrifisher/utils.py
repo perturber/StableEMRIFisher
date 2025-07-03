@@ -70,7 +70,7 @@ def generate_PSD(waveform, dt, noise_PSD=noise_PSD_AE, channels = ["A","E"], noi
     T = (df * YRSID_SI)**-1
 
     if use_gpu:
-        freq_np = xp.asnumpy(freq) # Compute frequencies
+        freq_np = freq.get() # Compute frequencies
     else:
         freq_np = freq
 
@@ -86,7 +86,7 @@ def generate_PSD(waveform, dt, noise_PSD=noise_PSD_AE, channels = ["A","E"], noi
     return PSD_cp[0:len(channels)]      
 
 
-def inner_product(a, b, PSD, dt, window=None, use_gpu=False):
+def inner_product(a, b, PSD, dt, window=None, fmin = None, fmax = None, use_gpu=False):
     """
     Compute the frequency domain inner product of two time-domain arrays.
 
@@ -109,6 +109,38 @@ def inner_product(a, b, PSD, dt, window=None, use_gpu=False):
     else:
         xp = np
 
+    #print("fmin: {}, fmax: {}".format(fmin, fmax))
+
+    #frequency cutoff mask
+    if (fmin != None) or (fmax != None):
+        
+        length = len(a[0])
+        freq = xp.fft.rfftfreq(length)/dt
+
+        if use_gpu:
+            freq = freq.get() #convert to numpy
+
+        if fmin != None:
+            mask_min = (freq > fmin)
+        
+        if fmax != None:
+            mask_max = (freq < fmax)
+
+        if (fmin != None) and (fmax == None):
+            freq_mask = mask_min
+        elif (fmin == None) and (fmax != None):
+            freq_mask = mask_max
+        else:
+            freq_mask = xp.logical_and(mask_min, mask_max)
+
+    else:
+        length = len(a[0])
+        freq = xp.fft.rfftfreq(length)/dt
+
+        freq_mask = np.full(len(freq), True, dtype = bool)
+
+    freq_mask = freq_mask[1:] #skip the first element corresponding to f = 0.0
+
     a = xp.atleast_2d(a)
     b = xp.atleast_2d(b)
     PSD = xp.atleast_2d(xp.asarray(PSD))  # handle passing the same PSD for multiple channels
@@ -117,7 +149,7 @@ def inner_product(a, b, PSD, dt, window=None, use_gpu=False):
 
     df = (N * dt) ** -1
 
-    if window is not None:
+    if window != None:
         window = xp.atleast_2d(xp.asarray(window))
         a_in = a * window
         b_in = b * window
@@ -125,34 +157,34 @@ def inner_product(a, b, PSD, dt, window=None, use_gpu=False):
         a_in, b_in = a, b
 
     if xp.iscomplexobj(a_in):
-        a_fft_plus = dt * xp.fft.rfft(a_in.real, axis=-1)[:,1:]
-        a_fft_cross = dt * xp.fft.rfft(a_in.imag, axis=-1)[:,1:]
+        a_fft_plus = (dt * xp.fft.rfft(a_in.real, axis=-1)[:,1:])[:,freq_mask]
+        a_fft_cross = (dt * xp.fft.rfft(a_in.imag, axis=-1)[:,1:])[:,freq_mask]
 
-        b_fft_plus = dt * xp.fft.rfft(b_in.real, axis=-1)[:,1:]
-        b_fft_cross = dt * xp.fft.rfft(b_in.imag, axis=-1)[:,1:]
+        b_fft_plus = (dt * xp.fft.rfft(b_in.real, axis=-1)[:,1:])[:,freq_mask]
+        b_fft_cross = (dt * xp.fft.rfft(b_in.imag, axis=-1)[:,1:])[:,freq_mask]
 
-        inner_prod = 4 * df * ((a_fft_plus.conj() * b_fft_plus + a_fft_cross * b_fft_cross.conj()).real / PSD).sum()
+        inner_prod = 4 * df * ((a_fft_plus.conj() * b_fft_plus + a_fft_cross * b_fft_cross.conj()).real / PSD[:,freq_mask]).sum()
         
     else:
-        a_fft = dt * xp.fft.rfft(a_in, axis=-1)[:,1:]
-        b_fft = dt * xp.fft.rfft(b_in, axis=-1)[:,1:]
+        a_fft = (dt * xp.fft.rfft(a_in, axis=-1)[:,1:])[:,freq_mask]
+        b_fft = (dt * xp.fft.rfft(b_in, axis=-1)[:,1:])[:,freq_mask]
 
         # Compute inner products over given channels
-        inner_prod = 4 * df * ((a_fft.conj() * b_fft).real / PSD).sum()
+        inner_prod = 4 * df * ((a_fft.conj() * b_fft).real / PSD[:,freq_mask]).sum()
     
     if use_gpu:
         inner_prod = inner_prod.get()
 
     return inner_prod
     
-def SNRcalc(waveform, PSD, dt, window=None, use_gpu=False):
+def SNRcalc(waveform, PSD, dt, window=None, fmin = None, fmax = None, use_gpu=False):
     """
     Give the SNR of a given waveform after SEF initialization.
     Returns:
         float: SNR of the source.
     """
         
-    return np.sqrt(inner_product(waveform,waveform, PSD, dt , window=window, use_gpu=use_gpu))
+    return np.sqrt(inner_product(waveform,waveform, PSD, dt , window=window, fmin = fmin, fmax = fmax, use_gpu=use_gpu))
 
 def padding(a, b, use_gpu=False):
     """

@@ -97,9 +97,12 @@ def inner_product(a, b, PSD, dt, window=None, fmin = None, fmax = None, use_gpu=
     Args:
         a (np.ndarray): The first time-domain signal. It should have dimensions (N_channels, N), where N is the length of the signal.
         b (np.ndarray): The second time-domain signal. It should have dimensions (N_channels, N), where N is the length of the signal.
-        df (float): The frequency resolution, i.e., the spacing between frequency bins.
         PSD (np.ndarray): The power spectral density (PSD) of the signals. It should be a 1D array of length N_channels.
-
+        dt (float): The sampling interval, i.e., the spacing between time samples.
+        window (np.ndarray, optional): a window array to envelope the waveform time series. Default is None (no window).
+        fmin (float, optional): minimum frequency for inner_product sum. Default is None.
+        fmax (float, optional): maximum frequency for inner_product sum. Default is None.
+        use_gpu (bool, optional): whether to use gpu. Default is False.
     Returns:
         float: The frequency-domain inner product of the two signals.
 
@@ -149,7 +152,7 @@ def inner_product(a, b, PSD, dt, window=None, fmin = None, fmax = None, use_gpu=
 
     df = (N * dt) ** -1
 
-    if window != None:
+    if window is not None:
         window = xp.atleast_2d(xp.asarray(window))
         a_in = a * window
         b_in = b * window

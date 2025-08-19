@@ -1,17 +1,40 @@
-import numpy as np
+"""Stable EMRI Fisher-matrix utilities.
+
+This module provides the `StableEMRIFisher` class to compute signal-to-noise
+ratio (SNR), select numerically stable finite-difference step sizes ("stable
+deltas"), and build Fisher information matrices for Extreme Mass Ratio
+Inspirals (EMRIs) using the FEW toolkit. It supports optional LISA response
+wrapping, basic plunge checks, optional GPU acceleration via CuPy, and
+convenience plotting/saving utilities.
+
+Key capabilities:
+- SNR computation from time-domain waveforms and generated PSDs.
+- Automatic search for finite-difference step sizes that stabilize the
+    diagonal Fisher elements.
+- Fisher matrix assembly using inner products across one or more channels.
+- Optional covariance matrix computation and diagnostic plots.
+
+Notes
+-----
+- The waveform generator can be either a FEW `GenerateEMRIWaveform` instance
+    or a `ResponseWrapper` that applies a LISA response to a base waveform.
+- GPU support is best-effort; when enabled, arrays are promoted to CuPy where
+    possible and converted back to NumPy for persistence and linear algebra
+    operations that require CPU.
+"""
+
 import os
 import time 
 import sys
+import numpy as np
 import h5py
 import matplotlib.pyplot as plt
 
 try:
     import cupy as cp
-except:
-    print("CuPy not found")
-    pass
-    
-from few.trajectory.inspiral import EMRIInspiral
+except ImportError:
+    cp = None
+
 from few.utils.constants import YRSID_SI
 from stableemrifisher.fisher.derivatives import derivative, handle_a_flip
 from stableemrifisher.utils import inner_product, SNRcalc, generate_PSD, fishinv
@@ -26,53 +49,102 @@ logger.setLevel("INFO")
 logger.info("startup")
 
 class StableEMRIFisher:
+    """Compute stable Fisher matrices for EMRI signals.
+
+    This class orchestrates waveform generation (with or without a response),
+    SNR calculation, stable step-size selection for numerical derivatives, and
+    Fisher matrix assembly. It also provides optional covariance matrix
+    computation and plotting, and basic file output convenience.
+
+    Typical usage:
+        1) Instantiate with physical parameters and a waveform generator.
+        2) Call the instance to compute the Fisher matrix (and covariance if
+           requested). Stable deltas are estimated automatically unless
+           provided.
+
+    Attributes (selection):
+        waveform (np.ndarray or cp.ndarray): Cached waveform (channels x N).
+        waveform_generator: FEW `GenerateEMRIWaveform` or a `ResponseWrapper`.
+        channels (list[str]): Channel names used to build PSDs and products.
+        deltas (dict[str, float] | None): Per-parameter finite-difference
+            step sizes. Computed if not provided.
+        param_names (list[str]): Parameter names corresponding to Fisher order.
+        npar (int): Number of parameters in the Fisher matrix.
+        SNR2 (float): SNR squared of the current waveform (set after call).
+    """
     
     def __init__(self, m1, m2, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
                  Phi_phi0, Phi_theta0, Phi_r0, dt = 10., T = 1.0, add_param_args = None, waveform_kwargs=None, EMRI_waveform_gen = None, window = None, fmin = None, fmax = None, noise_model = noise_PSD_AE, noise_kwargs={"TDI":'TDI1'}, channels=["A","E"],
                  param_names=None, deltas=None, der_order=2, Ndelta=8, delta_range = None, CovEllipse=False, stability_plot=False, save_derivatives=False,
                  live_dangerously = False, plunge_check=True, filename=None, suffix=None, stats_for_nerds=False, use_gpu=False):
-        """
-            This class computes the Fisher matrix for an Extreme Mass Ratio Inspiral (EMRI) system.
+        """Initialize a Fisher-matrix computation for an EMRI configuration.
 
-            Args:
-                m1 (float): Mass of the Massive Black Hole (MBH).
-                m2 (float): Mass of the Compact Object (CO).
-                a (float): Spin of the MBH.
-                p0 (float): Initial semi-latus rectum of the EMRI.
-                e0 (float): Initial eccentricity of the EMRI.
-                Y0 (float): Initial cosine of the inclination of the CO orbit with respect to the EMRI equatorial plane.
-                dist (float): Distance from the detector in gigaparsecs (Gpc).
-                qS, phiS (float): Sky location parameters from the detector.
-                qK, phiK (float): Source spin vector orientation with respect to the detector equatorial plane.
-                Phi_phi0, Phi_theta0, Phi_r0 (float): Initial phases of the CO orbit.
-                dt (float, optional): Time steps in the EMRI signal in seconds. Default is 10.
-                T (float, optional): Duration of the EMRI signal in years. Default is 1.
+        Args:
+            m1 (float): Central (MBH) mass.
+            m2 (float): Compact object mass.
+            a (float): Dimensionless spin of the MBH.
+            p0 (float): Initial semi-latus rectum.
+            e0 (float): Initial eccentricity.
+            Y0 (float): Initial cosine of the inclination of the CO orbit
+                relative to the equatorial plane.
+            dist (float): Luminosity distance in Gpc.
+            qS (float): Sky polar angle (detector frame), radians.
+            phiS (float): Sky azimuthal angle (detector frame), radians.
+            qK (float): Spin-axis polar angle, radians.
+            phiK (float): Spin-axis azimuthal angle, radians.
+            Phi_phi0 (float): Initial azimuthal phase, radians.
+            Phi_theta0 (float): Initial polar phase, radians.
+            Phi_r0 (float): Initial radial phase, radians.
+            dt (float, optional): Time step of the waveform in seconds.
+            T (float, optional): Duration of the evolution in years.
+            add_param_args (dict[str, float] | None, optional): Extra model
+                parameters (e.g., beyond-vacuum GR). Added to waveform and
+                trajectory parameter sets.
+            waveform_kwargs (dict | None, optional): Additional kwargs passed
+                to the waveform generator.
+            EMRI_waveform_gen (object, optional): FEW `GenerateEMRIWaveform`
+                instance or a `ResponseWrapper` that applies a LISA response.
+            window (np.ndarray | None, optional): Optional window to apply in
+                inner products.
+            fmin (float | None, optional): Minimum frequency for the
+                frequency-domain inner product.
+            fmax (float | None, optional): Maximum frequency for the
+                frequency-domain inner product.
+            noise_model (callable, optional): Function S_n(f, **noise_kwargs)
+                returning the one-sided noise PSD per channel.
+            noise_kwargs (dict, optional): Keyword arguments for `noise_model`.
+            channels (list[str], optional): Response channel names.
+            param_names (list[str] | None, optional): Ordered parameter names
+                used to build derivatives and the Fisher matrix.
+            deltas (dict[str, float] | None, optional): Fixed finite-difference
+                step sizes. If None, stable values are searched.
+            der_order (int, optional): Order of the finite-difference scheme.
+            Ndelta (int, optional): Number of trial step sizes per parameter
+                when searching for stability.
+            delta_range (dict[str, list[float]] | None, optional): Optional
+                per-parameter grid of deltas to test.
+            CovEllipse (bool, optional): If True, compute and optionally plot
+                the covariance matrix after the Fisher is built.
+            stability_plot (bool, optional): If True, plot per-parameter
+                stability curves during delta search.
+            save_derivatives (bool, optional): If True, save the derivative
+                stack to the HDF5 file alongside the Fisher matrix.
+            live_dangerously (bool, optional): If True, skip the stability
+                search and use heuristic step sizes.
+            plunge_check (bool, optional): If True, reduce the evolution time
+                if the computed trajectory indicates a plunge.
+            filename (str | None, optional): Directory to write outputs (text,
+                HDF5, plots). If None, nothing is written.
+            suffix (str | None, optional): Suffix used to disambiguate files
+                under `filename`.
+            stats_for_nerds (bool, optional): If True, enable verbose DEBUG
+                logging.
+            use_gpu (bool, optional): If True, prefer CuPy for array ops where
+                supported.
 
-                add_param_args (dict, optional): names and values of additional model parameters in case of a beyond vacuum-GR waveform. Default is None.
-                waveform_kwargs (dict, optional): dictionary of any additional waveform arguments (for e.g. mich = True). Default is None. 
-                EMRI_waveform_gen (object, optional): EMRI waveform generator object. Can be GenerateEMRIWaveform object or ResponseWrapper object. Default is None.
-                window (np.ndarray, optional): window function for the waveform. Default is None.
-                fmin (np.float, optional): minimum frequency cutoff for calculating the frequency-domain inner_product. Default is None (minimum frequency decided by xp.fft.rfftfreq).
-                fmax (np.float, optional): maximum frequency cutoff for calculating the frequency-domain inner_product. Default is None (maximum frequency decided by xp.fft.rfftfreq).
-                noise_model (func, optional): function to calculate the noise of the instrument at a given frequency and noise configuration. frequency should be the first argument. Default is noise_PSD_AE.
-                noise_kwargs (dict, optional): additional keyword arguments to be provided to the noise model function. Default is {"TDI":'TDI1'} (kwarg for noise_PSD_AE).
-                channels (list, optional): list of LISA response channels. Default is ["A","E"]
-                param_names (np.ndarray, optional): Order in which Fisher matrix elements will be arranged. Default is None.
-                deltas (np.ndarray, optional): Range of stable deltas for numerical differentiation of each parameter. Default is None.
-                der_order (int, optional): Order at which to calculate the numerical derivatives. Default is 2.
-                Ndelta (int, optional): Density of the delta range grid for calculation of stable deltas. Default is 8.
-                delta_range (dict or NoneType, optional): custom range of deltas over which Fisher stability is checked. Format: {"param_name": [list of deltas to check]}. Default is None.
-                
-                CovEllise (bool, optional): If True, compute the inverse Fisher matrix, i.e., the Covariance Matrix for the given parameters and the covariance triangle plot. Default is False.
-                stability_plot (bool, optional): If True, plot the stability surfaces for the delta grid for all measured parameters. Default is False.
-                save_derivatives (bool, optional): If True, save the derivatives with keyword "derivatives" in the h5py file.
-                live_dangerously (bool, optional): If True, perform calculations without basic consistency checks. Default is False.
-                plunge_check (bool, optional): If True, check whether body is plunging, and adjust p0 accordingly.
-                filename (string, optional): If not None, save the Fisher matrix, stable deltas, and covariance triangle plot in the folder with the same filename.
-                suffix (string, optional): Used in case multiple Fishers are to be stored under the same filename.
-                stats_for_nerds (bool, optional): print special stats for development purposes. Default is False.
-                use_gpu (bool, optional): whether to use GPUs. Default is False.
-
+        Raises:
+            ValueError: If `param_names` is None or the waveform generator is
+                not provided.
         """
         self.waveform = None
 
@@ -189,6 +261,20 @@ class StableEMRIFisher:
 
 
     def __call__(self):
+        """Run the full pipeline: SNR, stable deltas (optional), Fisher (+cov).
+
+        Workflow:
+            1) Build the waveform and compute SNR (stored via `self.SNR2`).
+            2) If `self.deltas` is None and `live_dangerously` is False,
+               search for stable step sizes; otherwise use heuristics.
+            3) Compute the Fisher matrix via inner products of derivatives.
+            4) Optionally compute the covariance matrix and generate plots.
+
+        Returns:
+            numpy.ndarray | tuple[numpy.ndarray, numpy.ndarray]:
+                - Fisher matrix (npar x npar), or
+                - (Fisher, Covariance) if `CovEllipse` is True.
+        """
         
         rho = self.SNRcalc_SEF()
 
@@ -250,6 +336,17 @@ class StableEMRIFisher:
             return Fisher
         
     def SNRcalc_SEF(self):
+        """Generate waveform and PSDs, then compute the optimal SNR.
+
+        The waveform is obtained from `self.waveform_generator` using the
+        parameters provided at construction time. If no response wrapper is
+        used and a 1D waveform is returned (h+ - i hx), it is replicated across
+        the configured channels with equal weighting. Per-channel PSDs are then
+        generated and the multi-channel SNR is computed.
+
+        Returns:
+            float: The optimal SNR of the current configuration.
+        """
     	#generate PSD
         if self.use_gpu:
             xp = cp
@@ -274,20 +371,14 @@ class StableEMRIFisher:
         
     
     def check_if_plunging(self):
-        """
-        Checks if the body is plunging based on the computed trajectory.
+        """Check for plunge and return an adjusted evolution time (seconds).
+
+        A short inspiral termination compared to the requested duration is a
+        proxy for plunge. If detected, the final time is trimmed by six hours
+        to improve numerical stability of subsequent Fisher calculations.
 
         Returns:
-            float: The adjusted final time of the trajectory.
-
-        Notes:
-            This method computes the trajectory of the body using the EMRIInspiral module 
-            and checks if the final time of the trajectory is less than a threshold. If 
-            the body is plunging, it adjusts the final time by subtracting 6 hours. If 
-            not, it keeps the final time unchanged. The adjusted final time is returned.
-
-        Raises:
-            None
+            float: Final evolution time in seconds (possibly reduced).
         """         
         # Compute trajectory 
         
@@ -307,6 +398,20 @@ class StableEMRIFisher:
 
     #defining Fisher_Stability function, generates self.deltas
     def Fisher_Stability(self):
+        """Search per-parameter finite-difference steps that stabilize Gamma_ii.
+
+        For each parameter in `self.param_names`, scan a geometric grid of
+        trial step sizes (or use a user-provided grid via `delta_range`). For
+        each trial delta, compute the derivative of the waveform and evaluate
+        the corresponding diagonal Fisher element, Gamma_ii. A step size is
+        selected by minimizing the relative change between successive Gamma_ii
+        values. Results are stored in `self.deltas`. Optionally, stability
+        plots are generated.
+
+        Side effects:
+            - Sets `self.deltas` to a dict[param_name] -> float.
+            - Saves a `stable_deltas*.txt` file if `self.filename` is set.
+        """
         if not self.use_gpu:
             xp = np
         else:
@@ -431,7 +536,12 @@ class StableEMRIFisher:
         self.save_deltas()
 
     def save_deltas(self):
-        # TODO fix the filename handling...
+        """Persist the currently selected `self.deltas` to disk (if configured).
+
+        Writes a small text file into `self.filename` containing the string
+        representation of the `self.deltas` dictionary. If no output directory
+        is configured, this function does nothing.
+        """
         if self.filename is not None:
             if self.suffix != None:
                 with open(f"{self.filename}/stable_deltas_{self.suffix}.txt", "w", newline="") as file:
@@ -442,6 +552,21 @@ class StableEMRIFisher:
 
     #defining FisherCalc function, returns Fisher
     def FisherCalc(self):
+        """Assemble the Fisher matrix using numerically differentiated waveforms.
+
+        Uses the per-parameter step sizes in `self.deltas` to compute
+        finite-difference derivatives of the waveform and evaluates inner
+        products across channels using the precomputed PSD functions. The
+        Fisher matrix is symmetrized, checked for degeneracies, and validated
+        for positive definiteness (or semi-definiteness) via its inverse.
+
+        Side effects:
+            - Optionally saves derivative stacks and Fisher matrix to HDF5
+              files in `self.filename`.
+
+        Returns:
+            numpy.ndarray: The Fisher matrix of shape (npar, npar).
+        """
         if self.use_gpu:
             xp = cp
         else:

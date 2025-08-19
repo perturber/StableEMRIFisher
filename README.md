@@ -23,7 +23,7 @@ To use this package you will require the following dependencies; follow their in
 ### Example usage
 See the `examples` directory for examples of basic usage of this package, and `validation` for a comparison against some MCMC results.
 
-Documentation coming soon...
+Documentation coming soon.
 
 ### Citation
 ```

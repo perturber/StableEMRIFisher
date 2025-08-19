@@ -343,16 +343,17 @@ def viewing_angle_partials(qS, phiS, qK, phiK):
     return {
         "theta_src": theta_src,
         "del theta_src / del phi_S": d_theta_d_phiS,
-        "del theta_src / del qS ": d_theta_d_qS,      # key as requested
+        "del theta_src / del qS": d_theta_d_qS,      # key as requested
         "del theta_src / del qK": d_theta_d_qK,
         "del theta_src / del phi_K": d_theta_d_phiK,
     }
 
+import numpy as np
 
-def fplus_fcros_derivs(qS, phiS, qK, phiK,
+def fplus_fcross_derivs(qS, phiS, qK, phiK,
                        with_respect_to=None):
     """
-    Compute psi, (FplusI,FcrosI,FplusII,FcrosII) and their partial derivatives.
+    Compute psi, (FplusI,FcrossI,FplusII,FcrossII) and their partial derivatives.
 
     Parameters
     ----------
@@ -370,7 +371,7 @@ def fplus_fcros_derivs(qS, phiS, qK, phiK,
     Returns
     -------
     dict
-        Contains psi, FplusI, FcrosI, FplusII, FcrosII, and only the
+        Contains psi, FplusI, FcrossI, FplusII, FcrossII, and only the
         requested derivatives.
     """
     cS, sS = np.cos(qS), np.sin(qS)
@@ -384,8 +385,8 @@ def fplus_fcros_derivs(qS, phiS, qK, phiK,
     psi = -np.arctan2(u, v)
 
     c2p, s2p = np.cos(2*psi), np.sin(2*psi)
-    FplusI, FcrosI = c2p, -s2p
-    FplusII, FcrosII = s2p, c2p
+    FplusI, FcrossI = c2p, -s2p
+    FplusII, FcrossII = s2p, c2p
 
     # du/dx, dv/dx
     du = {
@@ -405,21 +406,24 @@ def fplus_fcros_derivs(qS, phiS, qK, phiK,
 
     out = {
         'psi': psi,
-        'FplusI': FplusI, 'FcrosI': FcrosI,
-        'FplusII': FplusII, 'FcrosII': FcrosII,
+        'FplusI': FplusI, 'FcrossI': FcrossI,
+        'FplusII': FplusII, 'FcrossII': FcrossII,
     }
 
     if with_respect_to is None:
         with_respect_to = ['qS','phiS','qK','phiK']
 
     # Loop only over requested derivatives
+    if isinstance(with_respect_to, str):
+        with_respect_to = [with_respect_to]
+        # Ensure it's a list for consistency
+
     for x in with_respect_to:
         dpsi_x = - (v*du[x] - u*dv[x]) / denom
         # I-arm
         out[f'dFplusI/d{x}']  = -2.0 * s2p * dpsi_x
-        out[f'dFcrosI/d{x}']  = -2.0 * c2p * dpsi_x
+        out[f'dFcrossI/d{x}']  = -2.0 * c2p * dpsi_x
         # II-arm
         out[f'dFplusII/d{x}'] =  2.0 * c2p * dpsi_x
-        out[f'dFcrosII/d{x}'] = -2.0 * s2p * dpsi_x
+        out[f'dFcrossII/d{x}'] = -2.0 * s2p * dpsi_x
     return out
-

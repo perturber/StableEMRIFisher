@@ -14,8 +14,8 @@ except:
 from few.trajectory.inspiral import EMRIInspiral
 from few.utils.constants import YRSID_SI
 from stableemrifisher.fisher.derivatives import derivative, handle_a_flip
-from stableemrifisher.utils import inner_product, get_inspiral_overwrite_fun, SNRcalc, generate_PSD, fishinv
-from stableemrifisher.noise import noise_PSD_AE, sensitivity_LWA
+from stableemrifisher.utils import inner_product, SNRcalc, generate_PSD, fishinv
+from stableemrifisher.noise import noise_PSD_AE 
 from stableemrifisher.plot import CovEllipsePlot, StabilityPlot
 
 import logging

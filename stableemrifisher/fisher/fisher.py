@@ -73,195 +73,130 @@ class StableEMRIFisher:
         SNR2 (float): SNR squared of the current waveform (set after call).
     """
     
-    def __init__(self, m1, m2, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
-                 Phi_phi0, Phi_theta0, Phi_r0, dt = 10., T = 1.0, add_param_args = None, waveform_kwargs=None, EMRI_waveform_gen = None, window = None, fmin = None, fmax = None, noise_model = noise_PSD_AE, noise_kwargs={"TDI":'TDI1'}, channels=["A","E"],
+    def __init__(self, *, waveform_kwargs=None, EMRI_waveform_gen = None, window = None, fmin = None, fmax = None, noise_model = noise_PSD_AE, noise_kwargs=None, channels=None,
                  param_names=None, deltas=None, der_order=2, Ndelta=8, delta_range = None, CovEllipse=False, stability_plot=False, save_derivatives=False,
                  live_dangerously = False, plunge_check=True, filename=None, suffix=None, stats_for_nerds=False, use_gpu=False):
         """Initialize a Fisher-matrix computation for an EMRI configuration.
 
+        This configuration-only initializer sets up waveform/noise backends,
+        derivative settings, and I/O options. Physical EMRI parameters are
+        provided later when invoking the instance via `__call__`.
+
         Args:
-            m1 (float): Central (MBH) mass.
-            m2 (float): Compact object mass.
-            a (float): Dimensionless spin of the MBH.
-            p0 (float): Initial semi-latus rectum.
-            e0 (float): Initial eccentricity.
-            Y0 (float): Initial cosine of the inclination of the CO orbit
-                relative to the equatorial plane.
-            dist (float): Luminosity distance in Gpc.
-            qS (float): Sky polar angle (detector frame), radians.
-            phiS (float): Sky azimuthal angle (detector frame), radians.
-            qK (float): Spin-axis polar angle, radians.
-            phiK (float): Spin-axis azimuthal angle, radians.
-            Phi_phi0 (float): Initial azimuthal phase, radians.
-            Phi_theta0 (float): Initial polar phase, radians.
-            Phi_r0 (float): Initial radial phase, radians.
-            dt (float, optional): Time step of the waveform in seconds.
-            T (float, optional): Duration of the evolution in years.
-            add_param_args (dict[str, float] | None, optional): Extra model
-                parameters (e.g., beyond-vacuum GR). Added to waveform and
-                trajectory parameter sets.
-            waveform_kwargs (dict | None, optional): Additional kwargs passed
-                to the waveform generator.
-            EMRI_waveform_gen (object, optional): FEW `GenerateEMRIWaveform`
-                instance or a `ResponseWrapper` that applies a LISA response.
-            window (np.ndarray | None, optional): Optional window to apply in
-                inner products.
-            fmin (float | None, optional): Minimum frequency for the
-                frequency-domain inner product.
-            fmax (float | None, optional): Maximum frequency for the
-                frequency-domain inner product.
-            noise_model (callable, optional): Function S_n(f, **noise_kwargs)
-                returning the one-sided noise PSD per channel.
-            noise_kwargs (dict, optional): Keyword arguments for `noise_model`.
-            channels (list[str], optional): Response channel names.
-            param_names (list[str] | None, optional): Ordered parameter names
-                used to build derivatives and the Fisher matrix.
-            deltas (dict[str, float] | None, optional): Fixed finite-difference
-                step sizes. If None, stable values are searched.
-            der_order (int, optional): Order of the finite-difference scheme.
-            Ndelta (int, optional): Number of trial step sizes per parameter
-                when searching for stability.
-            delta_range (dict[str, list[float]] | None, optional): Optional
-                per-parameter grid of deltas to test.
-            CovEllipse (bool, optional): If True, compute and optionally plot
-                the covariance matrix after the Fisher is built.
-            stability_plot (bool, optional): If True, plot per-parameter
-                stability curves during delta search.
-            save_derivatives (bool, optional): If True, save the derivative
-                stack to the HDF5 file alongside the Fisher matrix.
-            live_dangerously (bool, optional): If True, skip the stability
-                search and use heuristic step sizes.
-            plunge_check (bool, optional): If True, reduce the evolution time
-                if the computed trajectory indicates a plunge.
-            filename (str | None, optional): Directory to write outputs (text,
-                HDF5, plots). If None, nothing is written.
-            suffix (str | None, optional): Suffix used to disambiguate files
-                under `filename`.
-            stats_for_nerds (bool, optional): If True, enable verbose DEBUG
-                logging.
-            use_gpu (bool, optional): If True, prefer CuPy for array ops where
-                supported.
+            waveform_kwargs (dict | None): Extra kwargs for the waveform generator.
+            EMRI_waveform_gen (object): FEW `GenerateEMRIWaveform` or a `ResponseWrapper`.
+            window (np.ndarray | None): Optional window for inner products.
+            fmin (float | None): Minimum frequency for inner products.
+            fmax (float | None): Maximum frequency for inner products.
+            noise_model (callable): Noise PSD function.
+            noise_kwargs (dict | None): Noise model kwargs. Defaults to {"TDI": "TDI1"}.
+            channels (list[str] | None): Channels to use. Defaults to ["A","E"].
+            param_names (list[str]): Ordered parameter names for derivatives.
+            deltas (dict[str, float] | None): Optional fixed step sizes.
+            der_order (int): Finite-difference order.
+            Ndelta (int): Number of trial deltas in stability search.
+            delta_range (dict[str, list[float]] | None): Custom per-parameter delta grids.
+            CovEllipse (bool): If True, compute covariance and plots.
+            stability_plot (bool): If True, plot stability curves.
+            save_derivatives (bool): If True, save derivative stacks to HDF5.
+            live_dangerously (bool): If True, skip stability search (use heuristics).
+            plunge_check (bool): If True, trim evolution time if plunge is detected.
+            filename (str | None): Output directory for files.
+            suffix (str | None): Optional suffix for output filenames.
+            stats_for_nerds (bool): Enable verbose DEBUG logging.
+            use_gpu (bool): Prefer CuPy for array ops where available.
 
         Raises:
-            ValueError: If `param_names` is None or the waveform generator is
-                not provided.
+            ValueError: If `param_names` or `EMRI_waveform_gen` is missing.
         """
+        # placeholders for attributes configured at call-time
         self.waveform = None
+        self.dt = None
+        self.T = None
+        self.wave_params = {}
+        self.traj_params = {}
+        self.wave_params_list = []
+        self.SNR2 = None
+        self.PSD_funcs = None
 
         self.use_gpu = use_gpu
+        if self.use_gpu and cp is None:
+            logger.warning("CuPy not found; disabling GPU acceleration.")
+            self.use_gpu = False
 
-        #initializing param_names list
-        if param_names == None: # TODO should this just operate over all parameters by default?
+        # initialize parameter name list
+        if param_names is None:
             raise ValueError("param_names cannot be empty.")
+        self.param_names = param_names
+        self.npar = len(self.param_names)
 
-        else:
-            self.param_names = param_names
-            self.npar = len(self.param_names)
-
-        if deltas != None and len(deltas) != self.npar:
-            logger.critical('Length of deltas array should be equal to length of param_names.\n\
-                   Assuming deltas = None.')
+        # initialize deltas (can be provided up-front)
+        if deltas is not None and len(deltas) != self.npar:
+            logger.critical('Length of deltas array should be equal to length of param_names.\nAssuming deltas = None.')
             deltas = None
-            
-        if EMRI_waveform_gen == None:
-            raise ValueError("Please set up EMRI waveform model and pass as argument.")
-         
-        #initializing parameters
-        self.dt = dt
-        self.T = T
+        self.deltas = deltas  # Use deltas == None as a Flag
 
-        # Initilising FM details
+        # Initilising FM details and I/O flags
         self.order = der_order
         self.Ndelta = Ndelta
         self.window = window
         self.fmin = fmin
         self.fmax = fmax
-        
-        if stats_for_nerds:
-            logger.setLevel("DEBUG")
-
-        # =============== Initialise Waveform generator ================
-        self.waveform_generator = EMRI_waveform_gen
-
-        # Determine what version of TDI to use or whether to use the LWA 
-
-        self.noise_model = noise_model
-        self.noise_kwargs = noise_kwargs
-        self.channels = channels
-	
-        if waveform_kwargs is None:
-            waveform_kwargs = {}
-
-        self.waveform_kwargs = waveform_kwargs
-
-        #if self.response in ["TDI1", "TDI2"]:
-        
-        try: #if ResponseWrapper is provided
-            self.traj_module = self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator
-            self.traj_module_func = self.waveform_generator.waveform_gen.waveform_generator.inspiral_kwargs['func']
-            self.ResponseWrapper = True
-        except: #if GenerateEMRIWaveform is provided
-            self.traj_module = self.waveform_generator.waveform_generator.inspiral_generator
-            self.traj_module_func = self.waveform_generator.waveform_generator.inspiral_kwargs['func']
-            self.ResponseWrapper = False
-        
-        #initializing param dictionary
-        self.wave_params = {'m1':m1,
-                      'm2':m2,
-                      'a':a,
-                      'p0':p0,
-                      'e0':e0,
-                      'Y0':Y0,
-                      'dist':dist,
-                      'qS':qS,
-                      'phiS':phiS,
-                      'qK':qK,
-                      'phiK':phiK,
-                      'Phi_phi0':Phi_phi0,
-                      'Phi_theta0':Phi_theta0,
-                      'Phi_r0':Phi_r0,
-                      }
-
-        self.minmax = {'a':[0.05,0.95],'e0':[0.01,0.7],'Phi_phi0':[0.1,2*np.pi*(0.9)],'Phi_r0':[0.1,2*np.pi*(0.9)],'Phi_theta0':[0.1,2*np.pi*(0.9)],
-                              'qS':[0.1,np.pi*(0.9)],'qK':[0.1,np.pi*(0.9)],'phiS':[0.1,2*np.pi*(0.9)],'phiK':[0.1,2*np.pi*(0.9)]}
-                                            
-        self.traj_params = dict(list(self.wave_params.items())[:6]) 
-
-        #initialise extra args, add them to wave_params/traj_params
-        full_EMRI_param = list(self.wave_params.keys())
-        if not add_param_args == None:
-            for i in range(len(add_param_args.keys())):
-                self.wave_params[list(add_param_args.keys())[i]] = list(add_param_args.values())[i]
-                self.traj_params[list(add_param_args.keys())[i]] = list(add_param_args.values())[i]
-                
-        self.wave_params_list = list(self.wave_params.values())
-        
-        #initializing deltas
-        self.deltas = deltas #Use deltas == None as a Flag
-        
-        if not delta_range == None: 
-            self.delta_range = delta_range
-        else:
-            self.delta_range = {}
-        
-        #initializing other Flags:
         self.CovEllipse = CovEllipse
         self.stability_plot = stability_plot
         self.save_derivatives = save_derivatives
         self.filename = filename
         self.suffix = suffix
         self.live_dangerously = live_dangerously
-        
-        if plunge_check:
-            # Redefine final time if small body is plunging. More stable FMs.
-            final_time = self.check_if_plunging()
-            self.T = final_time/YRSID_SI # Years
-    
-        self.waveform_kwargs.update(dict(dt=self.dt, T=self.T))
+        self.plunge_check = plunge_check
+
+        if stats_for_nerds:
+            logger.setLevel("DEBUG")
+
+        # =============== Initialise Waveform generator ================
+        if EMRI_waveform_gen is None:
+            raise ValueError("Please set up EMRI waveform model and pass as argument.")
+        self.waveform_generator = EMRI_waveform_gen
+
+        # Noise/response configuration
+        self.noise_model = noise_model
+        self.noise_kwargs = noise_kwargs if noise_kwargs is not None else {"TDI": "TDI1"}
+        self.channels = channels if channels is not None else ["A", "E"]
+
+        if waveform_kwargs is None:
+            waveform_kwargs = {}
+        self.waveform_kwargs = waveform_kwargs
+
+        # Identify inspiral/trajectory generator for plunge checks
+        try:  # ResponseWrapper provided
+            self.traj_module = self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator
+            self.traj_module_func = self.waveform_generator.waveform_gen.waveform_generator.inspiral_kwargs['func']
+            self.ResponseWrapper = True
+        except AttributeError:  # GenerateEMRIWaveform provided
+            self.traj_module = self.waveform_generator.waveform_generator.inspiral_generator
+            self.traj_module_func = self.waveform_generator.waveform_generator.inspiral_kwargs['func']
+            self.ResponseWrapper = False
+
+        # Bounds for directional derivatives near edges
+        self.minmax = {
+            'a': [0.05, 0.95],
+            'e0': [0.01, 0.7],
+            'Phi_phi0': [0.1, 2 * np.pi * 0.9],
+            'Phi_r0': [0.1, 2 * np.pi * 0.9],
+            'Phi_theta0': [0.1, 2 * np.pi * 0.9],
+            'qS': [0.1, np.pi * 0.9],
+            'qK': [0.1, np.pi * 0.9],
+            'phiS': [0.1, 2 * np.pi * 0.9],
+            'phiK': [0.1, 2 * np.pi * 0.9],
+        }
+
+        # optional custom delta grids per parameter
+        self.delta_range = delta_range if delta_range is not None else {}
 
 
-    def __call__(self):
-        """Run the full pipeline: SNR, stable deltas (optional), Fisher (+cov).
+    def __call__(self, m1, m2, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
+                 Phi_phi0, Phi_theta0, Phi_r0, dt=10.0, T=1.0, add_param_args=None, waveform_kwargs=None):
+        """Run the full pipeline at specific EMRI parameters.
 
         Workflow:
             1) Build the waveform and compute SNR (stored via `self.SNR2`).
@@ -275,79 +210,118 @@ class StableEMRIFisher:
                 - Fisher matrix (npar x npar), or
                 - (Fisher, Covariance) if `CovEllipse` is True.
         """
-        
+        # store runtime waveform settings
+        self.dt = dt
+        self.T = T
+        if waveform_kwargs is not None:
+            # merge per-call waveform kwargs with existing defaults
+            self.waveform_kwargs = {**self.waveform_kwargs, **waveform_kwargs}
+        # ensure dt/T are passed to waveform generator
+        self.waveform_kwargs.update(dict(dt=self.dt, T=self.T))
+
+        # initialize parameter dictionaries for this call
+        self.wave_params = {
+            'm1': m1,
+            'm2': m2,
+            'a': a,
+            'p0': p0,
+            'e0': e0,
+            'Y0': Y0,
+            'dist': dist,
+            'qS': qS,
+            'phiS': phiS,
+            'qK': qK,
+            'phiK': phiK,
+            'Phi_phi0': Phi_phi0,
+            'Phi_theta0': Phi_theta0,
+            'Phi_r0': Phi_r0,
+        }
+
+        # trajectory params are the first six entries
+        self.traj_params = dict(list(self.wave_params.items())[:6])
+
+        # append any additional model parameters (optional)
+        if add_param_args is not None:
+            for k, v in add_param_args.items():
+                self.wave_params[k] = v
+                self.traj_params[k] = v
+
+        self.wave_params_list = list(self.wave_params.values())
+
+        # Redefine final time if small body is plunging. More stable FMs.
+        if self.plunge_check:
+            final_time = self.check_if_plunging()
+            self.T = final_time / YRSID_SI  # Years
+            self.waveform_kwargs.update(dict(T=self.T))
+
         rho = self.SNRcalc_SEF()
 
         self.SNR2 = rho**2
 
-        logger.info(f'Waveform Generated. SNR: {rho}')
-        
+        logger.info('Waveform Generated. SNR: %s', rho)
+
         if rho <= 20:
             logger.critical('The optimal source SNR is <= 20. The Fisher approximation may not be valid!')
-        
-        #making parent folder
-        if self.filename != None:
+
+        # making parent folder
+        if self.filename is not None:
             if not os.path.exists(self.filename):
                 os.makedirs(self.filename)
-                
-        #1. If deltas not provided, calculating the stable deltas
-        # print("Computing stable deltas")
-        if self.live_dangerously == False:
-            if self.deltas == None:
+
+        # 1. If deltas not provided, calculating the stable deltas
+        if not self.live_dangerously:
+            if self.deltas is None:
                 start = time.time()
-                self.Fisher_Stability() # Attempts to compute stable delta values. 
+                self.Fisher_Stability()  # Attempts to compute stable delta values.
                 end = time.time() - start
-                logger.info(f"Time taken to compute stable deltas is {end} seconds")
-                
+                logger.info("Time taken to compute stable deltas is %s seconds", end)
         else:
             logger.debug("You have elected for dangerous living, I like it. ")
-            fudge_factor_intrinsic = 3*(self.wave_params["m2"]/self.wave_params["m1"]) * (self.SNR2)**-1
-            delta_intrinsic = fudge_factor_intrinsic * np.array([self.wave_params["m1"], self.wave_params["m2"], 1.0, 1.0, 1.0, 1.0])
-            danger_delta_dict = dict(zip(self.param_names[0:7],delta_intrinsic))
-            delta_dict_final_params = dict(zip(self.param_names[6:14],np.array(8*[1e-6])))
+            fudge_factor_intrinsic = 3 * (self.wave_params["m2"] / self.wave_params["m1"]) * (self.SNR2) ** -1
+            delta_intrinsic = fudge_factor_intrinsic * np.array([
+                self.wave_params["m1"], self.wave_params["m2"], 1.0, 1.0, 1.0, 1.0
+            ])
+            danger_delta_dict = dict(zip(self.param_names[0:7], delta_intrinsic))
+            delta_dict_final_params = dict(zip(self.param_names[6:14], np.array(8 * [1e-6])))
             danger_delta_dict.update(delta_dict_final_params)
-            
+
             self.deltas = danger_delta_dict
             self.save_deltas()
 
-        #2. Given the deltas, we calculate the Fisher Matrix
+        # 2. Given the deltas, we calculate the Fisher Matrix
         start = time.time()
         Fisher = self.FisherCalc()
         end = time.time() - start
-        logger.info(f"Time taken to compute FM is {end} seconds")
-        
-        #3. If requested, calculate the covariance Matrix
+        logger.info("Time taken to compute FM is %s seconds", end)
+
+        # 3. If requested, calculate the covariance Matrix
         if self.CovEllipse:
             covariance = np.linalg.inv(Fisher)
-            # TODO just get the user to pass filename paths in for the plots etc. It's easier to develop and gives the user more control
-            if self.filename != None:
-                if self.suffix != None:
-                    CovEllipsePlot(covariance, self.param_names, self.wave_params,  filename=os.path.join(self.filename, f"covariance_ellipses_{self.suffix}.png"))
+            if self.filename is not None:
+                if self.suffix is not None:
+                    CovEllipsePlot(covariance, self.param_names, self.wave_params, filename=os.path.join(self.filename, f"covariance_ellipses_{self.suffix}.png"))
                 else:
-                    CovEllipsePlot(covariance, self.param_names, self.wave_params, filename=os.path.join(self.filename, "covariance_ellipses.png"))                
-
+                    CovEllipsePlot(covariance, self.param_names, self.wave_params, filename=os.path.join(self.filename, "covariance_ellipses.png"))
             else:
-                fig, axs = CovEllipsePlot(covariance, self.param_names, self.wave_params)
+                CovEllipsePlot(covariance, self.param_names, self.wave_params)
                 plt.show()
-
             return Fisher, covariance
-            
-        else:
-            return Fisher
+
+        return Fisher
         
     def SNRcalc_SEF(self):
         """Generate waveform and PSDs, then compute the optimal SNR.
 
         The waveform is obtained from `self.waveform_generator` using the
-        parameters provided at construction time. If no response wrapper is
-        used and a 1D waveform is returned (h+ - i hx), it is replicated across
-        the configured channels with equal weighting. Per-channel PSDs are then
+        parameters provided at call time. If no response wrapper is used and a
+        1D waveform is returned (h+ - i hx), it is replicated across the
+        configured channels with equal weighting. Per-channel PSDs are then
         generated and the multi-channel SNR is computed.
 
         Returns:
             float: The optimal SNR of the current configuration.
         """
-    	#generate PSD
+        #generate PSD
         if self.use_gpu:
             xp = cp
         else:
@@ -358,16 +332,16 @@ class StableEMRIFisher:
         # If no response is provided and waveform of the form h+ - ihx, create copies equivalent to the number of channels.
         if self.waveform.ndim == 1:
             self.waveform = xp.asarray([self.waveform.copy() for _ in range(len(self.channels))])/len(self.channels) #we assume equal strength in all provided channels.
-            
-        print("wave ndim: ", self.waveform.ndim)
+        
+        logger.debug("wave ndim: %s", self.waveform.ndim)
         #Generate PSDs
         self.PSD_funcs = generate_PSD(waveform=self.waveform, dt=self.dt, noise_PSD=self.noise_model,
-                     channels=self.channels,noise_kwargs=self.noise_kwargs,use_gpu=self.use_gpu)
+                 channels=self.channels, noise_kwargs=self.noise_kwargs, use_gpu=self.use_gpu)
         
         # Compute SNR
-        logger.info(f"Computing SNR for parameters: {self.wave_params}") 
-        
-        return SNRcalc(self.waveform, self.PSD_funcs, dt=self.dt, window=self.window, fmin = self.fmin, fmax = self.fmax, use_gpu=self.use_gpu)
+        logger.info("Computing SNR for parameters: %s", self.wave_params)
+
+        return SNRcalc(self.waveform, self.PSD_funcs, dt=self.dt, window=self.window, fmin=self.fmin, fmax=self.fmax, use_gpu=self.use_gpu)
         
     
     def check_if_plunging(self):
@@ -390,7 +364,7 @@ class StableEMRIFisher:
         if t_traj[-1] < self.T*YRSID_SI - 1.0: #1.0 is a buffer because self.traj_module can produce trajectories slightly smaller than T*YRSID_SI even if not plunging!
             logger.warning("Body is plunging! Expect instabilities.")
             final_time = t_traj[-1] - 6*60*60 # Remove 6 hours of final inspiral
-            logger.warning(f"Removed last 6 hours of inspiral. New evolution time: {final_time/YRSID_SI} years")
+            logger.warning("Removed last 6 hours of inspiral. New evolution time: %s years", final_time/YRSID_SI)
         else:
             logger.info("Body is not plunging, Fisher should be stable.")
             final_time = self.T * YRSID_SI
@@ -457,7 +431,6 @@ class StableEMRIFisher:
                     delta_init = np.geomspace(1e-1*self.wave_params[self.param_names[i]],1e-6*self.wave_params[self.param_names[i]],Ndelta)
  
             Gamma = []
-            orderofmag = []
 
             relerr_flag = False
             for k in range(Ndelta):
@@ -486,7 +459,7 @@ class StableEMRIFisher:
 
                 #Calculating the Fisher Elements
                 Gammai = inner_product(del_k,del_k, PSD_funcs, self.dt, window=self.window, fmin = self.fmin, fmax = self.fmax, use_gpu=self.use_gpu)
-                logger.debug(f"Gamma_ii: {Gammai}")
+                logger.debug("Gamma_ii: %s", Gammai)
                 if np.isnan(Gammai):
                     Gamma.append(0.0) #handle nan's
                     logger.warning('NaN type encountered during Fisher calculation! Replacing with 0.0.')	
@@ -509,16 +482,16 @@ class StableEMRIFisher:
                         else:
                             relerr.append(np.abs(Gamma[m+1] - Gamma[m])/Gamma[m+1])   
 
-                logger.debug(relerr)
+                logger.debug("relerr: %s", relerr)
                 
                 relerr_min_i, = np.where(np.isclose(relerr, np.min(relerr),rtol=1e-1*np.min(relerr),atol=1e-1*np.min(relerr)))
                 if len(relerr_min_i) > 1:
                     relerr_min_i = relerr_min_i[-1]
 
-                logger.debug(relerr_min_i)
+                logger.debug("relerr_min_i: %s", relerr_min_i)
                 
                 if np.min(relerr) >= 0.01:
-                    logger.warning(f'minimum relative error is greater than 1% for {self.param_names[i]}. Fisher may be unstable!')
+                    logger.warning('minimum relative error is greater than 1%% for %s. Fisher may be unstable!', self.param_names[i])
 
                 deltas[self.param_names[i]] = delta_init[relerr_min_i].item()
                 
@@ -529,8 +502,8 @@ class StableEMRIFisher:
                         else:
                             StabilityPlot(delta_init,Gamma,param_name=self.param_names[i],filename=os.path.join(self.filename,f'stability_{self.param_names[i]}.png'))
                     else:
-                        StabilityPlot(delta_init,Gamma,param_name=self.param_name[i])
-        logger.debug(f'stable deltas: {deltas}')
+                        StabilityPlot(delta_init, Gamma, param_name=self.param_names[i])
+        logger.debug('stable deltas: %s', deltas)
         
         self.deltas = deltas
         self.save_deltas()
@@ -544,10 +517,10 @@ class StableEMRIFisher:
         """
         if self.filename is not None:
             if self.suffix != None:
-                with open(f"{self.filename}/stable_deltas_{self.suffix}.txt", "w", newline="") as file:
+                with open(f"{self.filename}/stable_deltas_{self.suffix}.txt", "w", encoding="utf-8", newline="") as file:
                     file.write(str(self.deltas))
             else:
-                with open(f"{self.filename}/stable_deltas.txt", "w", newline="") as file:
+                with open(f"{self.filename}/stable_deltas.txt", "w", encoding="utf-8", newline="") as file:
                     file.write(str(self.deltas))
 
     #defining FisherCalc function, returns Fisher

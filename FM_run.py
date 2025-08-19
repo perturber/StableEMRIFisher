@@ -130,16 +130,15 @@ else:
 # varied parameters
 param_names = ['m1','m2']
 
-sef = StableEMRIFisher(m1, m2, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
-                       Phi_phi0, Phi_theta0, Phi_r0, dt = dt, T = T,
-                       EMRI_waveform_gen=EMRI_model,
+sef = StableEMRIFisher(EMRI_waveform_gen=EMRI_model,
                        param_names=param_names, stats_for_nerds=True,
                        filename='TestRun', CovEllipse=False)
 
 # execution
 print("Computing FM")
 start = time.time()
-fisher_matrix = sef()
+fisher_matrix = sef(m1, m2, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
+                       Phi_phi0, Phi_theta0, Phi_r0, dt = dt, T = T)
 end = time.time() - start
 print("Time taken to compute Fisher matrix and stable deltas is", end, "seconds")
 

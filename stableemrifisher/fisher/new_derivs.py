@@ -1,8 +1,34 @@
-from few.waveform import FastKerrEccentricEquatorialFlux, GenerateEMRIWaveform
-from few.waveform.base import SphericalHarmonicWaveformBase
+from few.waveform import GenerateEMRIWaveform
+# from few.waveform.base import SphericalHarmonicWaveformBase
 from few.utils.constants import Gpc, MRSUN_SI, YRSID_SI
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+
+def _available_stencils():
+    """
+    Accessed from #Fornberg 1988: https://doi.org/10.1090%2FS0025-5718-1988-0935077-0
+    """
+    
+    return {
+        "central": {
+            2: np.asarray([-1/2, 1/2]),
+            4: np.asarray([1/12, -2/3, 2/3, -1/12]),
+            6: np.asarray([-1/60, 3/20, -3/4, 3/4, -3/20, 1/60]),
+            8: np.asarray([1/280, -4/105, 1/5, -4/5, 4/5, -1/5, 4/105, -1/280])
+        },
+        "forward": {
+            2: np.asarray([-3/2, 2, -1/2]),
+            4: np.asarray([-25/12, 4, -3, 4/3, -1/4]),
+            6: np.asarray([-49/20, 6, -15/2, 20/3, -15/4, 6/5, -1/6]),
+            8: np.asarray([-761/280, 8, -14, 56/3, -35/2, 56/5, -14/3, 8/7, -1/8]) 
+        },
+        "backward": {
+            2: np.asarray([1/2, -2, 3/2]),
+            4: np.asarray([1/4, -4/3, 3, -4, 25/12]),
+            6: np.asarray([1/6, -6/5, 15/4, -20/3, 15/2, -6, 49/20]),
+            8: np.asarray([1/8, -8/7, 14/3, -56/5, 35/2, -56/3, 14, -8, 761/280])
+        }
+    }
 
 class StableEMRIDerivative(GenerateEMRIWaveform):
     """
@@ -46,7 +72,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
         Phi_theta0,
         Phi_r0,
         *add_args,
-        **kwargs, #should have parameters (dict), param_name (str), deltas (np.ndarray), stencil_fun (object) 
+        **kwargs, #should have parameters (dict), param_to_vary (str), delta (float), order (int), kind (str) 
     ):
         """
         generate the waveform derivative for the given parameter
@@ -54,16 +80,25 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
 
         try:
             parameters = kwargs['parameters']
-            deriv_parameter = kwargs['deriv_parameter']
-            deltas = kwargs['deltas']
-            stencil_fun = kwargs['stencil_fun']
+            param_to_vary = kwargs['param_to_vary']
+            self.delta = kwargs['delta']
+            self.order = kwargs['order']
+            self.kind = kwargs['kind']
             
         except KeyError as e:
             raise ValueError(f"kwargs must include {e}")
 
+        if self.kind not in ["central", "forward", "backward"]:
+            raise ValueError('kind must be one of "central", "forward", or "backward".')
+        if self.order not in [2, 4, 6, 8]:
+            raise ValueError('order must be one of 2, 4, 6, or 8.')
+
+        #construct deltas for derivative
+        self.deltas = self._deltas(self.delta, self.order, self.kind)
+
         # how we proceed depends on the parameter we are differentiating with respect to
-        if deriv_parameter not in parameters:
-            raise ValueError(f"Parameter '{deriv_parameter}' not in parameters dictionary.")
+        if param_to_vary not in parameters:
+            raise ValueError(f"Parameter '{param_to_vary}' not in parameters dictionary.")
 
         try:
             T = kwargs['T']
@@ -83,7 +118,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
         parameters['theta_source'] = theta_source
         parameters['phi_source'] = phi_source
 
-        keys_exclude = ['parameters', 'deriv_parameter', 'deltas', 'stencil_fun', 'T', 'dt']
+        keys_exclude = ['parameters', 'param_to_vary', 'delta', 'order', 'kind', 'T', 'dt']
         kwargs_remaining = {key: value for key, value in kwargs.items() if key not in keys_exclude}
 
         #get waveform
@@ -117,18 +152,18 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                 **kwargs_remaining,
             )
 
-            self.cache['waveform_source'] = waveform_source #source_frame waveform
+            self.cache['waveform_source'] = waveform_source
 
         # now calculate the derivatives with respect to the chosen parameters
 
         # distance
-        if deriv_parameter == 'dist':
-            waveform_derivative_source = -self.cache['waveform_source'] / parameters['dist']
+        if param_to_vary == 'dist':
+            waveform_derivative_source = - self.cache['waveform_source'] / parameters['dist']
 
         # phases
-        elif deriv_parameter in ['Phi_phi0', 'Phi_theta0', 'Phi_r0']:
+        elif param_to_vary in ['Phi_phi0', 'Phi_theta0', 'Phi_r0']:
             # factor of -1j*m is applied to each amplitude
-            modified_amps = self._modify_amplitudes_for_initial_phase_derivative(deriv_parameter)
+            modified_amps = self._modify_amplitudes_for_initial_phase_derivative(param_to_vary)
             
             # create waveform derivative
             waveform_derivative_source = self.create_waveform(
@@ -147,9 +182,9 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             )
 
         # sky angles (SSB)
-        elif deriv_parameter in ['qS', 'phiS', 'qK', 'phiK']:
+        elif param_to_vary in ['qS', 'phiS', 'qK', 'phiK']:
             # finite differencing of the ylms w.r.t. theta, then chain rule partial h / partial theta * partial theta / partial angle
-            modified_amps = self._modify_amplitudes_for_angle_derivative(parameters, deriv_parameter, deltas, stencil_fun)
+            modified_amps = self._modify_amplitudes_for_angle_derivative(parameters, param_to_vary)
             
             waveform_derivative_source = self.create_waveform(
                     self.cache['t'],
@@ -171,11 +206,11 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             #if you've reached this point, a derivative w.r.t one of the trajectory parameters is requested.
             #trajectory must be modified
             #get trajectories
-            y_interps = self.xp.full((len(deltas), self.cache['t'].size, len(self.cache['y'])), self.xp.nan) #trajectory for each of the finite difference deltas
+            y_interps = self.xp.full((len(self.deltas), self.cache['t'].size, len(self.cache['y'])), self.xp.nan) #trajectory for each of the finite difference deltas
             
-            for k, delt in enumerate(deltas):
+            for k, delt in enumerate(self.deltas):
                 parameters_in = parameters.copy()
-                parameters_in[deriv_parameter] += delt #perturb by finite-difference
+                parameters_in[param_to_vary] += delt #perturb by finite-difference
                 t, y = self._trajectory_from_parameters(parameters_in, T)
                 #re-interpolate onto the time-step grid for the injection trajectory
                 t_interp = self.cache['t'].copy()
@@ -206,36 +241,36 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             phase_t = self.xp.asarray(self.cache['phase_coefficients_t'][:max_ind])
             
             #finite differencing the phases
-            dPhi_fund_dx = stencil_fun(phases_steps, deltas[1] - deltas[0])
+            dPhi_fund_dx = self._stencil(phases_steps, self.delta, self.order, self.kind)
             #project the fundamental phases up to the full mode index space
             dPhi_dx = (dPhi_fund_dx[:,0,None] * self.cache['ms_all'][None,:] + 
                        #dPhi_fund_dx[:,1,None] * self.cache['ks_all'][None,:] + #no inclination in FEW 2.0
                        dPhi_fund_dx[:,2,None] * self.cache['ns_all'][None,:])
 
             #get amplitude derivative
-            amps_steps = self.xp.zeros((len(deltas), max_ind,  len(self.cache['ls_all'])), dtype=self.xp.complex128)
+            amps_steps = self.xp.zeros((len(self.deltas), max_ind,  len(self.cache['ls_all'])), dtype=self.xp.complex128)
 
-            for k, delt in enumerate(deltas):
+            for k, delt in enumerate(self.deltas):
 
                 #### DO WE NEED TO ITERATE? NOT IN OG CODE FROM CHRISTIAN ###########
                 parameters_in = parameters.copy()
-                parameters_in[deriv_parameter] += delt #perturb by finite-difference
+                parameters_in[param_to_vary] += delt #perturb by finite-difference
                 #####################################################################
                 #print("y_interps[k][xI]: ", y_interps[k].T[2])
                 amps_here = self._amplitudes_from_trajectory(parameters_in, t_interp, y_interps[k].T, cache=False, **kwargs_remaining) #remember, this function multiplies by Ylmns!
                 amps_steps[k] = amps_here
 
             #finite differencing the amplitudes
-            dAmp_dx = stencil_fun(amps_steps, deltas[1] - deltas[0]) #actually d teuk_amps/dx * Ylmns
+            dAmp_dx = self._stencil(amps_steps, self.delta, self.order, self.kind) #actually d teuk_amps/dx * Ylmns
 
             #defining effective amplitudes = dAdx - i A dPhidx
             wave_amps = self.cache['teuk_modes_with_ylms'][:max_ind]
             effective_amps = dAmp_dx - 1j * wave_amps * dPhi_dx
 
-            if deriv_parameter in ['m1', 'm2']: #additional term due to chain rule of dist_dimensionless
+            if param_to_vary in ['m1', 'm2']: #additional term due to chain rule of dist_dimensionless
                 mu = parameters['m1'] * parameters['m2'] / (parameters['m1'] + parameters['m2'])
-                M = paramaters['m1'] + parameters['m2']
-                if deriv_parameter == 'm1': 
+                M = parameters['m1'] + parameters['m2']
+                if param_to_vary == 'm1': 
                     dmu_dm = parameters['m2'] ** 2 / (M ** 2)
                 else:
                     dmu_dm = parameters['m1'] ** 2 / (M ** 2)
@@ -262,7 +297,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                 waveform_derivative_source = np.concatenate(
                     (
                         waveform_derivative_source, 
-                        np.zeros((self.cache['waveform'].size - waveform_derivative_source.size), 
+                        np.zeros((self.cache['waveform_source'].size - waveform_derivative_source.size), 
                                  dtype=waveform_derivative_source.dtype)
                     ), 
                 axis=0)
@@ -292,14 +327,14 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                                                                   qK = parameters['qK'], phiK = parameters['phiK'])
 
         #if derivative is with respect to one of the angles, also need derivatives with antenna pattern
-        if deriv_parameter in ['qS', 'phiS', 'qK', 'phiK']:
-            antenna_derivs = fplus_fcros_derivs(qS, phiS, qK, phiK, with_respect_to=deriv_parameter)
+        if param_to_vary in ['qS', 'phiS', 'qK', 'phiK']:
+            antenna_derivs = fplus_fcros_derivs(qS, phiS, qK, phiK, with_respect_to=param_to_vary)
 
-            waveform_derivative_detector_plus += (antenna_derivs[f'dFplusI/d{deriv_parameter}'] * waveform_derivative_source_plus +
-                                                  antenna_derivs[f'dFcrossI/d{deriv_parameter}'] * waveform_derivative_source_cross)
+            waveform_derivative_detector_plus += (antenna_derivs[f'dFplusI/d{param_to_vary}'] * waveform_derivative_source_plus +
+                                                  antenna_derivs[f'dFcrossI/d{param_to_vary}'] * waveform_derivative_source_cross)
 
-            waveform_derivative_detector_cross += (antenna_derivs[f'dFplusII/d{deriv_parameter}'] * waveform_derivative_source_plus +
-                                                  antenna_derivs[f'dFcrossII/d{deriv_parameter}'] * waveform_derivative_source_cross)
+            waveform_derivative_detector_cross += (antenna_derivs[f'dFplusII/d{param_to_vary}'] * waveform_derivative_source_plus +
+                                                  antenna_derivs[f'dFcrossII/d{param_to_vary}'] * waveform_derivative_source_cross)
         
         if self.return_list is False:
             return waveform_derivative_detector_plus - 1j * waveform_derivative_detector_cross
@@ -467,26 +502,100 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
 
             return teuk_modes_in * ylms_in / dist_dimensionless
 
-    def _modify_amplitudes_for_initial_phase_derivative(self, deriv_parameter):
+    def _modify_amplitudes_for_initial_phase_derivative(self, param_to_vary):
         """ 
         calculates modified amplitudes for phase derivatives.
 
         Args:
-            deriv_parameter (string): one of "Phi_phi0", "Phi_theta0", "Phi_r0"
+            param_to_vary (string): one of "Phi_phi0", "Phi_theta0", "Phi_r0"
         returns
             modified amplitudes = -i (mode_index) A
         """
 
-        if deriv_parameter == 'Phi_phi0':
+        if param_to_vary == 'Phi_phi0':
             factor = -1j * self.cache['ms_all']
-        elif deriv_parameter == 'Phi_theta0':
+        elif param_to_vary == 'Phi_theta0':
             raise NotImplementedError #no inclination in FEW 2.0
-        elif deriv_parameter == 'Phi_r0':
+        elif param_to_vary == 'Phi_r0':
             factor = -1j * self.cache['ns_all']
 
         modified_amps = self.cache['teuk_modes_with_ylms'] * factor[None, :]
         return modified_amps
 
+    def _modify_amplitudes_for_angle_derivative(self, parameters, param_to_vary):
+        """
+        calculates modified amplitudes for angle derivatives (qS, phiS, qK, phiK)
+
+        Args:
+            parameters (dict): model parameters
+            param_to_vary (str): one of qS, phiS, qK, phiK: parameter with respect to which to calculate the derivative
+        Returns:
+            modified amplitudes = A * partial Y_lm / partial theta * partial_theta / partial kappa where kappa is the param_to_vary
+        """
+
+        ylm_temp = np.zeros((len(self.deltas), self.cache['ls_all'].size), dtype=np.complex128)
+
+        #first calculate dylm_dtheta
+        for k, delt in enumerate(self.deltas):
+            parameters_in = parameters.copy()
+            parameters_in['theta_source'] += delt
+            # get the ylms for this theta
+            ylm_temp[k] = self.ylm_gen(self.cache['ls_all'], self.cache['ms_all'], parameters_in['theta_source'], parameters_in['phi_source'])
+
+        dYlm_dtheta = self._stencil(ylm_temp, self.delta, self.order, self.kind)
+
+        #now calculate dtheta_dkappa
+        if param_to_vary == 'qS':
+            key_dtheta_dkappa = "del theta_src / del qS"
+        elif param_to_vary == 'phiS':
+            key_dtheta_dkappa = "del theta_src / del phi_S"
+        elif param_to_vary == 'qK':
+            key_dtheta_dkappa = "del theta_src / del qK"
+        elif param_to_vary == 'phiK':
+            key_dtheta_dkappa = "del theta_src / del phi_K"
+        
+        dtheta_dkappa = self._viewing_angle_partials(qS, phiS, qK, phiK)[key_dtheta_dkappa]
+
+        # modify the amplitudes by the derivative of the Ylms
+        modified_amps = self.cache['teuk_modes'] * dYlm_dtheta[None, :] * dtheta_dkappa
+
+        return modified_amps
+
+    def _deltas(self, delta, order, kind):
+        """
+            return the np.ndarray of parameter deltas for a given delta
+
+        Args:
+            delta (float): finite-difference delta
+            order (int): order of derivative. Choose from 2, 4, 6, 8
+            kind (str): kind of derivative. Choose from "central", "forward", "backward"
+        """
+
+        if kind == "central":
+            # symmetric positions around 0, excluding 0
+            half = order // 2
+            positions = list(range(-half, 0)) + list(range(1, half + 1))
+    
+        elif kind == "forward":
+            positions = list(range(order + 1))
+    
+        elif kind == "backward":
+            positions = list(range(-order, 1))
+
+        return np.asarray(positions) * delta
+
+    def _stencil(self, func_steps, delta, order, kind):
+        """
+            return the stencil for finite-differences
+
+        Args:
+            func_steps (np.ndarray): array of function at different steps of the finite-difference deltas grid
+            order (int): order of finite-difference derivative. Choose from 2, 4, 6, 8
+            kind (str): kind of finite-difference derivative. Choose from "central", "forward", "backward"
+        """
+
+        return np.tensordot(_available_stencils()[kind][order], func_steps, axes = (0,0)) / delta    
+    
     @staticmethod
     def _viewing_angle_partials(qS, phiS, qK, phiK):
         """

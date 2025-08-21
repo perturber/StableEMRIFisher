@@ -210,6 +210,13 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
 
         # traj params
         else:
+            # TODO: Absolute filth command. Need t_interp to be a numpy array
+            # when called. There will be a much neater way to implement this.
+            # make sure you wash your hands after running this code. Urgh. Not proud. 
+            if str(self.waveform_generator.backend_name)[0:4] == "cuda":
+                use_gpu = True
+            else:
+                use_gpu = False
             #if you've reached this point, a derivative w.r.t one of the trajectory parameters is requested.
             #trajectory must be modified
             #get trajectories
@@ -221,11 +228,20 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                 t, y = self._trajectory_from_parameters(parameters_in, T)
                 #re-interpolate onto the time-step grid for the injection trajectory
                 t_interp = self.cache['t'].copy() # CHANGED
-                t_interp_np = t_interp.get() # Changed!
+                if use_gpu:
+                    t_interp_np = t_interp.get() # Changed!
+                else:
+                    t_interp_np = t_interp
+                # t_interp_np = np.asarray(t_interp) # Changed!
 
                 if t_interp[-1] > t[-1]: #the perturbed trajectory is plunging. Add NaN's at the end!
                     mask_notplunging = t_interp < t[-1] #for all t_interp < t[-1], the perturbed trajectory is still not plunging
-                    t_interp_np = t_interp[mask_notplunging].get() # CHANGED
+                    # t_interp_np = t_interp[mask_notplunging].get() # CHANGED
+                    # t_interp_np = np.asarray(t_interp[mask_notplunging]) # CHANGED
+                    if use_gpu:
+                        t_interp_np = t_interp[mask_notplunging].get() 
+                    else:
+                        t_interp_np = t_interp[mask_notplunging]
                 
                 y_interp = self.xp.asarray(self.inspiral_generator.inspiral_generator.eval_integrator_spline(t_interp_np).T) #any unfilled elements due to plunging trajectories assume nans. # CHANGED
                 y_interps[k,:len(t_interp_np)] = y_interp.T # CHANGED

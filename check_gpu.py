@@ -10,7 +10,8 @@ use_gpu = True #False if your computer sucks (mine does)
 from stableemriderivative import StableEMRIDerivative
 
 if not use_gpu:
-    
+
+    force_backend = "cpu" 
     import few
     
     #tune few configuration
@@ -19,14 +20,16 @@ if not use_gpu:
     cfg_set.enable_backends("cpu")
     cfg_set.set_log_level("info");
 else:
+    force_backend = "gpu"
     pass #let the backend decide for itself.
 
 from few.waveform import FastSchwarzschildEccentricFlux
 
+print("Build the class")
 waveform_derivative = StableEMRIDerivative(waveform_class=FastSchwarzschildEccentricFlux,
                                           mode_selector_kwargs=dict(mode_selection_threshold=1e-5), 
                                           inspiral_kwargs=dict(err=1e-11, max_iter=10000),
-                                          use_gpu = use_gpu)
+                                          force_backend = force_backend)
 
 
 
@@ -62,14 +65,12 @@ delta = 1e-8  #finite difference delta for the chosen paramete
 order = 4 #order of finite-difference derivative
 kind = "central" #kind of finite-difference derivative
 
-print("Build the waveform")
 der = waveform_derivative(T = T, dt = dt, 
                     parameters = parameters, 
                     param_to_vary = param_to_vary,
                     delta = delta,
                     order = order,
                     kind = kind,
-                    # use_gpu = use_gpu,
                     )
 
 breakpoint()

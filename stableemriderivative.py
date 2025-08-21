@@ -71,8 +71,6 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
         generate the waveform derivative for the given parameter
         """
 
-        print("Now in the call function")
-
         self.delta = delta
         self.order= order
         self.kind = kind
@@ -114,7 +112,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                                                             parameters['phiS'],
                                                             parameters['qK'],
                                                             parameters['phiK'])
-        parameters['theta_source'] = theta_source
+        parameters['theta_source'] = float(theta_source)
         parameters['phi_source'] = phi_source
         
         keys_exclude = ['T', 'dt', 'batch_size', 'show_progress']
@@ -124,7 +122,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
         if self.cache is None or parameters != self.cache['parameters']:
             
             t, y = self._trajectory_from_parameters(parameters, T)
-            
+
             self.cache = {
                 't':t,
                 'y':y,
@@ -132,14 +130,13 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                 'parameters':parameters,
                 'coefficients':self.inspiral_generator.integrator_spline_coeff,
                 'phase_coefficients':self.xp.asarray(self.inspiral_generator.integrator_spline_phase_coeff)[:, [0,2], :],
-                'phase_coefficients_t':self.xp.asarray(self.inspiral_generator.integrator_spline_t),
+                'phase_coefficients_t':self.inspiral_generator.integrator_spline_t, 
             }
             
             amps_here = self._amplitudes_from_trajectory(parameters, t = t, y = y, cache=True, **kwargs_remaining)
 
             #create waveform at injection
 
-            print("This is where the seg fault is") 
             waveform_source = self._create_waveform_in_batches(
                 self.cache['t'],
                 amps_here, #actually teuk_amps * Ylms_in
@@ -244,7 +241,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             y_interps = y_interps[:, :max_ind, :]
             phases_steps = y_interps[:,:,3:6] #Phi_phi, Phi_theta, Phi_r
             phase_coefficients = self.xp.asarray(self.cache['phase_coefficients'][:max_ind - 1, :])
-            phase_t = self.xp.asarray(self.cache['phase_coefficients_t'][:max_ind])
+            phase_t = self.cache['phase_coefficients_t'][:max_ind]
             
             #finite differencing the phases
             dPhi_fund_dx = self._stencil(phases_steps, self.delta, self.order, self.kind)
@@ -583,7 +580,6 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
 
             # The phase information (spline coefficients) and mode lists are not
             # time-dependent, so they are passed through unmodified.
-            breakpoint()
             waveform_batch = self.create_waveform(
                 t_batch,
                 amps_batch,
@@ -641,7 +637,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
         #first calculate dylm_dtheta
         for k, delt in enumerate(self.deltas):
             parameters_in = parameters.copy()
-            parameters_in['theta_source'] += delt #theta is of the same order as the other angles, so we use the same deltas.
+            parameters_in['theta_source'] += float(delt) #theta is of the same order as the other angles, so we use the same deltas.
             # get the ylms for this theta
             ylm_temp[k] = self.ylm_gen(self.cache['ls_all'], self.cache['ms_all'], parameters_in['theta_source'], parameters_in['phi_source'])
 
@@ -687,6 +683,30 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
 
         return self.xp.asarray(positions) * delta
 
+    def _available_stencils(self):
+        """
+        Accessed from #Fornberg 1988: https://doi.org/10.1090%2FS0025-5718-1988-0935077-0
+        """
+        return {
+            "central": {
+                2: self.xp.asarray([-1/2, 1/2]),
+                4: self.xp.asarray([1/12, -2/3, 2/3, -1/12]),
+                6: self.xp.asarray([-1/60, 3/20, -3/4, 3/4, -3/20, 1/60]),
+                8: self.xp.asarray([1/280, -4/105, 1/5, -4/5, 4/5, -1/5, 4/105, -1/280])
+            },
+            "forward": {
+                2: self.xp.asarray([-3/2, 2, -1/2]),
+                4: self.xp.asarray([-25/12, 4, -3, 4/3, -1/4]),
+                6: self.xp.asarray([-49/20, 6, -15/2, 20/3, -15/4, 6/5, -1/6]),
+                8: self.xp.asarray([-761/280, 8, -14, 56/3, -35/2, 56/5, -14/3, 8/7, -1/8]) 
+            },
+            "backward": {
+                2: self.xp.asarray([1/2, -2, 3/2]),
+                4: self.xp.asarray([1/4, -4/3, 3, -4, 25/12]),
+                6: self.xp.asarray([1/6, -6/5, 15/4, -20/3, 15/2, -6, 49/20]),
+                8: self.xp.asarray([1/8, -8/7, 14/3, -56/5, 35/2, -56/3, 14, -8, 761/280])
+            }
+        }
     def _stencil(self, func_steps, delta, order, kind):
         """
             return the stencil for finite-differences
@@ -697,4 +717,4 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             kind (str): kind of finite-difference derivative. Choose from "central", "forward", "backward"
         """
 
-        return self.xp.tensordot(_available_stencils()[kind][order], func_steps, axes = (0,0)) / delta
+        return self.xp.tensordot(self._available_stencils()[kind][order], func_steps, axes = (0,0)) / delta

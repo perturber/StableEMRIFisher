@@ -71,6 +71,8 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
         generate the waveform derivative for the given parameter
         """
 
+        print("Now in the call function")
+
         self.delta = delta
         self.order= order
         self.kind = kind
@@ -136,7 +138,8 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             amps_here = self._amplitudes_from_trajectory(parameters, t = t, y = y, cache=True, **kwargs_remaining)
 
             #create waveform at injection
-                        
+
+            print("This is where the seg fault is") 
             waveform_source = self._create_waveform_in_batches(
                 self.cache['t'],
                 amps_here, #actually teuk_amps * Ylms_in
@@ -153,6 +156,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                 show_progress=show_progress,
                 **kwargs_remaining,
             )
+
             
             self.cache['waveform_source'] = waveform_source
 
@@ -550,7 +554,6 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
         Returns:
             The full, assembled waveform as a single array.
         """
-        
         # split into batches
         if batch_size == -1 or self.allow_batching is False:
             inds_split_all = [self.xp.arange(len(t))]
@@ -580,6 +583,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
 
             # The phase information (spline coefficients) and mode lists are not
             # time-dependent, so they are passed through unmodified.
+            breakpoint()
             waveform_batch = self.create_waveform(
                 t_batch,
                 amps_batch,

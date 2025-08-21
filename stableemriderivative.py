@@ -319,7 +319,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
         #and apply antenna patterns (and its derivatives in case of qS, phiS, qK, phiK)
         
         if self.waveform_generator.frame == "source":
-            self.cache['waveform_source'] *= -1
+            waveform_source_flipped = -1 * self.cache['waveform_source']
             waveform_derivative_source *= -1
 
         #decompose to plus and cross
@@ -349,11 +349,11 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             dFcrossIdx = Fderivs[f'dFcrossI/d{param_to_vary}']
             dFcrossIIdx = Fderivs[f'dFcrossII/d{param_to_vary}']
             
-            waveform_derivative_detector_plus += (dFplusIdx * self.cache['waveform_source'].real +
-                                                  dFcrossIdx * (-self.cache['waveform_source'].imag))
+            waveform_derivative_detector_plus += (dFplusIdx * waveform_source_flipped.real +
+                                                  dFcrossIdx * (-waveform_source_flipped.imag))
 
-            waveform_derivative_detector_cross += (dFplusIIdx * self.cache['waveform_source'].real +
-                                                  dFcrossIIdx * (-self.cache['waveform_source'].imag))
+            waveform_derivative_detector_cross += (dFplusIIdx * waveform_source_flipped.real +
+                                                  dFcrossIIdx * (-waveform_source_flipped.imag))
         
         if self.return_list is False:
             return waveform_derivative_detector_plus - 1j * waveform_derivative_detector_cross

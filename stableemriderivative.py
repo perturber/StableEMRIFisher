@@ -220,21 +220,23 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                 parameters_in[param_to_vary] += delt #perturb by finite-difference
                 t, y = self._trajectory_from_parameters(parameters_in, T)
                 #re-interpolate onto the time-step grid for the injection trajectory
-                t_interp = self.cache['t'].copy()
+                t_interp = self.cache['t'].copy() # CHANGED
+                t_interp_np = t_interp.get() # Changed!
 
                 if t_interp[-1] > t[-1]: #the perturbed trajectory is plunging. Add NaN's at the end!
                     mask_notplunging = t_interp < t[-1] #for all t_interp < t[-1], the perturbed trajectory is still not plunging
-                    t_interp = t_interp[mask_notplunging]
+                    t_interp_np = t_interp[mask_notplunging].get() # CHANGED
                 
-                y_interp = self.xp.asarray(self.inspiral_generator.inspiral_generator.eval_integrator_spline(t_interp).T) #any unfilled elements due to plunging trajectories assume nans.
-                y_interps[k,:len(t_interp)] = y_interp.T
+                y_interp = self.xp.asarray(self.inspiral_generator.inspiral_generator.eval_integrator_spline(t_interp_np).T) #any unfilled elements due to plunging trajectories assume nans. # CHANGED
+                y_interps[k,:len(t_interp_np)] = y_interp.T # CHANGED
+
                 
             # In the case of plunge, some trajectories will be shorter than others. They appear as NaN's in the y_interps array
             nans = self.xp.isnan(y_interps)
             if nans.any():
-                max_ind = self.xp.where(nans.sum(2).sum(0) > 0)[0].min()
+                max_ind = int(self.xp.where(nans.sum(2).sum(0) > 0)[0].min())
             else:
-                max_ind = y_interp.shape[1]
+                max_ind = int(y_interp.shape[1])
             
             # modify size of the trajectories and phases accordingly
             t_interp = self.cache['t'][:max_ind]   
@@ -680,8 +682,9 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
     
         elif kind == "backward":
             positions = list(range(-order, 1))
-
-        return self.xp.asarray(positions) * delta
+ 
+        return np.array(positions) * delta
+        # return self.xp.asarray(positions) * delta
 
     def _available_stencils(self):
         """

@@ -27,7 +27,7 @@ from few.waveform import FastSchwarzschildEccentricFlux
 
 print("Build the class")
 waveform_derivative = StableEMRIDerivative(waveform_class=FastSchwarzschildEccentricFlux,
-                                          mode_selector_kwargs=dict(mode_selection_threshold=1e-5), 
+                                          mode_selector_kwargs=dict(mode_selection_threshold=1e-3), 
                                           inspiral_kwargs=dict(err=1e-11, max_iter=10000),
                                           force_backend = force_backend)
 
@@ -36,8 +36,8 @@ waveform_derivative = StableEMRIDerivative(waveform_class=FastSchwarzschildEccen
 #=================== Now run the derivative and see what's going on ========================
 m1 = 1e6
 m2 = 1e1
-a = 0.
-p0 = 9.5
+a = 0.0 
+p0 = 12.5
 e0 = 0.4
 xI0 = 1.0
 dist = 1.0
@@ -49,7 +49,7 @@ Phi_phi0 = np.pi/4
 Phi_theta0 = 0.0
 Phi_r0 = 0.0
 
-T = 0.1
+T = 2.0
 dt = 10.0
 
 pars_list = [m1, m2, a, p0, e0, xI0, dist, qS, phiS, qK, phiK, Phi_phi0, Phi_theta0, Phi_r0]
@@ -59,9 +59,9 @@ parameters = {}
 for i in range(len(param_names)):
     parameters[param_names[i]] = pars_list[i]
 
-param_to_vary = 'phiK'
+param_to_vary = 'Phi_phi0'
 
-delta = 1e-8  #finite difference delta for the chosen paramete
+delta = 1e-6  #finite difference delta for the chosen paramete
 order = 4 #order of finite-difference derivative
 kind = "central" #kind of finite-difference derivative
 

@@ -653,7 +653,7 @@ class StableEMRIFisher:
             if (self.param_names[i] in ['qS', 'phiS', 'qK', 'phiK']) & (self.deriv_type == "stable") & (self.has_ResponseWrapper):
                 # cannot calculate derivative of the response-wrapped waveform with respect to the angles for the stable deriv_type, so we use the direct derivative method.
                 deltas_grid = self._deltas(self.deltas[self.param_names[i]], self.order, kind=kind)
-                Rh_temp = xp.zeros((len(deltas_grid), len(self.waveform), len(self.waveform[0])), dtype=xp.complex128)
+                Rh_temp = xp.zeros((len(deltas_grid), len(self.waveform), len(self.waveform[0])), dtype=self.waveform.dtype) #Ngrid x Nchannels x Nsamples
                 #calculate dR_dx
                 for dd, delt in enumerate(deltas_grid):
                     parameters_in = self.waveform_derivative_kwargs['parameters'].copy()
@@ -662,7 +662,7 @@ class StableEMRIFisher:
                     # get the ylms for this theta
                     Rh_temp[dd] = xp.asarray(self.waveform_generator(*parameters_in_list, **self.waveform_kwargs)) #R[h] on the stencil grid
                 dtv_i = self._stencil(Rh_temp, delta = self.deltas[self.param_names[i]], order = self.order, kind = kind) #derivative of R[h]
-
+                
             else:
                 dtv_i = xp.asarray(self.derivative(*self.wave_params_list, param_to_vary=self.param_names[i], delta=self.deltas[self.param_names[i]], kind=kind, **self.waveform_derivative_kwargs))
 

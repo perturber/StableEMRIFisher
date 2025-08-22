@@ -43,7 +43,7 @@ def handle_a_flip(params):
         params['Y0'] = -1.
     return params
 
-def derivative(*args, 
+def derivative(*args, #To fool fastlisaresponse
                waveform_generator, 
                parameters, 
                param_to_vary, 

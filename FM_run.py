@@ -44,7 +44,7 @@ m2 = 10
 a = 0.9
 p0 = 8.58
 e0 = 0.2
-Y0 = 1.0
+xI0 = 1.0
 dist = 1.0
 qS = 1.5
 phiS = 0.7
@@ -58,7 +58,7 @@ dt = 100.0  # Sampling interval [seconds]
 T = 0.1     # Evolution time [years]
 
 # Waveform params
-params = [m1,m2,a,p0,e0,Y0,dist,qS,phiS,qK,phiK,Phi_phi0, Phi_theta0, Phi_r0]
+params = [m1,m2,a,p0,e0,xI0,dist,qS,phiS,qK,phiK,Phi_phi0, Phi_theta0, Phi_r0]
 
 
 ## ===================== CHECK TRAJECTORY ====================
@@ -137,7 +137,7 @@ sef = StableEMRIFisher(EMRI_waveform_gen=EMRI_model,
 # execution
 print("Computing FM")
 start = time.time()
-fisher_matrix = sef(m1, m2, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
+fisher_matrix = sef(m1, m2, a, p0, e0, xI0, dist, qS, phiS, qK, phiK,
                        Phi_phi0, Phi_theta0, Phi_r0, dt = dt, T = T)
 end = time.time() - start
 print("Time taken to compute Fisher matrix and stable deltas is", end, "seconds")

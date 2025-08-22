@@ -36,7 +36,9 @@ except ImportError:
     cp = None
 
 from few.utils.constants import YRSID_SI
+from few.waveform import GenerateEMRIWaveform
 from stableemrifisher.fisher.derivatives import derivative, handle_a_flip
+from stableemrifisher.fisher.stablederivative import StableEMRIDerivative
 from stableemrifisher.utils import inner_product, SNRcalc, generate_PSD, fishinv
 from stableemrifisher.noise import noise_PSD_AE 
 from stableemrifisher.plot import CovEllipsePlot, StabilityPlot
@@ -49,6 +51,8 @@ logger.setLevel("INFO")
 logger.info("startup")
 
 class StableEMRIFisher:
+
+    #TODO: update
     """Compute stable Fisher matrices for EMRI signals.
 
     This class orchestrates waveform generation (with or without a response),
@@ -64,7 +68,7 @@ class StableEMRIFisher:
 
     Attributes (selection):
         waveform (np.ndarray or cp.ndarray): Cached waveform (channels x N).
-        waveform_generator: FEW `GenerateEMRIWaveform` or a `ResponseWrapper`.
+        waveform_generator: `few.GenerateEMRIWaveform` or `fastlisaresponse.ResponseWrapper`.
         channels (list[str]): Channel names used to build PSDs and products.
         deltas (dict[str, float] | None): Per-parameter finite-difference
             step sizes. Computed if not provided.
@@ -73,9 +77,10 @@ class StableEMRIFisher:
         SNR2 (float): SNR squared of the current waveform (set after call).
     """
     
-    def __init__(self, *, waveform_kwargs=None, EMRI_waveform_gen = None, window = None, fmin = None, fmax = None, noise_model = noise_PSD_AE, noise_kwargs=None, channels=None,
-                 param_names=None, deltas=None, der_order=2, Ndelta=8, delta_range = None, CovEllipse=False, stability_plot=False, save_derivatives=False,
-                 live_dangerously = False, plunge_check=True, filename=None, suffix=None, stats_for_nerds=False, use_gpu=False):
+    def __init__(self, *, waveform_class, waveform_class_kwargs=None, waveform_generator=GenerateEMRIWaveform, waveform_generator_kwargs=None, 
+                 ResponseWrapper=None, ResponseWrapper_kwargs=None,
+                 noise_model = noise_PSD_AE, noise_kwargs=None, channels=None,
+                 deriv_type = "stable", stats_for_nerds=False, use_gpu=False):
         """Initialize a Fisher-matrix computation for an EMRI configuration.
 
         This configuration-only initializer sets up waveform/noise backends,
@@ -83,26 +88,19 @@ class StableEMRIFisher:
         provided later when invoking the instance via `__call__`.
 
         Args:
-            waveform_kwargs (dict | None): Extra kwargs for the waveform generator.
-            EMRI_waveform_gen (object): FEW `GenerateEMRIWaveform` or a `ResponseWrapper`.
-            window (np.ndarray | None): Optional window for inner products.
-            fmin (float | None): Minimum frequency for inner products.
-            fmax (float | None): Maximum frequency for inner products.
+            waveform_class (Type): uninitialized waveform_class class.
+            waveform_class_kwargs (dict | None): Optional kwargs for the waveform_class class.
+            waveform_generator (Type): uninitialized waveform model class, defaults to `few.GenerateEMRIWaveform`.
+            waveform_generator_kwargs (dict | None): Optional kwargs for the waveform model.
+            ResponseWrapper (Type | None): uninitialized response wrapper class, defaults to `None`.
+            ResponseWrapper_kwargs (dict | None): Optional kwargs for the response wrapper class.
+
             noise_model (callable): Noise PSD function.
             noise_kwargs (dict | None): Noise model kwargs. Defaults to {"TDI": "TDI1"}.
             channels (list[str] | None): Channels to use. Defaults to ["A","E"].
-            param_names (list[str]): Ordered parameter names for derivatives.
-            deltas (dict[str, float] | None): Optional fixed step sizes.
-            der_order (int): Finite-difference order.
-            Ndelta (int): Number of trial deltas in stability search.
-            delta_range (dict[str, list[float]] | None): Custom per-parameter delta grids.
-            CovEllipse (bool): If True, compute covariance and plots.
-            stability_plot (bool): If True, plot stability curves.
-            save_derivatives (bool): If True, save derivative stacks to HDF5.
-            live_dangerously (bool): If True, skip stability search (use heuristics).
-            plunge_check (bool): If True, trim evolution time if plunge is detected.
-            filename (str | None): Output directory for files.
-            suffix (str | None): Optional suffix for output filenames.
+            
+            deriv_type (str): Optional. Type of derivative calculation ("stable" or "direct"). "stable" uses `StableEMRIDerivatives`, "direct" uses `derivative`.
+            
             stats_for_nerds (bool): Enable verbose DEBUG logging.
             use_gpu (bool): Prefer CuPy for array ops where available.
 
@@ -123,6 +121,132 @@ class StableEMRIFisher:
         if self.use_gpu and cp is None:
             logger.warning("CuPy not found; disabling GPU acceleration.")
             self.use_gpu = False
+
+        if stats_for_nerds:
+            logger.setLevel("DEBUG")
+
+        # =============== setup waveform kwargs ================
+        if waveform_class_kwargs is None:
+            waveform_class_kwargs = {}
+        
+        if waveform_generator_kwargs is None:
+            waveform_generator_kwargs = {}
+
+        if ResponseWrapper_kwargs is None:
+            ResponseWrapper_kwargs = {}
+        elif "waveform_gen" in ResponseWrapper_kwargs:
+            logger.warning("ResponseWrapper_kwargs should not contain 'waveform_gen'. It will be set automatically.")
+            ResponseWrapper_kwargs.pop("waveform_gen")
+        
+        # Noise/response configuration
+        self.noise_model = noise_model
+        self.noise_kwargs = noise_kwargs if noise_kwargs is not None else {"TDI": "TDI1"}
+        self.channels = channels if channels is not None else ["A", "E"]
+
+        # ================== Initialize StableEMRIDerivatives ==================
+        self.deriv_type = deriv_type
+        if self.deriv_type == "stable":
+            waveform_derivative = StableEMRIDerivative(waveform_class = waveform_class, 
+                                                            **waveform_class_kwargs,
+                                                   )
+            self.waveform_derivative_kwargs = {}
+            #some utility funcs from SED useful later
+            self._deltas = waveform_derivative._deltas
+            self._stencil = waveform_derivative._stencil
+        elif self.deriv_type == "direct":
+            waveform_derivative = derivative
+            self.waveform_derivative_kwargs = dict(use_gpu=self.use_gpu)
+        else:
+            raise ValueError("deriv_type must be 'stable' or 'direct'.")
+        
+        # ================== Initialize waveform model ==================
+        waveform_generator = waveform_generator(waveform_class = waveform_class,
+                                        **waveform_generator_kwargs,
+                                        )
+        self.waveform_generator_kwargs = waveform_generator_kwargs # This is the waveform generator without response to generate waveforms.
+
+        #trajectory module and function for plunge checks
+        self.traj_module = waveform_generator.waveform_generator.inspiral_generator
+        self.traj_module_func = waveform_generator.waveform_generator.inspiral_kwargs['func']
+
+        # ================ Initialize ResponseWrapper if provided ==================
+        if ResponseWrapper is not None:
+            self.waveform_generator = ResponseWrapper(waveform_generator, **ResponseWrapper_kwargs) # waveform generator with LISA response.
+            if self.deriv_type == "direct":
+                self.derivative = waveform_derivative
+                self.waveform_derivative_kwargs.update(dict(waveform_generator=self.waveform_generator)) # direct derivative waveform_generator with response.
+            else:
+                response_for_derivative = ResponseWrapper(waveform_derivative, **ResponseWrapper_kwargs) #this is the response wrapper to apply LISA response to the waveform derivative.
+                self.derivative = response_for_derivative # stable derivative wrapped with response. No kwargs needed. !! Does not include derivative of the response itself. !!
+            self.has_ResponseWrapper = True
+        else:
+            self.waveform_generator = waveform_generator #waveform generator without LISA response.
+            self.derivative = waveform_derivative #either stable or direct derivative without response.
+            if self.deriv_type == "direct":
+                self.waveform_derivative_kwargs.update(dict(waveform_generator=self.waveform_generator)) #direct derivative waveform_generator without response.
+            self.has_ResponseWrapper = False
+
+        # Bounds for directional derivatives near edges
+        self.minmax = {
+            'a': [0.05, 0.95],
+            'e0': [0.01, 0.7],
+            'Phi_phi0': [0.1, 2 * np.pi * 0.9],
+            'Phi_r0': [0.1, 2 * np.pi * 0.9],
+            'Phi_theta0': [0.1, 2 * np.pi * 0.9],
+            'qS': [0.1, np.pi * 0.9],
+            'qK': [0.1, np.pi * 0.9],
+            'phiS': [0.1, 2 * np.pi * 0.9],
+            'phiK': [0.1, 2 * np.pi * 0.9],
+        }
+
+    def __call__(self, m1, m2, a, p0, e0, xI0, dist, qS, phiS, qK, phiK,
+                 Phi_phi0, Phi_theta0, Phi_r0, dt=10.0, T=1.0, add_param_args=None, waveform_kwargs=None,
+                 window = None, fmin = None, fmax = None, 
+                 param_names=None, deltas = None, der_order=2, Ndelta=8, delta_range = None, 
+                 CovEllipse=False, stability_plot=False, save_derivatives=False,
+                 live_dangerously = False, plunge_check=True, filename=None, suffix=None, ):
+        """Run the full pipeline at specific EMRI parameters.
+
+        Workflow:
+            1) Build the waveform and compute SNR (stored via `self.SNR2`).
+            2) If `self.deltas` is None and `live_dangerously` is False,
+               search for stable step sizes; otherwise use heuristics.
+            3) Compute the Fisher matrix via inner products of derivatives.
+            4) Optionally compute the covariance matrix and generate plots.
+
+        Args:
+            #TODO: whole buncha params
+            dt (float): Time step for waveform generation.
+            T (float): Total evolution time in years.
+            add_param_args (dict | None): Additional model parameters to append.
+            waveform_kwargs (dict | None): Additional kwargs for waveform generation.
+
+            window (np.ndarray | None): Optional window to apply on the waveform.
+            fmin (float | None): Minimum frequency for inner products.
+            fmax (float | None): Maximum frequency for inner products.
+
+            param_names (list[str]): Ordered parameter names for derivatives.
+            deltas (dict[str, float] | None): Optional fixed step sizes for derivatives.
+            der_order (int): Finite-difference order for derivatives.
+            Ndelta (int): Number of trial deltas in stability search.
+
+            delta_range (dict[str, list[float]] | None): Custom per-parameter delta grids.
+            CovEllipse (bool): If True, compute covariance and plots.
+            stability_plot (bool): If True, plot stability curves.
+            save_derivatives (bool): If True, save derivative stacks to HDF5.
+            live_dangerously (bool): If True, skip stability search and use heuristics.
+            plunge_check (bool): If True, trim evolution time if plunge is detected.
+            filename (str | None): Output directory for files.
+            suffix (str | None): Optional suffix for output filenames.
+
+        Returns:
+            numpy.ndarray | tuple[numpy.ndarray, numpy.ndarray]:
+                - Fisher matrix (npar x npar), or
+                - (Fisher, Covariance) if `CovEllipse` is True.
+        """
+        # store runtime waveform settings
+        self.dt = dt
+        self.T = T
 
         # initialize parameter name list
         if param_names is None:
@@ -149,75 +273,18 @@ class StableEMRIFisher:
         self.suffix = suffix
         self.live_dangerously = live_dangerously
         self.plunge_check = plunge_check
-
-        if stats_for_nerds:
-            logger.setLevel("DEBUG")
-
-        # =============== Initialise Waveform generator ================
-        if EMRI_waveform_gen is None:
-            raise ValueError("Please set up EMRI waveform model and pass as argument.")
-        self.waveform_generator = EMRI_waveform_gen
-
-        # Noise/response configuration
-        self.noise_model = noise_model
-        self.noise_kwargs = noise_kwargs if noise_kwargs is not None else {"TDI": "TDI1"}
-        self.channels = channels if channels is not None else ["A", "E"]
-
-        if waveform_kwargs is None:
-            waveform_kwargs = {}
-        self.waveform_kwargs = waveform_kwargs
-
-        # Identify inspiral/trajectory generator for plunge checks
-        try:  # ResponseWrapper provided
-            self.traj_module = self.waveform_generator.waveform_gen.waveform_generator.inspiral_generator
-            self.traj_module_func = self.waveform_generator.waveform_gen.waveform_generator.inspiral_kwargs['func']
-            self.ResponseWrapper = True
-        except AttributeError:  # GenerateEMRIWaveform provided
-            self.traj_module = self.waveform_generator.waveform_generator.inspiral_generator
-            self.traj_module_func = self.waveform_generator.waveform_generator.inspiral_kwargs['func']
-            self.ResponseWrapper = False
-
-        # Bounds for directional derivatives near edges
-        self.minmax = {
-            'a': [0.05, 0.95],
-            'e0': [0.01, 0.7],
-            'Phi_phi0': [0.1, 2 * np.pi * 0.9],
-            'Phi_r0': [0.1, 2 * np.pi * 0.9],
-            'Phi_theta0': [0.1, 2 * np.pi * 0.9],
-            'qS': [0.1, np.pi * 0.9],
-            'qK': [0.1, np.pi * 0.9],
-            'phiS': [0.1, 2 * np.pi * 0.9],
-            'phiK': [0.1, 2 * np.pi * 0.9],
-        }
+        
+        if waveform_kwargs is not None:
+            # merge per-call waveform kwargs with existing defaults
+            self.waveform_kwargs = dict(**waveform_kwargs)
+        else:  
+            self.waveform_kwargs = {}
+        
+        # ensure dt and T are passed to waveform generator
+        self.waveform_kwargs.update(dict(dt=self.dt, T=self.T))
 
         # optional custom delta grids per parameter
         self.delta_range = delta_range if delta_range is not None else {}
-
-
-    def __call__(self, m1, m2, a, p0, e0, Y0, dist, qS, phiS, qK, phiK,
-                 Phi_phi0, Phi_theta0, Phi_r0, dt=10.0, T=1.0, add_param_args=None, waveform_kwargs=None):
-        """Run the full pipeline at specific EMRI parameters.
-
-        Workflow:
-            1) Build the waveform and compute SNR (stored via `self.SNR2`).
-            2) If `self.deltas` is None and `live_dangerously` is False,
-               search for stable step sizes; otherwise use heuristics.
-            3) Compute the Fisher matrix via inner products of derivatives.
-            4) Optionally compute the covariance matrix and generate plots.
-
-        Returns:
-            numpy.ndarray | tuple[numpy.ndarray, numpy.ndarray]:
-                - Fisher matrix (npar x npar), or
-                - (Fisher, Covariance) if `CovEllipse` is True.
-        """
-        # store runtime waveform settings
-        self.dt = dt
-        self.T = T
-        if waveform_kwargs is not None:
-            # merge per-call waveform kwargs with existing defaults
-            self.waveform_kwargs = {**self.waveform_kwargs, **waveform_kwargs}
-        # ensure dt/T are passed to waveform generator
-        self.waveform_kwargs.update(dict(dt=self.dt, T=self.T))
 
         # initialize parameter dictionaries for this call
         self.wave_params = {
@@ -226,7 +293,7 @@ class StableEMRIFisher:
             'a': a,
             'p0': p0,
             'e0': e0,
-            'Y0': Y0,
+            'xI0': xI0,
             'dist': dist,
             'qS': qS,
             'phiS': phiS,
@@ -260,8 +327,19 @@ class StableEMRIFisher:
 
         logger.info('Waveform Generated. SNR: %s', rho)
 
-        if rho <= 20:
+        if rho <= 20.:
             logger.critical('The optimal source SNR is <= 20. The Fisher approximation may not be valid!')
+
+        #update derivative kwargs
+        if self.deriv_type == "direct":
+            self.waveform_derivative_kwargs.update(dict(parameters = self.wave_params, 
+                                                        waveform=self.waveform, 
+                                                        order=self.order, 
+                                                        waveform_kwargs = self.waveform_kwargs))
+        else:
+            self.waveform_derivative_kwargs.update(dict(parameters = self.wave_params,
+                                                        order=self.order, 
+                                                        **self.waveform_kwargs))
 
         # making parent folder
         if self.filename is not None:
@@ -330,9 +408,10 @@ class StableEMRIFisher:
         self.waveform = xp.asarray(self.waveform_generator(*self.wave_params_list, **self.waveform_kwargs))
         
         # If no response is provided and waveform of the form h+ - ihx, create copies equivalent to the number of channels.
-        if self.waveform.ndim == 1:
-            self.waveform = xp.asarray([self.waveform.copy() for _ in range(len(self.channels))])/len(self.channels) #we assume equal strength in all provided channels.
-        
+        if not self.has_ResponseWrapper:
+            self.waveform = xp.asarray([self.waveform.real, -self.waveform.imag])
+        ### HEREAFTER, THE WAVEFORM HAS SHAPE (NCHANNELS, N) ###
+
         logger.debug("wave ndim: %s", self.waveform.ndim)
         #Generate PSDs
         self.PSD_funcs = generate_PSD(waveform=self.waveform, dt=self.dt, noise_PSD=self.noise_model,
@@ -393,23 +472,7 @@ class StableEMRIFisher:
         logger.info('calculating stable deltas...')
         Ndelta = self.Ndelta
         deltas = {}
-
-        #waveform_generator = self.waveform_generator
-        #waveform = self.waveform
-        #PSD_funcs = self.PSD_funcs
-        
-        #if ResponseWrapper provided, strip it before calculating stable deltas. 
-        #this should improve speed. We switch back to ResponseWrapper before the final Fisher calculation of course.
-        if self.ResponseWrapper:
-            waveform_generator = self.waveform_generator.waveform_gen #stripped waveform generator
-            waveform = xp.asarray(waveform_generator(*self.wave_params_list, **self.waveform_kwargs))
-            # stripped waveform of the form h+ - ihx, create copies equivalent to the number of channels.
-            waveform = xp.asarray([waveform.copy() for _ in range(len(self.channels))])/len(self.channels) #we assume equal strength in all provided channels.
-            PSD_funcs = generate_PSD(waveform=waveform, dt=self.dt,use_gpu=self.use_gpu, channels = self.channels) #produce an N-channel PSD assuming the default noise curve (noise_PSD_AE). Shouldn't matter much.
-        else:
-            waveform_generator = self.waveform_generator
-            waveform = self.waveform
-            PSD_funcs = self.PSD_funcs
+        relerr_min = {}
             
         for i in range(len(self.param_names)):
 
@@ -425,7 +488,7 @@ class StableEMRIFisher:
                 # Compute Ndelta number of delta values to compute derivative. Testing stability.
                 elif self.param_names[i] == 'm1' or self.param_names[i] == 'm2': 
                     delta_init = np.geomspace(1e-4*self.wave_params[self.param_names[i]],1e-9*self.wave_params[self.param_names[i]],Ndelta)
-                elif self.param_names[i] == 'a' or self.param_names[i] == 'p0' or self.param_names[i] == 'e0' or self.param_names[i] == 'Y0':
+                elif self.param_names[i] == 'a' or self.param_names[i] == 'p0' or self.param_names[i] == 'e0' or self.param_names[i] == 'xI0':
                     delta_init = np.geomspace(1e-4*self.wave_params[self.param_names[i]],1e-9*self.wave_params[self.param_names[i]],Ndelta)
                 else:
                     delta_init = np.geomspace(1e-1*self.wave_params[self.param_names[i]],1e-6*self.wave_params[self.param_names[i]],Ndelta)
@@ -434,32 +497,57 @@ class StableEMRIFisher:
 
             relerr_flag = False
             for k in range(Ndelta):
+
+                if self.param_names[i] in list(self.minmax.keys()):
+                    if self.wave_params[self.param_names[i]] <= self.minmax[self.param_names[i]][0]:
+                        kind = "forward"
+                    elif self.wave_params[self.param_names[i]] > self.minmax[self.param_names[i]][1]:
+                        kind = "backward"
+                    else:
+                        kind = "central"
+                else:
+                    kind = "central"
+                
                 if self.param_names[i] == 'dist':
-                    del_k = derivative(waveform_generator, self.wave_params, self.param_names[i], delta_init[k], use_gpu=self.use_gpu, waveform=waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
+                    del_k = xp.asarray(self.derivative(*self.wave_params_list, param_to_vary=self.param_names[i], delta=delta_init[k], kind=kind, **self.waveform_derivative_kwargs))
                     
                     relerr_flag = True
                     deltas['dist'] = 0.0
+                    relerr_min['dist'] = 0.0
                     break
-                else:
-                    # print("For a choice of delta =",delta_init[k])
+
+                elif (self.param_names[i] in ['Phi_phi0', 'Phi_theta0', 'Phi_r0']) & (self.deriv_type == "stable"):
+                    # derivatives are analytically available
+                    del_k = xp.asarray(self.derivative(*self.wave_params_list, param_to_vary=self.param_names[i], delta=delta_init[k], kind=kind, **self.waveform_derivative_kwargs))
+                    relerr_flag = True
+                    deltas[self.param_names[i]] = 0.0
+                    relerr_min[self.param_names[i]] = 0.0
+                    break 
+
+                elif (self.param_names[i] in ['qS', 'phiS', 'qK', 'phiK']) & (self.deriv_type == "stable") & (self.has_ResponseWrapper):
+                    # cannot calculate derivative of the response-wrapped waveform with respect to the angles for the stable deriv_type, so we use the direct derivative method.
+                    deltas_grid = self._deltas(delta_init[k], self.order, kind=kind)
+                    Rh_temp = xp.zeros((len(deltas_grid), len(self.waveform), len(self.waveform[0])), dtype=xp.complex128) #Ngrid x Nchannels x Nsamples
+                    #calculate dR_dx
+                    for dd, delt in enumerate(deltas_grid):
+                        parameters_in = self.waveform_derivative_kwargs['parameters'].copy()
+                        parameters_in[self.param_names[i]] += float(delt) #theta is of the same order as the other angles, so we use the same deltas.
+                        parameters_in_list = list(parameters_in.values())
+                        # get the ylms for this theta
+                        Rh_temp[dd] = xp.asarray(self.waveform_generator(*parameters_in_list, **self.waveform_kwargs)) #R[h] on the stencil grid
+                        
+                    del_k = self._stencil(Rh_temp, delta = delta_init[k], order = self.order, kind = kind) #derivative of R[h]
                     
-                    if self.param_names[i] in list(self.minmax.keys()):
-                        if self.wave_params[self.param_names[i]] <= self.minmax[self.param_names[i]][0]:
-                            del_k = derivative(waveform_generator, self.wave_params, self.param_names[i], delta_init[k], kind="forward", use_gpu=self.use_gpu, waveform=waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
-                        elif self.wave_params[self.param_names[i]] > self.minmax[self.param_names[i]][1]:
-                            del_k = derivative(waveform_generator, self.wave_params, self.param_names[i], delta_init[k], kind="backward", use_gpu=self.use_gpu, waveform=waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
-                        else:
-                            del_k = derivative(waveform_generator, self.wave_params, self.param_names[i], delta_init[k], use_gpu=self.use_gpu, waveform=waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
-                    else:
-                        del_k = derivative(waveform_generator, self.wave_params, self.param_names[i], delta_init[k], use_gpu=self.use_gpu, waveform=waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
+                else:
+                    del_k = xp.asarray(self.derivative(*self.wave_params_list, param_to_vary=self.param_names[i], delta=delta_init[k], kind=kind, **self.waveform_derivative_kwargs))
 
-                # If no response is provided and waveform of the form h+ - ihx, create copies equivalent to the number of channels.
-                if del_k.ndim == 1:
-                    del_k = xp.asarray([del_k.copy() for _ in range(len(self.channels))])/len(self.channels) #we assume equal strength in all provided channels.
-
+                if not self.has_ResponseWrapper:
+                    # If the derivative is 1D
+                    del_k = xp.asarray([del_k.real, -del_k.imag])
+                        
                 #Calculating the Fisher Elements
-                Gammai = inner_product(del_k,del_k, PSD_funcs, self.dt, window=self.window, fmin = self.fmin, fmax = self.fmax, use_gpu=self.use_gpu)
-                logger.debug("Gamma_ii: %s", Gammai)
+                Gammai = inner_product(del_k, del_k, self.PSD_funcs, self.dt, window=self.window, fmin = self.fmin, fmax = self.fmax, use_gpu=self.use_gpu)
+                logger.debug(f"Gamma_ii for {self.param_names[i]}: {Gammai}")
                 if np.isnan(Gammai):
                     Gamma.append(0.0) #handle nan's
                     logger.warning('NaN type encountered during Fisher calculation! Replacing with 0.0.')	
@@ -476,34 +564,35 @@ class StableEMRIFisher:
                     relerr = np.ones(len(Gamma)-1)
                 else:
                     relerr = []
-                    for m in range(len(Gamma)-1): 
-                        if Gamma[m+1] == 0.0: #handle partially null contributors
+                    for m in range(1,len(Gamma)):
+                        if (Gamma[m-1] == 0.0): #handle partially null contributors
                             relerr.append(1.0)
                         else:
-                            relerr.append(np.abs(Gamma[m+1] - Gamma[m])/Gamma[m+1])   
+                            relerr.append(np.abs(Gamma[m] - Gamma[m-1])/Gamma[m])   
 
-                logger.debug("relerr: %s", relerr)
+                logger.debug(relerr)
                 
-                relerr_min_i, = np.where(np.isclose(relerr, np.min(relerr),rtol=1e-1*np.min(relerr),atol=1e-1*np.min(relerr)))
-                if len(relerr_min_i) > 1:
-                    relerr_min_i = relerr_min_i[-1]
+                relerr_min_i = relerr.index(min(relerr))
 
-                logger.debug("relerr_min_i: %s", relerr_min_i)
+                logger.debug(relerr_min_i)
                 
-                if np.min(relerr) >= 0.01:
-                    logger.warning('minimum relative error is greater than 1%% for %s. Fisher may be unstable!', self.param_names[i])
+                if relerr[relerr_min_i] >= 0.01:
+                    logger.warning(f'minimum relative error is greater than 1% for {self.param_names[i]}. Fisher may be unstable!')
 
-                deltas[self.param_names[i]] = delta_init[relerr_min_i].item()
+                deltas_min_i = relerr_min_i + 1 #+1 because relerr grid starts from Gamma_i index of 1 (not zero)
+                deltas[self.param_names[i]] = delta_init[deltas_min_i].item()
+                relerr_min[self.param_names[i]] = relerr[relerr_min_i] #save the relerr minima. these can be used as error estimates on the FIM
                 
                 if self.stability_plot:
                     if self.filename != None:
                         if self.suffix != None:
-                            StabilityPlot(delta_init,Gamma,param_name=self.param_names[i],filename=os.path.join(self.filename,f'stability_{self.suffix}_{self.param_names[i]}.png'))
+                            StabilityPlot(delta_init,Gamma,stable_index=deltas_min_i,param_name=self.param_names[i],filename=os.path.join(self.filename,f'stability_{self.suffix}_{self.param_names[i]}.png'))
                         else:
-                            StabilityPlot(delta_init,Gamma,param_name=self.param_names[i],filename=os.path.join(self.filename,f'stability_{self.param_names[i]}.png'))
+                            StabilityPlot(delta_init,Gamma,stable_index=deltas_min_i,param_name=self.param_names[i],filename=os.path.join(self.filename,f'stability_{self.param_names[i]}.png'))
                     else:
-                        StabilityPlot(delta_init, Gamma, param_name=self.param_names[i])
-        logger.debug('stable deltas: %s', deltas)
+                        StabilityPlot(delta_init,Gamma,stable_index=deltas_min_i,param_name=self.param_names[i])
+
+        logger.debug(f'stable deltas: {deltas}')
         
         self.deltas = deltas
         self.save_deltas()
@@ -553,17 +642,33 @@ class StableEMRIFisher:
 
             if self.param_names[i] in list(self.minmax.keys()):
                 if self.wave_params[self.param_names[i]] <= self.minmax[self.param_names[i]][0]:
-                    dtv_i = derivative(self.waveform_generator, self.wave_params, self.param_names[i], self.deltas[self.param_names[i]], kind="forward", waveform=self.waveform, order=self.order, use_gpu=self.use_gpu, waveform_kwargs=self.waveform_kwargs)
+                    kind = "forward"
                 elif self.wave_params[self.param_names[i]] > self.minmax[self.param_names[i]][1]:
-                    dtv_i = derivative(self.waveform_generator, self.wave_params, self.param_names[i],self.deltas[self.param_names[i]], kind="backward", waveform=self.waveform, order=self.order, use_gpu=self.use_gpu, waveform_kwargs=self.waveform_kwargs)
+                    kind = "backward"
                 else:
-                    dtv_i = derivative(self.waveform_generator, self.wave_params, self.param_names[i],self.deltas[self.param_names[i]],use_gpu=self.use_gpu, waveform=self.waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
+                    kind = "central"
             else:
-                dtv_i = derivative(self.waveform_generator, self.wave_params, self.param_names[i], self.deltas[self.param_names[i]],use_gpu=self.use_gpu, waveform=self.waveform, order=self.order, waveform_kwargs=self.waveform_kwargs)
-            
-            # If no response is provided and waveform of the form h+ - ihx, create copies equivalent to the number of channels.
-            if dtv_i.ndim == 1:
-                dtv_i = xp.asarray([dtv_i.copy() for _ in range(len(self.channels))])/len(self.channels) #we assume equal strength in all provided channels.
+                kind = "central"
+
+            if (self.param_names[i] in ['qS', 'phiS', 'qK', 'phiK']) & (self.deriv_type == "stable") & (self.has_ResponseWrapper):
+                # cannot calculate derivative of the response-wrapped waveform with respect to the angles for the stable deriv_type, so we use the direct derivative method.
+                deltas_grid = self._deltas(self.deltas[self.param_names[i]], self.order, kind=kind)
+                Rh_temp = xp.zeros((len(deltas_grid), len(self.waveform), len(self.waveform[0])), dtype=xp.complex128)
+                #calculate dR_dx
+                for dd, delt in enumerate(deltas_grid):
+                    parameters_in = self.waveform_derivative_kwargs['parameters'].copy()
+                    parameters_in[self.param_names[i]] += float(delt) #theta is of the same order as the other angles, so we use the same deltas.
+                    parameters_in_list = list(parameters_in.values())
+                    # get the ylms for this theta
+                    Rh_temp[dd] = xp.asarray(self.waveform_generator(*parameters_in_list, **self.waveform_kwargs)) #R[h] on the stencil grid
+                dtv_i = self._stencil(Rh_temp, delta = self.deltas[self.param_names[i]], order = self.order, kind = kind) #derivative of R[h]
+
+            else:
+                dtv_i = xp.asarray(self.derivative(*self.wave_params_list, param_to_vary=self.param_names[i], delta=self.deltas[self.param_names[i]], kind=kind, **self.waveform_derivative_kwargs))
+
+            if not self.has_ResponseWrapper:
+                # If the derivative is 1D
+                dtv_i = xp.asarray([dtv_i.real, -dtv_i.imag])
 
             dtv.append(dtv_i)
 

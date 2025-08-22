@@ -1,5 +1,5 @@
 import numpy as np
-from antenna_derivs import fplusI_derivs, fcrossI_derivs, fplusII_derivs, fcrossII_derivs
+from .antenna_derivs import fplusI_derivs, fcrossI_derivs, fplusII_derivs, fcrossII_derivs
 
 def viewing_angle_partials(qS, phiS, qK, phiK):
     """

@@ -3,7 +3,7 @@ from matplotlib.patches import Ellipse
 from matplotlib import transforms
 import numpy as np
 
-def cov_ellipse(mean, cov, ax, n_std=1.0, edgecolor='blue', facecolor='none', lw=5, linestyle='-', **kwargs):
+def cov_ellipse(mean, cov, ax, n_std=1.0, **kwargs):
     """
     Plot a covariance ellipse.
 
@@ -14,9 +14,6 @@ def cov_ellipse(mean, cov, ax, n_std=1.0, edgecolor='blue', facecolor='none', lw
         cov (np.ndarray): Covariance matrix of the distribution.
         ax (matplotlib.axes.Axes): Axes object on which to plot the ellipse.
         n_std (float, optional): Number of standard deviations to encompass within the ellipse. Default is 1.0.
-        edgecolor (str, optional): Color of the ellipse's edge. Default is 'blue'.
-        facecolor (str, optional): Fill color of the ellipse. Default is 'none'.
-        lw (float, optional): Linewidth of the ellipse. Default is 5.
         **kwargs: Additional keyword arguments passed to matplotlib.patches.Ellipse.
 
     Returns:
@@ -30,10 +27,6 @@ def cov_ellipse(mean, cov, ax, n_std=1.0, edgecolor='blue', facecolor='none', lw
     ellipse = Ellipse((0, 0),
         width=ell_radius_x * 2,
         height=ell_radius_y * 2,
-        edgecolor=edgecolor,
-        facecolor=facecolor,
-        lw=lw,
-        linestyle=linestyle,
         **kwargs)
 
     scale_x = np.sqrt(cov[0, 0]) * n_std
@@ -53,7 +46,7 @@ def cov_ellipse(mean, cov, ax, n_std=1.0, edgecolor='blue', facecolor='none', lw
 def normal(mean, var, x):
     return np.exp(-(mean-x)**2/var/2)
 
-def CovEllipsePlot(covariance, param_names=None, wave_params=None, fig = None, axs = None, color='blue', linestyle='-', lw=2, filename=None):
+def CovEllipsePlot(covariance, param_names=None, wave_params=None, fig = None, axs = None, filename=None, ellipse_kwargs={}, line_kwargs={}):
 
     if fig == None:
         fig, axs = plt.subplots(len(covariance),len(covariance), figsize=(20,20))
@@ -72,10 +65,9 @@ def CovEllipsePlot(covariance, param_names=None, wave_params=None, fig = None, a
                 else:
                     mean = np.zeros(2)
                     
-                cov_ellipse(mean,cov,axs[j,i],lw=lw,edgecolor=color, linestyle=linestyle)
+                cov_ellipse(mean,cov,axs[j,i],**ellipse_kwargs)
 
                 #custom setting the x-y lim for each plot
-                
                 
                 axs[j,i].set_xlim([mean[0]-2.5*np.sqrt(covariance[i][i]), mean[0]+2.5*np.sqrt(covariance[i][i])])
                 axs[j,i].set_ylim([mean[1]-2.5*np.sqrt(covariance[j][j]), mean[1]+2.5*np.sqrt(covariance[j][j])])
@@ -95,7 +87,7 @@ def CovEllipsePlot(covariance, param_names=None, wave_params=None, fig = None, a
 
                 x = np.linspace(mean-3*np.sqrt(var),mean+3*np.sqrt(var))
 
-                axs[j,i].plot(x,normal(mean,var,x),c=color, linestyle=linestyle, linewidth=lw)
+                axs[j,i].plot(x,normal(mean,var,x),**line_kwargs)
                 
                 axs[j,i].set_xlim([mean - 2.5*np.sqrt(covariance[i][i]), mean + 2.5*np.sqrt(covariance[i][i])])
                 
@@ -122,21 +114,25 @@ def CovEllipsePlot(covariance, param_names=None, wave_params=None, fig = None, a
         plt.savefig(filename,dpi=300,bbox_inches='tight')
         plt.close()
             
-def StabilityPlot(deltas,Gammas,param_name=None,filename=None):
+def StabilityPlot(deltas,Gammas,stable_index=None,param_name=None,filename=None):
     
     plt.figure(figsize=(12,5))
     plt.loglog(deltas,Gammas,'ro-')
     
+    if stable_index != None:
+        plt.scatter(deltas[stable_index],Gammas[stable_index],marker='s',s=20,color='b',label='the chosen one',zorder=5)
+
     if param_name != None:
         plt.xlabel(r'$\Delta\theta_i$',fontsize=12)
-    
+
     plt.ylabel(r'$\left.\langle \frac{\partial h}{\partial \theta_i}\right|\frac{\partial h}{\partial \theta_i}\rangle$',fontsize=14)
     plt.title(r'$\theta_i = $'+f'${param_name}$',fontsize=12)
     plt.grid(True)
-    
+    plt.legend()
+
     if filename != None:
         plt.savefig(filename,dpi=300,bbox_inches='tight')
         plt.close()
     else:
-        plt.close()
+        plt.show()
         

@@ -1,37 +1,9 @@
 import numpy as np
-import matplotlib.pyplot as plt
 from few.waveform import GenerateEMRIWaveform
-from few.utils.constants import Gpc, MRSUN_SI, YRSID_SI
-from typing import Optional, Union, Callable
+from few.utils.constants import Gpc, MRSUN_SI
 from tqdm import tqdm
 
-from deriv_angles import viewing_angle_partials, fplus_fcross_derivs, fplus_fcross
-
-def _available_stencils():
-    """
-    Accessed from #Fornberg 1988: https://doi.org/10.1090%2FS0025-5718-1988-0935077-0
-    """
-    
-    return {
-        "central": {
-            2: np.asarray([-1/2, 1/2]),
-            4: np.asarray([1/12, -2/3, 2/3, -1/12]),
-            6: np.asarray([-1/60, 3/20, -3/4, 3/4, -3/20, 1/60]),
-            8: np.asarray([1/280, -4/105, 1/5, -4/5, 4/5, -1/5, 4/105, -1/280])
-        },
-        "forward": {
-            2: np.asarray([-3/2, 2, -1/2]),
-            4: np.asarray([-25/12, 4, -3, 4/3, -1/4]),
-            6: np.asarray([-49/20, 6, -15/2, 20/3, -15/4, 6/5, -1/6]),
-            8: np.asarray([-761/280, 8, -14, 56/3, -35/2, 56/5, -14/3, 8/7, -1/8]) 
-        },
-        "backward": {
-            2: np.asarray([1/2, -2, 3/2]),
-            4: np.asarray([1/4, -4/3, 3, -4, 25/12]),
-            6: np.asarray([1/6, -6/5, 15/4, -20/3, 15/2, -6, 49/20]),
-            8: np.asarray([1/8, -8/7, 14/3, -56/5, 35/2, -56/3, 14, -8, 761/280])
-        }
-    }
+from ..deriv_utils.deriv_angles import viewing_angle_partials, fplus_fcross_derivs
 
 class StableEMRIDerivative(GenerateEMRIWaveform):
     """
@@ -60,6 +32,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
 
     def __call__(
         self,
+        *args, #dummy to fool FastLISAResponse
         parameters: dict,
         param_to_vary: str,
         delta: float,
@@ -126,7 +99,6 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             self.cache = {
                 't':t,
                 'y':y,
-                'Npad':0,
                 'parameters':parameters,
                 'coefficients':self.inspiral_generator.integrator_spline_coeff,
                 'phase_coefficients':self.xp.asarray(self.inspiral_generator.integrator_spline_phase_coeff)[:, [0,2], :],
@@ -154,8 +126,9 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                 **kwargs_remaining,
             )
 
-            
             self.cache['waveform_source'] = waveform_source
+
+        self.cache['Npad'] = 0
 
         # now calculate the derivatives with respect to the chosen parameters
 
@@ -210,15 +183,19 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
 
         # traj params
         else:
+            #if you've reached this point, a derivative w.r.t one of the trajectory parameters is requested.
+            #trajectory must be modified
+            
             # TODO: Absolute filth command. Need t_interp to be a numpy array
             # when called. There will be a much neater way to implement this.
             # make sure you wash your hands after running this code. Urgh. Not proud. 
-            if str(self.waveform_generator.backend_name)[0:4] == "cuda":
-                use_gpu = True
-            else:
-                use_gpu = False
-            #if you've reached this point, a derivative w.r.t one of the trajectory parameters is requested.
-            #trajectory must be modified
+            #if str(self.waveform_generator.backend_name)[0:4] == "cuda":
+            #    use_gpu = True
+            #else:
+            #    use_gpu = False
+            #SK: is this any better? uses_cupy is False if the waveform_generator backend is assuming cpus only.
+            use_gpu = self.waveform_generator.backend.uses_cupy
+            
             #get trajectories
             y_interps = self.xp.full((len(self.deltas), self.cache['t'].size, len(self.cache['y'])), self.xp.nan) #trajectory for each of the finite difference deltas
             

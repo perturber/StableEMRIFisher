@@ -5,6 +5,8 @@ from tqdm import tqdm
 
 from ..deriv_utils.deriv_angles import viewing_angle_partials, fplus_fcross_derivs
 
+import time
+
 class StableEMRIDerivative(GenerateEMRIWaveform):
     """
         inherits from the GenerateEMRIWaveform class of FEW, adds functions for derivative calculation and a fresh __call__ method.
@@ -372,6 +374,11 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             y (np.ndarray): evolving parameters of the trajectory along the time grid
         """
         
+        add_parameters = []
+        for key, value in parameters.items():
+            if key not in ['m1', 'm2', 'a', 'p0', 'e0', 'xI0', 'Phi_phi0', 'Phi_theta0', 'Phi_r0', 'dist', 'qS', 'phiS', 'qK', 'phiK']:
+                add_parameters.append(value)
+
         traj = self.inspiral_generator(
             parameters['m1'],
             parameters['m2'],
@@ -379,6 +386,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             parameters['p0'],
             parameters['e0'],
             parameters['xI0'],
+            *add_parameters, #any extra trajectory parameters
             Phi_phi0 = parameters['Phi_phi0'],
             Phi_theta0 = parameters['Phi_theta0'],
             Phi_r0 = parameters['Phi_r0'],
@@ -418,7 +426,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             mode_selection = None
         else:
             mode_selection = self.cache['mode_selection']
-
+        
         #get teuk amplitudes, ylms, ls, ms, ks, and ns from the mode_selector module.
 
         #ylms
@@ -452,7 +460,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             modeinds_map = modeinds_map, #only used when mode_selection is a list.
             **kwargs
         )
-
+        
         if cache:
             #we don't use mode symmetry
             m0mask = self.ms != 0

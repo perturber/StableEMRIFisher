@@ -421,47 +421,41 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             dist_dimensionless = (parameters['dist'] * Gpc) / (mu * MRSUN_SI)
         else:
             dist_dimensionless = 1.0 
-            
-        if cache:
-            mode_selection = None
-        else:
-            mode_selection = self.cache['mode_selection']
-        
-        #get teuk amplitudes, ylms, ls, ms, ks, and ns from the mode_selector module.
 
-        #ylms
-        ylms = self.ylm_gen(self.unique_l, self.unique_m, parameters['theta_source'], parameters['phi_source']).copy()[self.inverse_lm]
-        
         # amplitudes
         teuk_modes = self.xp.asarray(
             self.amplitude_generator(parameters['a'], *y[:3])
-        )
+        ) #these are all the Teukolsky amplitudes for the trajectory
 
-        fund_freq_args = (parameters['m1'], parameters['m2'], parameters['a'], y[0], y[1], y[2], t)
+        #ylms
+        ylms = self.ylm_gen(self.unique_l, self.unique_m, parameters['theta_source'], parameters['phi_source']).copy()[self.inverse_lm]
+            
+        if cache: 
+            #perform mode selection in the first call (with cache=True))
+            mode_selection = None
+            #get teuk amplitudes, ylms, ls, ms, ks, and ns from the mode_selector module.
 
-        modeinds = [self.l_arr, 
-                    self.m_arr,
-                    self.n_arr]
+            fund_freq_args = (parameters['m1'], parameters['m2'], parameters['a'], y[0], y[1], y[2], t)
+
+            modeinds = [self.l_arr, 
+                        self.m_arr,
+                        self.n_arr]
+                        
+            (
+                teuk_modes_in,
+                ylms_in,
+                self.ls,
+                self.ms,
+                self.ns,
+            ) = self.mode_selector(
+                teuk_modes,
+                ylms,
+                modeinds,
+                fund_freq_args=fund_freq_args,
+                mode_selection = mode_selection, #None
+                **kwargs
+            )
         
-        modeinds_map = self.special_index_map_arr
-        
-        (
-            teuk_modes_in,
-            ylms_in,
-            self.ls,
-            self.ms,
-            self.ns,
-        ) = self.mode_selector(
-            teuk_modes,
-            ylms,
-            modeinds,
-            fund_freq_args=fund_freq_args,
-            mode_selection = mode_selection, #None in first pass, but selects a given set of modes in subsequent passes
-            modeinds_map = modeinds_map, #only used when mode_selection is a list.
-            **kwargs
-        )
-        
-        if cache:
             #we don't use mode symmetry
             m0mask = self.ms != 0
             teuk_modes_in = self.xp.concatenate(
@@ -508,6 +502,14 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                 )
             ]
 
+            mode_map = {
+                        (int(l), int(m), int(n)): idx
+                        for idx, (l, m, n) in enumerate(zip(self.l_arr, self.m_arr, self.n_arr))
+                    }
+
+            # recover the indices for the cached (ls,ms,ns) for subsequent calls.
+            self.cache['keep_inds'] = [mode_map[(int(l), int(m), int(n))] for l, m, n in zip(self.ls, self.ms, self.ns)]
+
             self.cache['teuk_modes'] = teuk_modes_in / dist_dimensionless
             self.cache['teuk_modes_with_ylms'] = self.cache['teuk_modes'] * ylms_in
             self.cache['ylms_in'] = ylms_in
@@ -518,13 +520,14 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             return self.cache['teuk_modes_with_ylms']
                 
         else:
+
+            teuk_modes_in = teuk_modes[:, self.cache['keep_inds']] #same modes as in the first run, the amplitudes are just different
+            
             teuk_modes_in = self.xp.concatenate(
                 (teuk_modes_in, (-1)**(self.ls[self.cache['m0mask']])*self.xp.conj(teuk_modes_in[:, self.cache['m0mask']])), axis=1
-            )
+            ) #get the negative m modes as well
 
-            ylms_in = self.xp.concatenate(
-                (ylms_in[:self.ls.size], ylms_in[self.ls.size:][self.cache['m0mask']]), axis=0
-            )
+            ylms_in = self.cache['ylms_in'].copy() #already calculated in the first run, so just copy it
 
             return teuk_modes_in * ylms_in / dist_dimensionless
 

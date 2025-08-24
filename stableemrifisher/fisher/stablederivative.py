@@ -376,7 +376,23 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
         
         add_parameters = []
         for key, value in parameters.items():
-            if key not in ['m1', 'm2', 'a', 'p0', 'e0', 'xI0', 'Phi_phi0', 'Phi_theta0', 'Phi_r0', 'dist', 'qS', 'phiS', 'qK', 'phiK']:
+            if key not in ['m1', 
+                           'm2', 
+                           'a', 
+                           'p0', 
+                           'e0', 
+                           'xI0', 
+                           'Phi_phi0', 
+                           'Phi_theta0', 
+                           'Phi_r0', 
+                           'dist', 
+                           'qS', 
+                           'phiS', 
+                           'qK', 
+                           'phiK',
+                           'theta_source',
+                           'phi_source']:
+                
                 add_parameters.append(value)
 
         traj = self.inspiral_generator(

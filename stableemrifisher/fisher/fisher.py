@@ -387,7 +387,7 @@ class StableEMRIFisher:
 
         return Fisher
         
-    def SNRcalc_SEF(self, window=None, fmin=None, fmax=None, use_gpu=False, *waveform_args, **waveform_kwargs):
+    def SNRcalc_SEF(self, *waveform_args, window=None, fmin=None, fmax=None, use_gpu=False, **waveform_kwargs):
         """Generate waveform and PSDs, then compute the optimal SNR.
 
         The waveform is obtained from `self.waveform_generator` using the

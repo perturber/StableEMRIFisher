@@ -321,7 +321,7 @@ class StableEMRIFisher:
             self.T = final_time / YRSID_SI  # Years
             self.waveform_kwargs.update(dict(T=self.T))
 
-        rho = self.SNRcalc_SEF(*self.wave_params_list, **self.waveform_kwargs)
+        rho = self.SNRcalc_SEF(fmin=self.fmin, fmax=self.fmax, window=self.window, use_gpu=self.use_gpu, *self.wave_params_list, **self.waveform_kwargs)
 
         self.SNR2 = rho**2
 
@@ -387,7 +387,7 @@ class StableEMRIFisher:
 
         return Fisher
         
-    def SNRcalc_SEF(self, *waveform_args, **waveform_kwargs):
+    def SNRcalc_SEF(self, window=None, fmin=None, fmax=None, use_gpu=False, *waveform_args, **waveform_kwargs):
         """Generate waveform and PSDs, then compute the optimal SNR.
 
         The waveform is obtained from `self.waveform_generator` using the
@@ -426,7 +426,7 @@ class StableEMRIFisher:
         # Compute SNR
         logger.info("Computing SNR for parameters: %s", self.wave_params)
 
-        return SNRcalc(self.waveform, self.PSD_funcs, dt=dt, window=self.window, fmin=self.fmin, fmax=self.fmax, use_gpu=self.use_gpu)
+        return SNRcalc(self.waveform, self.PSD_funcs, dt=dt, window=window, fmin=fmin, fmax=fmax, use_gpu=use_gpu)
         
     
     def check_if_plunging(self):

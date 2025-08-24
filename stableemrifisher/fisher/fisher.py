@@ -282,6 +282,7 @@ class StableEMRIFisher:
         
         # ensure dt and T are passed to waveform generator
         self.waveform_kwargs.update(dict(dt=self.dt, T=self.T))
+        print("T: ", T, "dt: ", dt)
 
         # optional custom delta grids per parameter
         self.delta_range = delta_range if delta_range is not None else {}
@@ -391,7 +392,7 @@ class StableEMRIFisher:
         """Generate waveform and PSDs, then compute the optimal SNR.
 
         The waveform is obtained from `self.waveform_generator` using the
-        parameters provided at call time. If no response wrapper is used and a
+        parameters provided. If no response wrapper is used and a
         1D waveform is returned (h+ - i hx), it is replicated across the
         configured channels with equal weighting. Per-channel PSDs are then
         generated and the multi-channel SNR is computed.
@@ -424,7 +425,7 @@ class StableEMRIFisher:
                  channels=self.channels, noise_kwargs=self.noise_kwargs, use_gpu=self.use_gpu)
         
         # Compute SNR
-        logger.info("Computing SNR for parameters: %s", self.wave_params)
+        logger.info("Computing SNR for parameters: %s", waveform_args)
 
         return SNRcalc(self.waveform, self.PSD_funcs, dt=dt, window=window, fmin=fmin, fmax=fmax, use_gpu=use_gpu)
         

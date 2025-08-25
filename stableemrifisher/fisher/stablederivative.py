@@ -210,9 +210,10 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                 t, y = self._trajectory_from_parameters(parameters_in, T)
                 #re-interpolate onto the time-step grid for the injection trajectory
                 # t_interp_np = np.asarray(t_interp) # Changed!
-                print("t_interp: ", t_interp[-1], "t_traj: ", t[-1])
                     
                 if self.xp.around(t_interp[-1], 5) > self.xp.around(t[-1], 5): #check plunge. We round to five decimal places to avoid numerical precision errors (which sometimes happen otherwise).
+                    print("plunging! t_interp: ", t_interp[-1], "t_traj: ", t[-1])
+
                     mask_notplunging = t_interp < t[-1] #for all t_interp < t[-1], the perturbed trajectory is still not plunging
                     # t_interp_np = t_interp[mask_notplunging].get() # CHANGED
                     # t_interp_np = np.asarray(t_interp[mask_notplunging]) # CHANGED

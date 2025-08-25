@@ -49,7 +49,7 @@ Phi_phi0 = np.pi/4
 Phi_theta0 = 0.0
 Phi_r0 = 0.0
 
-T = 2.0
+T = 0.1
 dt = 10.0
 
 pars_list = [m1, m2, a, p0, e0, xI0, dist, qS, phiS, qK, phiK, Phi_phi0, Phi_theta0, Phi_r0]
@@ -59,7 +59,7 @@ parameters = {}
 for i in range(len(param_names)):
     parameters[param_names[i]] = pars_list[i]
 
-param_to_vary = 'Phi_phi0'
+param_to_vary = 'm2'
 
 delta = 1e-6  #finite difference delta for the chosen paramete
 order = 4 #order of finite-difference derivative

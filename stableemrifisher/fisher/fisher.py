@@ -130,7 +130,11 @@ class StableEMRIFisher:
             waveform_class_kwargs = {}
         
         if waveform_generator_kwargs is None:
-            waveform_generator_kwargs = {}
+            waveform_generator_kwargs = {**waveform_class_kwargs}
+        else:
+            waveform_generator_kwargs = {**waveform_class_kwargs, **waveform_generator_kwargs} #if the two dicts have the same keys, the key value in the right side dict is used.
+
+        print("waveform_generator_kwargs: ", waveform_generator_kwargs)
 
         if ResponseWrapper_kwargs is None:
             ResponseWrapper_kwargs = {}
@@ -147,7 +151,7 @@ class StableEMRIFisher:
         self.deriv_type = deriv_type
         if self.deriv_type == "stable":
             waveform_derivative = StableEMRIDerivative(waveform_class = waveform_class, 
-                                                            **waveform_class_kwargs,
+                                                            **waveform_generator_kwargs, #to pass to GenerateEMRIWaveforms
                                                    )
             self.waveform_derivative_kwargs = {}
             #some utility funcs from SED useful later

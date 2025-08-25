@@ -7,7 +7,7 @@ Testrun/
 *.pdf
 
 # Byte-compiled / optimized / DLL files
-/stableemrifisher/__pycache__/
+**/__pycache__
 *.py[cod]
 *$py.class
 

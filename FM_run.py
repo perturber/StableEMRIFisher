@@ -10,8 +10,18 @@ from few.utils.geodesic import get_separatrix
 from stableemrifisher.fisher import StableEMRIFisher
 from lisatools.sensitivity import get_sensitivity, A1TDISens, E1TDISens, T1TDISens
 
+from psd_utils import (write_psd_file, load_psd_from_file, load_psd)
+
 import numpy as np
+try:
+    import cupy as cp
+    xp = cp
+except ImportError:
+    pass
+    xp = np
 import time
+import os
+
 
 # Using full Kerr model
 m1 = 1e6
@@ -20,7 +30,7 @@ a = 0.998
 p0 = 7.7275
 e0 = 0.73
 xI0 = 1.0
-dist = 4.681378287352086
+dist = 2.20360838037185
 qS = 0.8
 phiS = 2.2
 qK = 1.6
@@ -30,8 +40,8 @@ Phi_theta0 = 0.0
 Phi_r0 = 4.0
 
 
-dt = 100.0  # Sampling interval [seconds]
-T = 0.1     # Evolution time [years]
+dt = 5.0  # Sampling interval [seconds]
+T = 2.0     # Evolution time [years]
 
 # Waveform params
 pars_list = [m1,m2,a,p0,e0,xI0,dist,qS,phiS,qK,phiK,Phi_phi0, Phi_theta0, Phi_r0]
@@ -89,7 +99,6 @@ t_traj, p_traj, e_traj, xI_traj, Phi_phi_traj, Phi_r_traj, Phi_theta_traj = traj
                                                                                  Phi_r0=Phi_r0, 
                                                                                  T=T)
 
-breakpoint()
 traj_args = [m1, m2, a, e_traj[0], 1.0]
 # Check to see what value of semi-latus rectum is required to build inspiral lasting T years.
 p_new = get_p_at_t(
@@ -114,7 +123,6 @@ print(f"Final eccentricity = {e_traj[-1]}")
 
 ####=======================True Responsed waveform==========================
 #waveform class setup
-breakpoint()
 waveform_class = FastKerrEccentricEquatorialFlux
 waveform_class_kwargs = dict(inspiral_kwargs=dict(err=1e-11,),
                              mode_selector_kwargs=dict(mode_selection_threshold=1e-2))
@@ -125,10 +133,26 @@ waveform_generator_kwargs = dict(return_list=False)
 
 
 #noise setup
-channels = [A1TDISens, E1TDISens]
-noise_model = get_sensitivity
-noise_kwargs = [{"sens_fn": channel_i} for channel_i in channels]
-breakpoint()
+
+run_direc = os.getcwd()
+PSD_filename = "tdi2_AE_w_background.npy"
+
+kwargs_PSD = {"stochastic_params": [T*YRSID_SI]} # We include the background
+
+write_PSD = write_psd_file(model='scirdv1', channels='AE', 
+                           tdi2=True, include_foreground=True, 
+                           filename = run_direc + PSD_filename, **kwargs_PSD)
+
+PSD_AE_interp = load_psd_from_file(run_direc + PSD_filename, xp=cp)
+
+# channels = [A1TDISens, E1TDISens]
+# noise_model = get_sensitivity
+# noise_kwargs = [{"sens_fn": channel_i} for channel_i in channels]
+
+noise_model = PSD_AE_interp
+noise_kwargs = {}
+channels = ["A", "E"]
+
 sef = StableEMRIFisher(waveform_class=waveform_class, 
                        waveform_class_kwargs=waveform_class_kwargs,
                        waveform_generator=waveform_generator,
@@ -138,7 +162,6 @@ sef = StableEMRIFisher(waveform_class=waveform_class,
                       stats_for_nerds = True, use_gpu = USE_GPU,
                       deriv_type='stable')
 
-breakpoint()
 param_names = ['m1','m2','a','p0','e0','dist','qS','phiS','qK','phiK','Phi_phi0','Phi_r0']
 der_order = 4
 Ndelta = 8
@@ -147,12 +170,15 @@ stability_plot = True
 delta_range = dict(
     m1 = np.geomspace(1e-4*m1, 1e-9*m1, Ndelta),
     m2 = np.geomspace(1e-2*m2, 1e-7*m2, Ndelta),
+    a = np.geomspace(1e-5, 1e-9, Ndelta),
     p0 = np.geomspace(1e-2*p0, 1e-7*p0, Ndelta),
     e0 = np.geomspace(1e-1*e0, 1e-7*e0, Ndelta),
     qS = np.geomspace(1e-4,    1e-9,    Ndelta),
     phiS = np.geomspace(1e-4,    1e-9,    Ndelta),
     qK = np.geomspace(1e-4,    1e-9,    Ndelta),
     phiK = np.geomspace(1e-4,    1e-9,    Ndelta),
+    Phi_phi0 = np.geomspace(1e-3,    1e-7,    Ndelta),
+    Phi_r0 = np.geomspace(1e-3,    1e-7,    Ndelta),
 )
 
 print("Computing FM")
@@ -163,15 +189,15 @@ fisher_matrix = sef(*pars_list, param_names = param_names,
              Ndelta = Ndelta, 
              stability_plot = stability_plot,
              delta_range = delta_range,
-            live_dangerously = True)
+             filename="fisher_matrix_file",
+            live_dangerously = False)
 end = time.time() - start
 print("Time taken to compute Fisher matrix and stable deltas is", end, "seconds")
 
 
-breakpoint()
 param_cov = np.linalg.inv(fisher_matrix)
 
 for k, item in enumerate(param_names):
-    print("Precision measurement in param {} is {}".format(item, param_cov[k,k]))
+    print("Precision measurement in param {} is {}".format(item, param_cov[k,k]**(1/2)))
 
 

@@ -145,6 +145,7 @@ class StableEMRIFisher:
         self.noise_kwargs = noise_kwargs if noise_kwargs is not None else {"TDI": "TDI1"}
         self.channels = channels if channels is not None else ["A", "E"]
 
+
         # ================== Initialize StableEMRIDerivatives ==================
         self.deriv_type = deriv_type
         if self.deriv_type == "stable":

@@ -5,6 +5,8 @@ from tqdm import tqdm
 
 from ..deriv_utils.deriv_angles import viewing_angle_partials, fplus_fcross_derivs
 
+import time
+
 class StableEMRIDerivative(GenerateEMRIWaveform):
     """
         inherits from the GenerateEMRIWaveform class of FEW, adds functions for derivative calculation and a fresh __call__ method.
@@ -85,8 +87,6 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                                                             parameters['phiS'],
                                                             parameters['qK'],
                                                             parameters['phiK'])
-        parameters['theta_source'] = float(theta_source)
-        parameters['phi_source'] = phi_source
         
         keys_exclude = ['T', 'dt', 'batch_size', 'show_progress']
         kwargs_remaining = {key: value for key, value in kwargs.items() if key not in keys_exclude}
@@ -105,7 +105,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                 'phase_coefficients_t':self.inspiral_generator.integrator_spline_t, 
             }
             
-            amps_here = self._amplitudes_from_trajectory(parameters, t = t, y = y, cache=True, **kwargs_remaining)
+            amps_here = self._amplitudes_from_trajectory(parameters, t = t, y = y, qsource=float(theta_source), phisource=phi_source, cache=True, **kwargs_remaining)
 
             #create waveform at injection
 
@@ -198,20 +198,22 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             
             #get trajectories
             y_interps = self.xp.full((len(self.deltas), self.cache['t'].size, len(self.cache['y'])), self.xp.nan) #trajectory for each of the finite difference deltas
-            
+            t_interp = self.cache['t'].copy() # CHANGED
+            if use_gpu:
+                t_interp_np = t_interp.get() # Changed!
+            else:
+                t_interp_np = t_interp
+                
             for k, delt in enumerate(self.deltas):
                 parameters_in = parameters.copy()
                 parameters_in[param_to_vary] += delt #perturb by finite-difference
                 t, y = self._trajectory_from_parameters(parameters_in, T)
                 #re-interpolate onto the time-step grid for the injection trajectory
-                t_interp = self.cache['t'].copy() # CHANGED
-                if use_gpu:
-                    t_interp_np = t_interp.get() # Changed!
-                else:
-                    t_interp_np = t_interp
                 # t_interp_np = np.asarray(t_interp) # Changed!
+                    
+                if self.xp.around(t_interp[-1], 5) > self.xp.around(t[-1], 5): #check plunge. We round to five decimal places to avoid numerical precision errors (which sometimes happen otherwise).
+                    print("plunging! t_interp: ", t_interp[-1], "t_traj: ", t[-1])
 
-                if t_interp[-1] > t[-1]: #the perturbed trajectory is plunging. Add NaN's at the end!
                     mask_notplunging = t_interp < t[-1] #for all t_interp < t[-1], the perturbed trajectory is still not plunging
                     # t_interp_np = t_interp[mask_notplunging].get() # CHANGED
                     # t_interp_np = np.asarray(t_interp[mask_notplunging]) # CHANGED
@@ -252,7 +254,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
 
                 parameters_in = parameters.copy()
                 parameters_in[param_to_vary] += delt #perturb by finite-difference
-                amps_here = self._amplitudes_from_trajectory(parameters_in, t_interp, y_interps[k].T, cache=False, **kwargs_remaining) #remember, this function multiplies by Ylmns!
+                amps_here = self._amplitudes_from_trajectory(parameters_in, t_interp, y_interps[k].T, qsource=float(theta_source), phisource=phi_source, cache=False, **kwargs_remaining) #remember, this function multiplies by Ylmns!
                 amps_steps[k] = amps_here
 
             #finite differencing the amplitudes
@@ -372,6 +374,26 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             y (np.ndarray): evolving parameters of the trajectory along the time grid
         """
         
+        add_parameters = []
+        for key, value in parameters.items():
+            if key not in ['m1', 
+                           'm2', 
+                           'a', 
+                           'p0', 
+                           'e0', 
+                           'xI0', 
+                           'Phi_phi0', 
+                           'Phi_theta0', 
+                           'Phi_r0', 
+                           'dist', 
+                           'qS', 
+                           'phiS', 
+                           'qK', 
+                           'phiK',
+                           ]:
+                
+                add_parameters.append(value)
+
         traj = self.inspiral_generator(
             parameters['m1'],
             parameters['m2'],
@@ -379,6 +401,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             parameters['p0'],
             parameters['e0'],
             parameters['xI0'],
+            *add_parameters, #any extra trajectory parameters
             Phi_phi0 = parameters['Phi_phi0'],
             Phi_theta0 = parameters['Phi_theta0'],
             Phi_r0 = parameters['Phi_r0'],
@@ -394,7 +417,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
     
         return t, y
 
-    def _amplitudes_from_trajectory(self, parameters, t, y, cache=False, **kwargs):
+    def _amplitudes_from_trajectory(self, parameters, t, y, qsource, phisource, cache=False, **kwargs):
         """
         calculate the amplitudes (and ylms) from the trajectory.
 
@@ -402,6 +425,8 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             parameters (dict): dictionary of trajectory parameters
             t (np.ndarray): array of time steps for trajectory
             y (np.ndarray): array of evolving parameters in the trajectory at time steps
+            qsource (np.float): polar angle in source frame
+            phisource (np.float): azimuthal angle in source frame
             cache (bool): whether to cache info (True) or not (False)
         Returns:
             Teukolsky amplitudes times Ylms
@@ -413,47 +438,41 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             dist_dimensionless = (parameters['dist'] * Gpc) / (mu * MRSUN_SI)
         else:
             dist_dimensionless = 1.0 
-            
-        if cache:
-            mode_selection = None
-        else:
-            mode_selection = self.cache['mode_selection']
 
-        #get teuk amplitudes, ylms, ls, ms, ks, and ns from the mode_selector module.
-
-        #ylms
-        ylms = self.ylm_gen(self.unique_l, self.unique_m, parameters['theta_source'], parameters['phi_source']).copy()[self.inverse_lm]
-        
         # amplitudes
         teuk_modes = self.xp.asarray(
             self.amplitude_generator(parameters['a'], *y[:3])
-        )
+        ) #these are all the Teukolsky amplitudes for the trajectory
 
-        fund_freq_args = (parameters['m1'], parameters['m2'], parameters['a'], y[0], y[1], y[2], t)
+        #ylms
+        ylms = self.ylm_gen(self.unique_l, self.unique_m, qsource, phisource).copy()[self.inverse_lm]
+            
+        if cache: 
+            #perform mode selection in the first call (with cache=True))
+            mode_selection = None
+            #get teuk amplitudes, ylms, ls, ms, ks, and ns from the mode_selector module.
 
-        modeinds = [self.l_arr, 
-                    self.m_arr,
-                    self.n_arr]
+            fund_freq_args = (parameters['m1'], parameters['m2'], parameters['a'], y[0], y[1], y[2], t)
+
+            modeinds = [self.l_arr, 
+                        self.m_arr,
+                        self.n_arr]
+                        
+            (
+                teuk_modes_in,
+                ylms_in,
+                self.ls,
+                self.ms,
+                self.ns,
+            ) = self.mode_selector(
+                teuk_modes,
+                ylms,
+                modeinds,
+                fund_freq_args=fund_freq_args,
+                mode_selection = mode_selection, #None
+                **kwargs
+            )
         
-        modeinds_map = self.special_index_map_arr
-        
-        (
-            teuk_modes_in,
-            ylms_in,
-            self.ls,
-            self.ms,
-            self.ns,
-        ) = self.mode_selector(
-            teuk_modes,
-            ylms,
-            modeinds,
-            fund_freq_args=fund_freq_args,
-            mode_selection = mode_selection, #None in first pass, but selects a given set of modes in subsequent passes
-            modeinds_map = modeinds_map, #only used when mode_selection is a list.
-            **kwargs
-        )
-
-        if cache:
             #we don't use mode symmetry
             m0mask = self.ms != 0
             teuk_modes_in = self.xp.concatenate(
@@ -500,6 +519,14 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                 )
             ]
 
+            mode_map = {
+                        (int(l), int(m), int(n)): idx
+                        for idx, (l, m, n) in enumerate(zip(self.l_arr, self.m_arr, self.n_arr))
+                    }
+
+            # recover the indices for the cached (ls,ms,ns) for subsequent calls.
+            self.cache['keep_inds'] = [mode_map[(int(l), int(m), int(n))] for l, m, n in zip(self.ls, self.ms, self.ns)]
+
             self.cache['teuk_modes'] = teuk_modes_in / dist_dimensionless
             self.cache['teuk_modes_with_ylms'] = self.cache['teuk_modes'] * ylms_in
             self.cache['ylms_in'] = ylms_in
@@ -510,13 +537,14 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             return self.cache['teuk_modes_with_ylms']
                 
         else:
+
+            teuk_modes_in = teuk_modes[:, self.cache['keep_inds']] #same modes as in the first run, the amplitudes are just different
+            
             teuk_modes_in = self.xp.concatenate(
                 (teuk_modes_in, (-1)**(self.ls[self.cache['m0mask']])*self.xp.conj(teuk_modes_in[:, self.cache['m0mask']])), axis=1
-            )
+            ) #get the negative m modes as well
 
-            ylms_in = self.xp.concatenate(
-                (ylms_in[:self.ls.size], ylms_in[self.ls.size:][self.cache['m0mask']]), axis=0
-            )
+            ylms_in = self.cache['ylms_in'].copy() #already calculated in the first run, so just copy it
 
             return teuk_modes_in * ylms_in / dist_dimensionless
 

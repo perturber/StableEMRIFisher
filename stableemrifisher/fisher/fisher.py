@@ -130,7 +130,9 @@ class StableEMRIFisher:
             waveform_class_kwargs = {}
         
         if waveform_generator_kwargs is None:
-            waveform_generator_kwargs = {}
+            waveform_generator_kwargs = {**waveform_class_kwargs}
+        else:
+            waveform_generator_kwargs = {**waveform_class_kwargs, **waveform_generator_kwargs} #if the two dicts have the same keys, the key value in the right side dict is used.
 
         if ResponseWrapper_kwargs is None:
             ResponseWrapper_kwargs = {}
@@ -147,7 +149,7 @@ class StableEMRIFisher:
         self.deriv_type = deriv_type
         if self.deriv_type == "stable":
             waveform_derivative = StableEMRIDerivative(waveform_class = waveform_class, 
-                                                            **waveform_class_kwargs,
+                                                            **waveform_generator_kwargs, #to pass to GenerateEMRIWaveforms
                                                    )
             self.waveform_derivative_kwargs = {}
             #some utility funcs from SED useful later
@@ -200,8 +202,8 @@ class StableEMRIFisher:
         }
 
     def __call__(self, m1, m2, a, p0, e0, xI0, dist, qS, phiS, qK, phiK,
-                 Phi_phi0, Phi_theta0, Phi_r0, dt=10.0, T=1.0, add_param_args=None, waveform_kwargs=None,
-                 window = None, fmin = None, fmax = None, 
+                 Phi_phi0, Phi_theta0, Phi_r0, dt=10.0, T=1.0,  add_param_args=None, waveform_kwargs=None,
+                 window = None, fmin = None, fmax = None,
                  param_names=None, deltas = None, der_order=2, Ndelta=8, delta_range = None, 
                  CovEllipse=False, stability_plot=False, save_derivatives=False,
                  live_dangerously = False, plunge_check=True, filename=None, suffix=None, ):
@@ -282,6 +284,7 @@ class StableEMRIFisher:
         
         # ensure dt and T are passed to waveform generator
         self.waveform_kwargs.update(dict(dt=self.dt, T=self.T))
+        print("T: ", T, "dt: ", dt)
 
         # optional custom delta grids per parameter
         self.delta_range = delta_range if delta_range is not None else {}
@@ -321,7 +324,7 @@ class StableEMRIFisher:
             self.T = final_time / YRSID_SI  # Years
             self.waveform_kwargs.update(dict(T=self.T))
 
-        rho = self.SNRcalc_SEF()
+        rho = self.SNRcalc_SEF(fmin=self.fmin, fmax=self.fmax, window=self.window, use_gpu=self.use_gpu, *self.wave_params_list, **self.waveform_kwargs)
 
         self.SNR2 = rho**2
 
@@ -387,11 +390,11 @@ class StableEMRIFisher:
 
         return Fisher
         
-    def SNRcalc_SEF(self):
+    def SNRcalc_SEF(self, *waveform_args, window=None, fmin=None, fmax=None, use_gpu=False, **waveform_kwargs):
         """Generate waveform and PSDs, then compute the optimal SNR.
 
         The waveform is obtained from `self.waveform_generator` using the
-        parameters provided at call time. If no response wrapper is used and a
+        parameters provided. If no response wrapper is used and a
         1D waveform is returned (h+ - i hx), it is replicated across the
         configured channels with equal weighting. Per-channel PSDs are then
         generated and the multi-channel SNR is computed.
@@ -405,7 +408,13 @@ class StableEMRIFisher:
         else:
             xp = np
 
-        self.waveform = xp.asarray(self.waveform_generator(*self.wave_params_list, **self.waveform_kwargs))
+        try:
+            T = waveform_kwargs['T']
+            dt = waveform_kwargs['dt']
+        except KeyError as e:
+            raise ValueError(f"waveform_kwargs must include {e}.")
+
+        self.waveform = xp.asarray(self.waveform_generator(*waveform_args, **waveform_kwargs))
         
         # If no response is provided and waveform of the form h+ - ihx, create copies equivalent to the number of channels.
         if not self.has_ResponseWrapper:
@@ -414,13 +423,13 @@ class StableEMRIFisher:
 
         logger.debug("wave ndim: %s", self.waveform.ndim)
         #Generate PSDs
-        self.PSD_funcs = generate_PSD(waveform=self.waveform, dt=self.dt, noise_PSD=self.noise_model,
+        self.PSD_funcs = generate_PSD(waveform=self.waveform, dt=dt, noise_PSD=self.noise_model,
                  channels=self.channels, noise_kwargs=self.noise_kwargs, use_gpu=self.use_gpu)
         
         # Compute SNR
-        logger.info("Computing SNR for parameters: %s", self.wave_params)
+        logger.info("Computing SNR for parameters: %s", waveform_args)
 
-        return SNRcalc(self.waveform, self.PSD_funcs, dt=self.dt, window=self.window, fmin=self.fmin, fmax=self.fmax, use_gpu=self.use_gpu)
+        return SNRcalc(self.waveform, self.PSD_funcs, dt=dt, window=window, fmin=fmin, fmax=fmax, use_gpu=use_gpu)
         
     
     def check_if_plunging(self):
@@ -707,7 +716,8 @@ class StableEMRIFisher:
         # Check for positive-definiteness
         if 'm1' in self.param_names:
             index_of_M = np.where(np.array(self.param_names) == 'm1')[0][0]
-            Fisher_inv = fishinv(self.wave_params['m1'], Fisher, index_of_M = index_of_M)
+            #Fisher_inv = fishinv(self.wave_params['m1'], Fisher, index_of_M = index_of_M)
+            Fisher_inv = np.linalg.inv(Fisher)
         else:
             Fisher_inv = np.linalg.inv(Fisher)
 

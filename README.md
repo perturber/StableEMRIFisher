@@ -30,7 +30,8 @@ Documentation coming soon.
 @software{kejriwal_2024_sef,
   author       = {Shubham Kejriwal and
                   Ollie Burke and
-                  Christian Chapman-Bird
+                  Christian Chapman-Bird and
+                  Alvin J. K. Chua
                   },
   title        = {StableEMRIFisher (SEF)},
   publisher    = {Github},

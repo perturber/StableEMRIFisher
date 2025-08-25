@@ -134,8 +134,6 @@ class StableEMRIFisher:
         else:
             waveform_generator_kwargs = {**waveform_class_kwargs, **waveform_generator_kwargs} #if the two dicts have the same keys, the key value in the right side dict is used.
 
-        print("waveform_generator_kwargs: ", waveform_generator_kwargs)
-
         if ResponseWrapper_kwargs is None:
             ResponseWrapper_kwargs = {}
         elif "waveform_gen" in ResponseWrapper_kwargs:

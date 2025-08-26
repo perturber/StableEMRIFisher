@@ -319,11 +319,11 @@ class StableEMRIFisher:
 
         self.wave_params_list = list(self.wave_params.values())
 
-        # Redefine final time if small body is plunging. More stable FMs.
-        if self.plunge_check:
-            final_time = self.check_if_plunging()
-            self.T = final_time / YRSID_SI  # Years
-            self.waveform_kwargs.update(dict(T=self.T))
+        # # Redefine final time if small body is plunging. More stable FMs.
+        # if self.plunge_check:
+        #     final_time = self.check_if_plunging()
+        #     self.T = final_time / YRSID_SI  # Years
+        #     self.waveform_kwargs.update(dict(T=self.T))
 
         rho = self.SNRcalc_SEF(fmin=self.fmin, fmax=self.fmax, window=self.window, use_gpu=self.use_gpu, *self.wave_params_list, **self.waveform_kwargs)
 
@@ -536,6 +536,11 @@ class StableEMRIFisher:
 
                 elif (self.param_names[i] in ['qS', 'phiS', 'qK', 'phiK']) & (self.deriv_type == "stable") & (self.has_ResponseWrapper):
                     # cannot calculate derivative of the response-wrapped waveform with respect to the angles for the stable deriv_type, so we use the direct derivative method.
+                    if k >= len(delta_init):  # Fall into this part only if we feed in our own delta vec
+                        if len(delta_init) == 1:
+                            relerr_flag = True
+                            deltas[self.param_names[i]] = delta_init[0]
+                            break
                     deltas_grid = self._deltas(delta_init[k], self.order, kind=kind)
                     Rh_temp = xp.zeros((len(deltas_grid), len(self.waveform), len(self.waveform[0])), dtype=xp.complex128) #Ngrid x Nchannels x Nsamples
                     #calculate dR_dx

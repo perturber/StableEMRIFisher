@@ -11,6 +11,7 @@ from stableemrifisher.fisher import StableEMRIFisher
 from lisatools.sensitivity import get_sensitivity, A1TDISens, E1TDISens, T1TDISens
 
 from psd_utils import (write_psd_file, load_psd_from_file, load_psd)
+from EMRI_Params import (m1, m2, a, p0, e0, xI0, dist, SNR_choice, qS, phiS, qK, phiK, Phi_phi0, Phi_theta0, Phi_r0, T, dt)
 
 import numpy as np
 try:
@@ -24,24 +25,24 @@ import os
 
 
 # Using full Kerr model
-m1 = 1e6
-m2 = 10
-a = 0.998
-p0 = 7.7275
-e0 = 0.73
-xI0 = 1.0
-dist = 2.20360838037185
-qS = 0.8
-phiS = 2.2
-qK = 1.6
-phiK = 1.2
-Phi_phi0 = 2.0
-Phi_theta0 = 0.0
-Phi_r0 = 4.0
+# m1 = 1e6
+# m2 = 10
+# a = 0.998
+# p0 = 7.7275
+# e0 = 0.73
+# xI0 = 1.0
+# dist = 2.20360838037185
+# qS = 0.8
+# phiS = 2.2
+# qK = 1.6
+# phiK = 1.2
+# Phi_phi0 = 2.0
+# Phi_theta0 = 0.0
+# Phi_r0 = 4.0
 
 
-dt = 5.0  # Sampling interval [seconds]
-T = 2.0     # Evolution time [years]
+# dt = 5.0  # Sampling interval [seconds]
+# T = 2.0     # Evolution time [years]
 
 # Waveform params
 pars_list = [m1,m2,a,p0,e0,xI0,dist,qS,phiS,qK,phiK,Phi_phi0, Phi_theta0, Phi_r0]
@@ -93,13 +94,13 @@ else:
 traj = EMRIInspiral(func=KerrEccEqFlux)  # Set up trajectory module, pn5 AAK
 
 t_traj, p_traj, e_traj, xI_traj, Phi_phi_traj, Phi_r_traj, Phi_theta_traj = traj(m1, m2, a, 
-                                                                                 p0, e0, 1.0,
+                                                                                 p0, e0, xI0,
                                                                                  Phi_phi0=Phi_phi0, 
                                                                                  Phi_theta0=Phi_theta0, 
                                                                                  Phi_r0=Phi_r0, 
                                                                                  T=T)
 
-traj_args = [m1, m2, a, e_traj[0], 1.0]
+traj_args = [m1, m2, a, e_traj[0], xI_traj[0]]
 # Check to see what value of semi-latus rectum is required to build inspiral lasting T years.
 p_new = get_p_at_t(
     traj,
@@ -125,7 +126,7 @@ print(f"Final eccentricity = {e_traj[-1]}")
 #waveform class setup
 waveform_class = FastKerrEccentricEquatorialFlux
 waveform_class_kwargs = dict(inspiral_kwargs=dict(err=1e-11,),
-                             mode_selector_kwargs=dict(mode_selection_threshold=1e-2))
+                             mode_selector_kwargs=dict(mode_selection_threshold=1e-5))
 
 #waveform generator setup
 waveform_generator = GenerateEMRIWaveform
@@ -172,13 +173,19 @@ delta_range = dict(
     m2 = np.geomspace(1e-2*m2, 1e-7*m2, Ndelta),
     a = np.geomspace(1e-5, 1e-9, Ndelta),
     p0 = np.geomspace(1e-2*p0, 1e-7*p0, Ndelta),
-    e0 = np.geomspace(1e-1*e0, 1e-7*e0, Ndelta),
-    qS = np.geomspace(1e-4,    1e-9,    Ndelta),
-    phiS = np.geomspace(1e-4,    1e-9,    Ndelta),
-    qK = np.geomspace(1e-4,    1e-9,    Ndelta),
-    phiK = np.geomspace(1e-4,    1e-9,    Ndelta),
-    Phi_phi0 = np.geomspace(1e-3,    1e-7,    Ndelta),
-    Phi_r0 = np.geomspace(1e-3,    1e-7,    Ndelta),
+    e0 = np.geomspace(1e-5, 1e-8, Ndelta),
+    qS = np.array([1e-6]),
+    phiS = np.array([1e-6]),
+    qK = np.array([1e-6]),
+    phiK = np.array([1e-6]),
+    Phi_phi0 = np.array([1e-6]),
+    Phi_r0 = np.array([1e-6]),
+    # qS = np.geomspace(1e-4,    1e-9,    Ndelta),
+    # phiS = np.geomspace(1e-4,    1e-9,    Ndelta),
+    # qK = np.geomspace(1e-4,    1e-9,    Ndelta),
+    # phiK = np.geomspace(1e-4,    1e-9,    Ndelta),
+    # Phi_phi0 = np.geomspace(1e-3,    1e-7,    Ndelta),
+    # Phi_r0 = np.geomspace(1e-3,    1e-7,    Ndelta),
 )
 
 print("Computing FM")
@@ -189,7 +196,7 @@ fisher_matrix = sef(*pars_list, param_names = param_names,
              Ndelta = Ndelta, 
              stability_plot = stability_plot,
              delta_range = delta_range,
-             filename="fisher_matrix_file",
+             filename="fisher_matrices/case_3",
             live_dangerously = False)
 end = time.time() - start
 print("Time taken to compute Fisher matrix and stable deltas is", end, "seconds")

@@ -1,0 +1,22 @@
+# Documentation build requirements for StableEMRIFisher
+# These are the packages needed to build the documentation on Read the Docs
+
+# Core Sphinx packages
+sphinx>=5.0.0
+sphinx_rtd_theme>=1.0.0
+nbsphinx>=0.8.0
+
+# Extensions for documentation features
+sphinx-autodoc-typehints>=1.12.0
+sphinx-copybutton>=0.5.0
+
+# For notebook execution (if needed)
+jupyter>=1.0.0
+ipykernel>=6.0.0
+
+# Plotting and visualization for documentation
+matplotlib>=3.5.0
+numpy>=1.20.0
+
+# Mock packages that are hard to install on RTD
+# The actual package dependencies will be mocked in conf.py if needed

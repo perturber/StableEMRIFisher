@@ -1,0 +1,47 @@
+/* Custom CSS for StableEMRIFisher documentation */
+
+/* Improve code block styling */
+.highlight {
+    background-color: #f8f8f8;
+    border: 1px solid #e1e4e5;
+    border-radius: 4px;
+    margin: 1em 0;
+}
+
+/* Better spacing for parameter lists */
+.field-list dt {
+    font-weight: bold;
+    margin-top: 0.5em;
+}
+
+/* Improve equation display */
+.math {
+    text-align: center;
+    margin: 1em 0;
+}
+
+/* Style for admonitions */
+.admonition {
+    margin: 1em 0;
+    padding: 0.5em;
+    border-left: 4px solid #ccc;
+    background-color: #f9f9f9;
+}
+
+.admonition.note {
+    border-left-color: #6ab0de;
+}
+
+.admonition.warning {
+    border-left-color: #f0b37e;
+}
+
+.admonition.tip {
+    border-left-color: #1abc9c;
+}
+
+/* Logo styling when added */
+.logo {
+    max-height: 60px;
+    margin-bottom: 10px;
+}

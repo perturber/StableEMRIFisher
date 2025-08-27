@@ -1,0 +1,41 @@
+# Read the Docs configuration file for StableEMRIFisher
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html
+
+version: 2
+
+# Set the OS, Python version and other tools you might need
+build:
+  os: ubuntu-22.04
+  tools:
+    python: "3.11"
+  jobs:
+    post_checkout:
+      # Cancel building pull requests when there aren't changes in the docs directory or YAML file.
+      # You can add any other files or directories that you'd like here as well,
+      # like your docs requirements file, or other files that will change your docs build.
+      - |
+        if [ "$READTHEDOCS_VERSION_TYPE" = "external" ] && git diff --quiet HEAD^ HEAD -- docs/ .readthedocs.yaml pyproject.toml;
+        then
+          echo "No changes to docs/ - exiting the build"
+          exit 183;
+        fi
+
+# Build documentation in the "docs/" directory with Sphinx
+sphinx:
+  configuration: docs/conf.py
+  fail_on_warning: false
+
+# Explicitly set the version of Python and its requirements
+python:
+  install:
+    # Install the package itself for autodoc
+    - method: pip
+      path: .
+    # Install documentation dependencies
+    - requirements: docs/requirements.txt
+
+# Optional but recommended, serve the docs on a subpath
+# This allows serving multiple versions of the docs
+formats:
+  - pdf
+  - epub

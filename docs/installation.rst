@@ -32,6 +32,57 @@ You must install these packages separately before using StableEMRIFisher:
      cd FastEMRIWaveforms
      pip install .
 
+Installation Options
+--------------------
+
+CPU-Only Installation (Default)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The default installation provides CPU-only computation using NumPy. This works on all platforms:
+
+.. code-block:: bash
+
+   # From PyPI (coming soon)
+   pip install stableemrifisher
+   
+   # From source
+   git clone https://github.com/perturber/StableEMRIFisher.git
+   cd StableEMRIFisher
+   pip install .
+
+   # With Poetry
+   poetry install
+
+GPU-Accelerated Installation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For GPU acceleration with NVIDIA CUDA (Linux x86_64 only):
+
+.. code-block:: bash
+
+   # For CUDA 11.x systems
+   pip install stableemrifisher[cuda11]
+   
+   # For CUDA 12.x systems  
+   pip install stableemrifisher[cuda12]
+   
+   # Generic GPU support (latest CuPy)
+   pip install stableemrifisher[gpu]
+
+   # With Poetry
+   poetry install --extras cuda12
+
+.. note::
+   GPU support requires:
+   
+   * Linux x86_64 operating system
+   * NVIDIA GPU with CUDA capability
+   * Appropriate CUDA drivers installed
+   * macOS and Windows systems will automatically fall back to CPU-only mode
+     git clone https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms.git
+     cd FastEMRIWaveforms
+     pip install .
+
 Optional Dependencies
 ~~~~~~~~~~~~~~~~~~~~~
 

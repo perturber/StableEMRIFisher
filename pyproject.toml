@@ -35,12 +35,31 @@ dependencies = [
     "numpy>=1.20.0",
     "scipy>=1.7.0",
     "h5py>=3.0.0",
+    "fastemriwaveforms==2.0.0",
 ]
 
 [project.optional-dependencies]
+# CPU-only installation (default, works on all platforms)
+cpu = []
+
+# GPU support - platform dependent  
+# Note: GPU support primarily for Linux x86_64 systems with NVIDIA GPUs
 gpu = [
-    "cupy>=9.0.0",
+    "cupy>=12.0.0; platform_system=='Linux' and platform_machine=='x86_64'",
 ]
+
+# Specific CUDA toolkit versions (Linux x86_64 only)
+# Note: These will install CUDA-specific versions of FastEMRIWaveforms
+cuda11 = [
+    "cupy-cuda11x>=12.0.0; platform_system=='Linux' and platform_machine=='x86_64'",
+    "fastemriwaveforms[cuda11]==2.0.0; platform_system=='Linux' and platform_machine=='x86_64'",
+]
+cuda12 = [
+    "cupy-cuda12x>=12.0.0; platform_system=='Linux' and platform_machine=='x86_64'",
+    "fastemriwaveforms[cuda12]==2.0.0; platform_system=='Linux' and platform_machine=='x86_64'",
+]
+
+# Documentation dependencies
 docs = [
     "sphinx>=5.0.0",
     "sphinx_rtd_theme>=1.0.0",
@@ -51,6 +70,8 @@ docs = [
     "jupyter>=1.0.0",
     "ipykernel>=6.0.0",
 ]
+
+# Development dependencies
 dev = [
     "pytest>=6.0.0",
     "pytest-cov>=2.10.0",
@@ -59,9 +80,6 @@ dev = [
     "flake8>=3.8.0",
     "isort>=5.0.0",
     "mypy>=0.900",
-]
-all = [
-    "stableemrifisher[gpu,docs,dev]",
 ]
 
 [project.urls]

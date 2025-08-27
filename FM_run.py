@@ -8,6 +8,7 @@ from few.utils.utility import get_p_at_t
 from few.utils.geodesic import get_separatrix
 
 from stableemrifisher.fisher import StableEMRIFisher
+from stableemrifisher.utils import check_if_plunging
 from lisatools.sensitivity import get_sensitivity, A1TDISens, E1TDISens, T1TDISens
 
 from psd_utils import (write_psd_file, load_psd_from_file, load_psd)
@@ -24,10 +25,85 @@ import time
 import os
 
 YRSID_SI = 31558149.763545603
-
+ONE_HOUR = 60*60
 # Waveform params
 pars_list = [m1,m2,a,p0,e0,xI0,dist,qS,phiS,qK,phiK,Phi_phi0, Phi_theta0, Phi_r0]
 
+
+
+# def check_if_plunging(traj, T, m1, m2,a,p0,e0,xI0,Phi_phi0, Phi_theta0, Phi_r0, chop_inspiral_time = 0.0):
+
+#     t_traj, p_traj, e_traj, xI_traj, Phi_phi_traj, Phi_r_traj, Phi_theta_traj = traj(m1, m2, a, 
+#                                                                                     p0, e0, xI0,
+#                                                                                     Phi_phi0=Phi_phi0, 
+#                                                                                     Phi_theta0=Phi_theta0, 
+#                                                                                     Phi_r0=Phi_r0, 
+#                                                                                     T=T)
+#     if t_traj[-1] < T*YRSID_SI:
+#         print("Ah, looks like things are plunging, nightmare. redefining time T")
+#         end_time_seconds = (t_traj[-1]/YRSID_SI)
+#         T = end_time_seconds - chop_inspiral_time*(ONE_HOUR)/YRSID_SI
+#         t_traj, p_traj, e_traj, xI_traj, Phi_phi_traj, Phi_r_traj, Phi_theta_traj = traj(m1, m2, a, 
+#                                                                                     p0, e0, xI0,
+#                                                                                     Phi_phi0=Phi_phi0, 
+#                                                                                     Phi_theta0=Phi_theta0, 
+#                                                                                     Phi_r0=Phi_r0, 
+#                                                                                     T=T)
+#         return T
+#     else:
+#         return 0
+        
+## ===================== CHECK TRAJECTORY ====================
+traj = EMRIInspiral(func=KerrEccEqFlux)  # Set up trajectory module, pn5 AAK
+T = check_if_plunging(traj, T, m1, m2,a,p0,e0,xI0,Phi_phi0, Phi_theta0, Phi_r0, chop_inspiral_time = 0.5) # Remove 30 minutes if plunging
+
+
+t_traj, p_traj, e_traj, xI_traj, Phi_phi_traj, Phi_r_traj, Phi_theta_traj = traj(m1, m2, a, 
+                                                                                 p0, e0, xI0,
+                                                                                 Phi_phi0=Phi_phi0, 
+                                                                                 Phi_theta0=Phi_theta0, 
+                                                                                 Phi_r0=Phi_r0, 
+                                                                                 T=T)
+breakpoint()
+if t_traj[-1] < T*YRSID_SI:
+    print("Ah, looks like things are plunging, nightmare. redefining time T")
+    end_time_seconds = (t_traj[-1]/YRSID_SI)
+    T = end_time_seconds - 0.5*(ONE_HOUR)/YRSID_SI
+    t_traj, p_traj, e_traj, xI_traj, Phi_phi_traj, Phi_r_traj, Phi_theta_traj = traj(m1, m2, a, 
+                                                                                 p0, e0, xI0,
+                                                                                 Phi_phi0=Phi_phi0, 
+                                                                                 Phi_theta0=Phi_theta0, 
+                                                                                 Phi_r0=Phi_r0, 
+                                                                                 T=T)
+
+
+
+print("Final time in years is ", t_traj[-1]/YRSID_SI)
+traj_args = [m1, m2, a, e_traj[0], xI_traj[0]]
+# Check to see what value of semi-latus rectum is required to build inspiral lasting T years.
+p_new = get_p_at_t(
+    traj,
+    T,
+    traj_args,
+    bounds=None
+)
+
+
+
+breakpoint()
+print("We require initial semi-latus rectum of ",p_new, "for inspiral lasting", T, "years")
+print("Your chosen semi-latus rectum is", p0)
+if p0 < p_new:
+    print("Careful, the smaller body is plunging. Expect instabilities.")
+else:
+    print("Body is not plunging.") 
+print("Final point in semilatus rectum achieved is", p_traj[-1])
+print("Separatrix : ", get_separatrix(a, e_traj[-1], xI_traj[-1]))
+
+print("Separation between separatrix and final p = ",abs(get_separatrix(a,e_traj[-1],1.0) - p_traj[-1]))
+print(f"Final eccentricity = {e_traj[-1]}")
+
+# ========================= SET UP RESPONSE FUNCTION ===============================#
 RESPONSE_FUNCTION = True
 USE_GPU = True
 if RESPONSE_FUNCTION:
@@ -66,41 +142,6 @@ if RESPONSE_FUNCTION:
 else:
     data_channels = ["I", "II"]
     N_channels = len(data_channels)
-
-
-
-## ===================== CHECK TRAJECTORY ====================
-# 
-traj = EMRIInspiral(func=KerrEccEqFlux)  # Set up trajectory module, pn5 AAK
-
-t_traj, p_traj, e_traj, xI_traj, Phi_phi_traj, Phi_r_traj, Phi_theta_traj = traj(m1, m2, a, 
-                                                                                 p0, e0, xI0,
-                                                                                 Phi_phi0=Phi_phi0, 
-                                                                                 Phi_theta0=Phi_theta0, 
-                                                                                 Phi_r0=Phi_r0, 
-                                                                                 T=T)
-
-traj_args = [m1, m2, a, e_traj[0], xI_traj[0]]
-# Check to see what value of semi-latus rectum is required to build inspiral lasting T years.
-p_new = get_p_at_t(
-    traj,
-    2,
-    traj_args,
-    bounds=None
-)
-
-print("We require initial semi-latus rectum of ",p_new, "for inspiral lasting", T, "years")
-print("Your chosen semi-latus rectum is", p0)
-if p0 < p_new:
-    print("Careful, the smaller body is plunging. Expect instabilities.")
-else:
-    print("Body is not plunging.") 
-print("Final point in semilatus rectum achieved is", p_traj[-1])
-print("Separatrix : ", get_separatrix(a, e_traj[-1], xI_traj[-1]))
-
-print("Separation between separatrix and final p = ",abs(get_separatrix(a,e_traj[-1],1.0) - p_traj[-1]))
-print(f"Final eccentricity = {e_traj[-1]}")
-
 
 ####=======================True Responsed waveform==========================
 #waveform class setup
@@ -153,20 +194,20 @@ delta_range = dict(
     m1 = np.geomspace(1e-4*m1, 1e-9*m1, Ndelta),
     m2 = np.geomspace(1e-2*m2, 1e-7*m2, Ndelta),
     a = np.geomspace(1e-5, 1e-9, Ndelta),
-    p0 = np.geomspace(1e-2*p0, 1e-7*p0, Ndelta),
-    e0 = np.geomspace(1e-5, 1e-8, Ndelta),
-    # qS = np.array([1e-6]),
-    # phiS = np.array([1e-6]),
-    # qK = np.array([1e-6]),
-    # phiK = np.array([1e-6]),
-    # Phi_phi0 = np.array([1e-6]),
-    # Phi_r0 = np.array([1e-6]),
-    qS = np.geomspace(1e-4,    1e-9,    Ndelta),
-    phiS = np.geomspace(1e-4,    1e-9,    Ndelta),
-    qK = np.geomspace(1e-4,    1e-9,    Ndelta),
-    phiK = np.geomspace(1e-4,    1e-9,    Ndelta),
-    Phi_phi0 = np.geomspace(1e-3,    1e-7,    Ndelta),
-    Phi_r0 = np.geomspace(1e-3,    1e-7,    Ndelta),
+    p0 = np.geomspace(1e-5, 1e-9, Ndelta),
+    e0 = np.geomspace(1e-5, 1e-9, Ndelta),
+    qS = np.array([1e-6]),
+    phiS = np.array([1e-6]),
+    qK = np.array([1e-6]),
+    phiK = np.array([1e-6]),
+    Phi_phi0 = np.array([1e-6]),
+    Phi_r0 = np.array([1e-6]),
+    # qS = np.geomspace(1e-4,    1e-9,    Ndelta),
+    # phiS = np.geomspace(1e-4,    1e-9,    Ndelta),
+    # qK = np.geomspace(1e-4,    1e-9,    Ndelta),
+    # phiK = np.geomspace(1e-4,    1e-9,    Ndelta),
+    # Phi_phi0 = np.geomspace(1e-3,    1e-7,    Ndelta),
+    # Phi_r0 = np.geomspace(1e-3,    1e-7,    Ndelta),
 )
 
 print("Computing FM")
@@ -178,8 +219,8 @@ derivs, fisher_matrix = sef(*pars_list, param_names = param_names,
              stability_plot = stability_plot,
              delta_range = delta_range,
              return_derivatives = True,
-             filename="MCMC_FM_Data/fisher_matrices/case_6",
-            live_dangerously = True)
+             filename="MCMC_FM_Data/fisher_matrices/plunging_EMRI",
+            live_dangerously = False)
 end = time.time() - start
 print("Time taken to compute Fisher matrix and stable deltas is", end, "seconds")
 
@@ -189,6 +230,7 @@ param_cov = np.linalg.inv(fisher_matrix)
 for k, item in enumerate(param_names):
     print("Precision measurement in param {} is {}".format(item, param_cov[k,k]**(1/2)))
 
+breakpoint()
 # ================= Compute fluctuation due to noise realisation ========================
 def zero_pad(data):
     """
@@ -238,7 +280,7 @@ noise_f_AE_real = [xp.random.normal(0,np.sqrt(variance_noise_AE[k])) for k in ra
 noise_f_AE_imag = [xp.random.normal(0,np.sqrt(variance_noise_AE[k])) for k in range(N_channels)]
 
 # Compute noise in frequency domain
-noise_f_AET = xp.asarray([noise_f_AE_real[k] + 1j * noise_f_AE_imag[k] for k in range(N_channels)])
+noise_f_AE = xp.asarray([noise_f_AE_real[k] + 1j * noise_f_AE_imag[k] for k in range(N_channels)])
 
 for i in range(N_channels):
     noise_f_AE[i][0] = noise_f_AE[i][0].real

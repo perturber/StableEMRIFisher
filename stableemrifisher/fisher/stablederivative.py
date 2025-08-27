@@ -187,14 +187,6 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             #if you've reached this point, a derivative w.r.t one of the trajectory parameters is requested.
             #trajectory must be modified
             
-            # TODO: Absolute filth command. Need t_interp to be a numpy array
-            # when called. There will be a much neater way to implement this.
-            # make sure you wash your hands after running this code. Urgh. Not proud. 
-            #if str(self.waveform_generator.backend_name)[0:4] == "cuda":
-            #    use_gpu = True
-            #else:
-            #    use_gpu = False
-            #SK: is this any better? uses_cupy is False if the waveform_generator backend is assuming cpus only.
             use_gpu = self.waveform_generator.backend.uses_cupy
             
             #get trajectories

@@ -321,10 +321,11 @@ class StableEMRIFisher:
         self.wave_params_list = list(self.wave_params.values())
 
         # # Redefine final time if small body is plunging. More stable FMs.
-        # if self.plunge_check:
-        #     final_time = self.check_if_plunging()
-        #     self.T = final_time / YRSID_SI  # Years
-        #     self.waveform_kwargs.update(dict(T=self.T))
+        if self.plunge_check:
+            final_time = self.check_if_plunging()
+            self.T = final_time / YRSID_SI  # Years
+            self.waveform_kwargs.update(dict(T=self.T))
+
 
         rho = self.SNRcalc_SEF(fmin=self.fmin, fmax=self.fmax, window=self.window, use_gpu=self.use_gpu, *self.wave_params_list, **self.waveform_kwargs)
 

@@ -435,3 +435,32 @@ def fplus_fcross_derivs(qS, phiS, qK, phiK,
         out[f'dFplusII/d{x}'] =  2.0 * c2p * dpsi_x
         out[f'dFcrossII/d{x}'] = -2.0 * s2p * dpsi_x
     return out
+
+
+def check_if_plunging(traj, T, m1, m2,a,p0,e0,xI0,Phi_phi0, Phi_theta0, Phi_r0, chop_inspiral_time = 0.0):
+    """
+    This function checks whether the compact object plunges within the given time T. If it does, then we 
+    remove a part of the observation window and redefine a new time. 
+
+    """
+    ONE_HOUR = 60*60
+
+    t_traj, p_traj, e_traj, xI_traj, Phi_phi_traj, Phi_r_traj, Phi_theta_traj = traj(m1, m2, a, 
+                                                                                    p0, e0, xI0,
+                                                                                    Phi_phi0=Phi_phi0, 
+                                                                                    Phi_theta0=Phi_theta0, 
+                                                                                    Phi_r0=Phi_r0, 
+                                                                                    T=T)
+    if t_traj[-1] < T*YRSID_SI:
+        print("Ah, looks like things are plunging, nightmare. redefining time T")
+        end_time_seconds = (t_traj[-1]/YRSID_SI)
+        T = end_time_seconds - chop_inspiral_time*(ONE_HOUR)/YRSID_SI
+        t_traj, p_traj, e_traj, xI_traj, Phi_phi_traj, Phi_r_traj, Phi_theta_traj = traj(m1, m2, a, 
+                                                                                    p0, e0, xI0,
+                                                                                    Phi_phi0=Phi_phi0, 
+                                                                                    Phi_theta0=Phi_theta0, 
+                                                                                    Phi_r0=Phi_r0, 
+                                                                                    T=T)
+        return T
+    else:
+        return 0

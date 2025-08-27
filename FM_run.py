@@ -23,30 +23,10 @@ except ImportError:
 import time
 import os
 
-
-# Using full Kerr model
-# m1 = 1e6
-# m2 = 10
-# a = 0.998
-# p0 = 7.7275
-# e0 = 0.73
-# xI0 = 1.0
-# dist = 2.20360838037185
-# qS = 0.8
-# phiS = 2.2
-# qK = 1.6
-# phiK = 1.2
-# Phi_phi0 = 2.0
-# Phi_theta0 = 0.0
-# Phi_r0 = 4.0
-
-
-# dt = 5.0  # Sampling interval [seconds]
-# T = 2.0     # Evolution time [years]
+YRSID_SI = 31558149.763545603
 
 # Waveform params
 pars_list = [m1,m2,a,p0,e0,xI0,dist,qS,phiS,qK,phiK,Phi_phi0, Phi_theta0, Phi_r0]
-YRSID_SI = 31558149.763545603
 
 RESPONSE_FUNCTION = True
 USE_GPU = True
@@ -126,6 +106,7 @@ print(f"Final eccentricity = {e_traj[-1]}")
 #waveform class setup
 waveform_class = FastKerrEccentricEquatorialFlux
 waveform_class_kwargs = dict(inspiral_kwargs=dict(err=1e-11,),
+                             sum_kwargs=dict(pad_output=True), # Required for plunging waveforms
                              mode_selector_kwargs=dict(mode_selection_threshold=1e-5))
 
 #waveform generator setup
@@ -174,30 +155,31 @@ delta_range = dict(
     a = np.geomspace(1e-5, 1e-9, Ndelta),
     p0 = np.geomspace(1e-2*p0, 1e-7*p0, Ndelta),
     e0 = np.geomspace(1e-5, 1e-8, Ndelta),
-    qS = np.array([1e-6]),
-    phiS = np.array([1e-6]),
-    qK = np.array([1e-6]),
-    phiK = np.array([1e-6]),
-    Phi_phi0 = np.array([1e-6]),
-    Phi_r0 = np.array([1e-6]),
-    # qS = np.geomspace(1e-4,    1e-9,    Ndelta),
-    # phiS = np.geomspace(1e-4,    1e-9,    Ndelta),
-    # qK = np.geomspace(1e-4,    1e-9,    Ndelta),
-    # phiK = np.geomspace(1e-4,    1e-9,    Ndelta),
-    # Phi_phi0 = np.geomspace(1e-3,    1e-7,    Ndelta),
-    # Phi_r0 = np.geomspace(1e-3,    1e-7,    Ndelta),
+    # qS = np.array([1e-6]),
+    # phiS = np.array([1e-6]),
+    # qK = np.array([1e-6]),
+    # phiK = np.array([1e-6]),
+    # Phi_phi0 = np.array([1e-6]),
+    # Phi_r0 = np.array([1e-6]),
+    qS = np.geomspace(1e-4,    1e-9,    Ndelta),
+    phiS = np.geomspace(1e-4,    1e-9,    Ndelta),
+    qK = np.geomspace(1e-4,    1e-9,    Ndelta),
+    phiK = np.geomspace(1e-4,    1e-9,    Ndelta),
+    Phi_phi0 = np.geomspace(1e-3,    1e-7,    Ndelta),
+    Phi_r0 = np.geomspace(1e-3,    1e-7,    Ndelta),
 )
 
 print("Computing FM")
 start = time.time()
-fisher_matrix = sef(*pars_list, param_names = param_names, 
+derivs, fisher_matrix = sef(*pars_list, param_names = param_names, 
              T = T, dt = dt, 
              der_order = der_order, 
              Ndelta = Ndelta, 
              stability_plot = stability_plot,
              delta_range = delta_range,
-             filename="fisher_matrices/case_3",
-            live_dangerously = False)
+             return_derivatives = True,
+             filename="MCMC_FM_Data/fisher_matrices/case_6",
+            live_dangerously = True)
 end = time.time() - start
 print("Time taken to compute Fisher matrix and stable deltas is", end, "seconds")
 
@@ -206,5 +188,69 @@ param_cov = np.linalg.inv(fisher_matrix)
 
 for k, item in enumerate(param_names):
     print("Precision measurement in param {} is {}".format(item, param_cov[k,k]**(1/2)))
+
+# ================= Compute fluctuation due to noise realisation ========================
+def zero_pad(data):
+    """
+    Inputs: data stream of length N
+    Returns: zero_padded data stream of new length 2^{J} for J \in \mathbb{N}
+    """
+    N = len(data)
+    pow_2 = xp.ceil(np.log2(N))
+    return xp.pad(data,(0,int((2**pow_2)-N)),'constant')
+
+def inner_prod(sig1_f,sig2_f,N_t,delta_t,PSD):
+    """
+    Compute stationary noise-weighted inner product
+    Inputs: sig1_f and sig2_f are signals in frequency domain 
+            N_t length of padded signal in time domain
+            delta_t sampling interval
+            PSD Power spectral density
+
+    Returns: Noise weighted inner product 
+    """
+    prefac = 4*delta_t / N_t
+    sig2_f_conj = xp.conjugate(sig2_f)
+    return prefac * xp.real(xp.sum((sig1_f * sig2_f_conj)/PSD))
+
+
+N_params = len(param_names)
+derivs_A_channel = [zero_pad(derivs[p][0]) for p in range(N_params)]
+derivs_E_channel = [zero_pad(derivs[p][1]) for p in range(N_params)]
+
+derivs_A_fft = [xp.fft.rfft(derivs_A_channel[p]) for p in range(N_params)]
+derivs_E_fft = [xp.fft.rfft(derivs_E_channel[p]) for p in range(N_params)]
+
+N_t = len(derivs_A_channel[0])
+
+freq_bins = np.fft.rfftfreq(N_t, dt)
+freq_bins[0] = freq_bins[1]
+
+PSD_AE = PSD_AE_interp(freq_bins)
+
+variance_noise_AE = [N_t * PSD_AE[k] / (4*dt) for k in range(N_channels)]
+
+variance_noise_AE[0] = 2*variance_noise_AE[0]
+variance_noise_AE[-1] = 2*variance_noise_AE[-1]
+
+np.random.seed(1)
+noise_f_AE_real = [xp.random.normal(0,np.sqrt(variance_noise_AE[k])) for k in range(N_channels)]
+noise_f_AE_imag = [xp.random.normal(0,np.sqrt(variance_noise_AE[k])) for k in range(N_channels)]
+
+# Compute noise in frequency domain
+noise_f_AET = xp.asarray([noise_f_AE_real[k] + 1j * noise_f_AE_imag[k] for k in range(N_channels)])
+
+for i in range(N_channels):
+    noise_f_AE[i][0] = noise_f_AE[i][0].real
+    noise_f_AE[i][-1] = noise_f_AE[i][-1].real
+
+noise_f_A = noise_f_AE[0]
+noise_f_E = noise_f_AE[1]
+
+bias_vec_1 = np.array([inner_prod(derivs_A_fft[k],noise_f_A,N_t,dt,PSD_AE[0]) for p in range(N_params)])
+bias_vec_1 = np.array([inner_prod(derivs_A_fft[k],noise_f_A,N_t,dt,PSD_AE[0]) for p in range(N_params)])
+
+
+breakpoint()
 
 

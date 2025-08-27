@@ -41,12 +41,12 @@ except ImportError:
 # ================== CASE 3 IN TABLE ======================
 # MEGA IMRI -- Pints. TDI2, SNR = 
 
-m1 = 1e7; m2 = 100_000; a = 0.95; p0 = 23.4250; e0 = 0.85; xI0 = 1.0
-SNR_choice = 500.0; 
-dist = 3.797946825087277;
-qS = 0.8 ; phiS = 2.2; qK = 1.6; phiK = 1.2; 
-Phi_phi0 = 2.0; Phi_theta0 = 0.0; Phi_r0 = 3.0
-dt = 5.0; T = 2.0;
+# m1 = 1e7; m2 = 100_000; a = 0.95; p0 = 23.4250; e0 = 0.85; xI0 = 1.0
+# SNR_choice = 500.0; 
+# dist = 3.797946825087277;
+# qS = 0.8 ; phiS = 2.2; qK = 1.6; phiK = 1.2; 
+# Phi_phi0 = 2.0; Phi_theta0 = 0.0; Phi_r0 = 3.0
+# dt = 5.0; T = 2.0;
 
 
 
@@ -72,9 +72,10 @@ dt = 5.0; T = 2.0;
 # dt = 2.0; T = 2.0;
 # Now check out eccentricity
 
-# m1 = 1e6; m2 = 25; a = 0.998; p0 = 10.628; e0 = 0.1; xI0 = 1.0
-# dist = 1.0; SNR_choice = 50.0; 
-# qS = 0.5 ; phiS = 1.2; qK = 0.8; phiK = 0.2; 
-# Phi_phi0 = 1.0; Phi_theta0 = 0.0; Phi_r0 = 3.0
+# ================== CASE 6 ======================
+m1 = 1e6; m2 = 25; a = 0.9; p0 = 10.78; e0 = 0.3; xI0 = 1.0
+dist = 13.152600545674767; SNR_choice = 20.0; 
+qS = 0.5 ; phiS = 1.2; qK = 0.8; phiK = 0.2; 
+Phi_phi0 = 2.0; Phi_theta0 = 0.0; Phi_r0 = 3.0
 
-# dt = 5.0; T = 2.0;
+dt = 5.0; T = 2.0;

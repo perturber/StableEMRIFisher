@@ -158,6 +158,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                 show_progress=show_progress,
                 **kwargs_remaining,
             )
+            # breakpoint()
 
         # sky angles (SSB)
         elif param_to_vary in ['qS', 'phiS', 'qK', 'phiK']:

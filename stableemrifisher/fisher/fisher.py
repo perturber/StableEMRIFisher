@@ -207,6 +207,7 @@ class StableEMRIFisher:
                  window = None, fmin = None, fmax = None,
                  param_names=None, deltas = None, der_order=2, Ndelta=8, delta_range = None, 
                  CovEllipse=False, stability_plot=False, save_derivatives=False,
+                 return_derivatives=False,
                  live_dangerously = False, plunge_check=True, filename=None, suffix=None, ):
         """Run the full pipeline at specific EMRI parameters.
 
@@ -276,7 +277,7 @@ class StableEMRIFisher:
         self.suffix = suffix
         self.live_dangerously = live_dangerously
         self.plunge_check = plunge_check
-        
+        self.return_derivatives = return_derivatives 
         if waveform_kwargs is not None:
             # merge per-call waveform kwargs with existing defaults
             self.waveform_kwargs = dict(**waveform_kwargs)
@@ -745,5 +746,7 @@ class StableEMRIFisher:
             else:
                 with h5py.File(f"{self.filename}/Fisher.h5", mode) as f:
                     f.create_dataset("Fisher",data=Fisher)
-                    
-        return Fisher
+        if self.return_derivatives == True:
+            return dtv, Fisher
+        else:                    
+            return Fisher

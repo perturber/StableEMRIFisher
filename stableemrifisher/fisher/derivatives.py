@@ -43,7 +43,16 @@ def handle_a_flip(params):
         params['Y0'] = -1.
     return params
 
-def derivative(waveform_generator, parameters, param_to_vary, delta, order=4, kind="central", use_gpu=False, waveform=None, waveform_kwargs=None):
+def derivative(*args, #To fool fastlisaresponse
+               waveform_generator, 
+               parameters, 
+               param_to_vary, 
+               delta, 
+               order=4, 
+               kind="central", 
+               use_gpu=False, 
+               waveform=None, 
+               waveform_kwargs=None):
     
     if kind not in ["central", "forward", "backward"]:
         raise ValueError('"kind" must be one of ("central", "forward", "backward") ')

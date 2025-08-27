@@ -168,13 +168,13 @@ If you use StableEMRIFisher in your research, please cite:
 @software{kejriwal_2024_sef,
   author       = {Shubham Kejriwal and
                   Ollie Burke and
-                  Christian Chapman-Bird},
-  title        = {StableEMRIFisher (SEF): A Stable Numerical 
-                  Derivative Package for EMRI Fisher Matrix Analysis},
-  publisher    = {GitHub},
-  year         = {2024},
-  url          = {https://github.com/perturber/StableEMRIFisher},
-  note         = {Version 1.1.3}
+                  Christian Chapman-Bird and
+                  Alvin J. K. Chua
+                  },
+  title        = {StableEMRIFisher (SEF)},
+  publisher    = {Github},
+  year         = "manuscript in preparation",
+  url          = {https://github.com/perturber/StableEMRIFisher}
 }
 ```
 

@@ -116,8 +116,8 @@ print(
 print(f"Final eccentricity = {e_traj[-1]}")
 
 # ========================= SET UP RESPONSE FUNCTION ===============================#
-RESPONSE_FUNCTION = True
-USE_GPU = True
+RESPONSE_FUNCTION = False
+USE_GPU = False
 if RESPONSE_FUNCTION:
     from fastlisaresponse import ResponseWrapper  # Response
     from lisatools.detector import EqualArmlengthOrbits
@@ -213,6 +213,8 @@ sef = StableEMRIFisher(
     waveform_generator_kwargs=waveform_generator_kwargs,
     ResponseWrapper=ResponseWrapper,
     ResponseWrapper_kwargs=ResponseWrapper_kwargs,
+    dt = dt,
+    T = T,
     noise_model=noise_model,
     noise_kwargs=noise_kwargs,
     channels=channels,
@@ -237,12 +239,12 @@ sef = StableEMRIFisher(
 #                       deriv_type='stable')
 
 param_names = [
-    "m1",
-    "m2",
-    "a",
-    "p0",
-    "e0",
-    "dist",
+    # "m1",
+    # "m2",
+    # "a",
+    # "p0",
+    # "e0",
+    # "dist",
     "qS",
     "phiS",
     "qK",

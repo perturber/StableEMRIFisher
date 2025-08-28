@@ -11,11 +11,9 @@ from few.trajectory.inspiral import EMRIInspiral
 from few.utils.utility import get_p_at_t
 from few.utils.geodesic import get_separatrix
 
-from stableemrifisher.fisher import StableEMRIFisher
-from stableemrifisher.utils import check_if_plunging
-from lisatools.sensitivity import get_sensitivity, A1TDISens, E1TDISens, T1TDISens
+# from stableemrifisher.fisher.derivatives import StableEMRIDerivative
+from stableemrifisher.fisher.stablederivative import StableEMRIDerivative
 
-from psd_utils import write_psd_file, load_psd_from_file
 from EMRI_Params import (
     m1,
     m2,
@@ -68,20 +66,6 @@ pars_list = [
 ]
 
 traj = EMRIInspiral(func=KerrEccEqFlux)  # Set up trajectory module, pn5 AAK
-T = check_if_plunging(
-    traj,
-    T,
-    m1,
-    m2,
-    a,
-    p0,
-    e0,
-    xI0,
-    Phi_phi0,
-    Phi_theta0,
-    Phi_r0,
-    chop_inspiral_time=0.5,
-)  # Remove 30 minutes if plunging
 
 
 t_traj, p_traj, e_traj, xI_traj, Phi_phi_traj, Phi_r_traj, Phi_theta_traj = traj(
@@ -115,9 +99,10 @@ print(
 )
 print(f"Final eccentricity = {e_traj[-1]}")
 
+
 # ========================= SET UP RESPONSE FUNCTION ===============================#
-RESPONSE_FUNCTION = False
-USE_GPU = False
+RESPONSE_FUNCTION = True
+USE_GPU = True
 if RESPONSE_FUNCTION:
     from fastlisaresponse import ResponseWrapper  # Response
     from lisatools.detector import EqualArmlengthOrbits
@@ -260,10 +245,14 @@ delta_range = dict(
     a=np.geomspace(1e-5, 1e-9, Ndelta),
     p0=np.geomspace(1e-5, 1e-9, Ndelta),
     e0=np.geomspace(1e-5, 1e-9, Ndelta),
-    qS=np.array([1e-6]),  # Flat errors in angles
-    phiS=np.array([1e-6]),  # Flat errors in angles
-    qK=np.array([1e-6]),  # Flat errors in angles
-    phiK=np.array([1e-6]),  # Flat errors in angles
+    # qS=np.array([1e-6]),  # Flat errors in angles
+    # phiS=np.array([1e-6]),  # Flat errors in angles
+    # qK=np.array([1e-6]),  # Flat errors in angles
+    # phiK=np.array([1e-6]),  # Flat errors in angles
+    qS=np.geomspace(1e-3, 1e-7, Ndelta),
+    phiS=np.geomspace(1e-3, 1e-7, Ndelta),
+    qK=np.geomspace(1e-3, 1e-7, Ndelta),
+    phiK=np.geomspace(1e-3, 1e-7, Ndelta)
 )
 
 print("Computing FM")

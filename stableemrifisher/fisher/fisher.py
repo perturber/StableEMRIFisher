@@ -108,7 +108,6 @@ class StableEMRIFisher:
         CovEllipse: bool = False,
         stability_plot: bool = False,
         save_derivatives: bool = False,
-        live_dangerously: bool = False,
         filename: Optional[str] = None,
         plunge_check: bool = True,
         return_derivatives: bool = False,
@@ -140,8 +139,6 @@ class StableEMRIFisher:
             CovEllipse: If True, compute covariance and plots by default.
             stability_plot: If True, plot stability curves by default.
             save_derivatives: If True, save derivative stacks to HDF5 by default.
-            live_dangerously: If True, skip stability
-                              search and use heuristics by default.
             plunge_check: If True, trim evolution time if plunge is detected by default.
             return_derivatives: If True, return derivatives along
                                 with Fisher matrix by default.
@@ -328,7 +325,6 @@ class StableEMRIFisher:
         self.CovEllipse = CovEllipse
         self.stability_plot = stability_plot
         self.save_derivatives = save_derivatives
-        self.live_dangerously = live_dangerously
         self.plunge_check = plunge_check
         self.return_derivatives = return_derivatives
 
@@ -355,20 +351,7 @@ class StableEMRIFisher:
 
     def __call__(
         self,
-        m1: float,
-        m2: float,
-        a: float,
-        p0: float,
-        e0: float,
-        xI0: float,
-        dist: float,
-        qS: float,
-        phiS: float,
-        qK: float,
-        phiK: float,
-        Phi_phi0: float,
-        Phi_theta0: float,
-        Phi_r0: float,
+        wave_params: Dict[str, float],
         add_param_args: Optional[Dict[str, Any]] = None,
         waveform_kwargs: Optional[Dict[str, Any]] = None,
         window: Optional[Union[np.ndarray, Any]] = None,
@@ -442,7 +425,7 @@ class StableEMRIFisher:
         """
 
         # initialize deltas (can be provided up-front)
-        if deltas is not None and len(deltas) != self.npar:
+        if deltas is not None and len(deltas) != len(param_names):
             logger.critical(
                 "Length of deltas array should be equal to "
                 "length of param_names.\nAssuming deltas = None."
@@ -465,9 +448,6 @@ class StableEMRIFisher:
         )
         self.filename = filename  # Always set per-call
         self.suffix = suffix  # Always set per-call
-        self.live_dangerously = (
-            live_dangerously if live_dangerously is not None else self.live_dangerously
-        )
         self.plunge_check = (
             plunge_check if plunge_check is not None else self.plunge_check
         )
@@ -494,29 +474,13 @@ class StableEMRIFisher:
 
         # optional custom delta grids per parameter
         if delta_range is None:
-            self.live_dangerously = True
+            live_dangerously = True
             self.delta_range = {}
         else:
             self.delta_range = delta_range
 
         # initialize parameter dictionaries for this call
-        self.wave_params = {
-            "m1": m1,
-            "m2": m2,
-            "a": a,
-            "p0": p0,
-            "e0": e0,
-            "xI0": xI0,
-            "dist": dist,
-            "qS": qS,
-            "phiS": phiS,
-            "qK": qK,
-            "phiK": phiK,
-            "Phi_phi0": Phi_phi0,
-            "Phi_theta0": Phi_theta0,
-            "Phi_r0": Phi_r0,
-        }
-
+        self.wave_params = wave_params
         # initialize parameter name list
         if param_names is None:
             EMRI_ORBIT = (
@@ -620,7 +584,7 @@ class StableEMRIFisher:
                 os.makedirs(self.filename)
 
         # 1. If deltas not provided, calculating the stable deltas
-        if not self.live_dangerously:
+        if not live_dangerously:
             if self.deltas is None:
                 start = time.time()
                 self.Fisher_Stability()  # Attempts to compute stable delta values.

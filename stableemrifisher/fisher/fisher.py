@@ -578,7 +578,7 @@ class StableEMRIFisher:
                     Gamma = xp.array(Gamma)
                 
                 if (Gamma[1:] == 0.).all(): #handle non-contributing parameters
-                    relerr = np.ones(len(Gamma)-1)
+                    relerr = list(np.ones(len(Gamma)-1))
                 else:
                     relerr = []
                     for m in range(1,len(Gamma)):

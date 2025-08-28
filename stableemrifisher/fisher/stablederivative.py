@@ -88,6 +88,9 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                                                             parameters['qK'],
                                                             parameters['phiK'])
         
+        self.theta_source = theta_source 
+        self.phi_source = phi_source
+
         keys_exclude = ['T', 'dt', 'batch_size', 'show_progress']
         kwargs_remaining = {key: value for key, value in kwargs.items() if key not in keys_exclude}
 
@@ -652,10 +655,11 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
 
         #first calculate dylm_dtheta
         for k, delt in enumerate(self.deltas):
-            parameters_in = parameters.copy()
-            parameters_in['theta_source'] += float(delt) #theta is of the same order as the other angles, so we use the same deltas.
+
+            theta_source_perturb = self.theta_source + float(delt)
+            phi_source_perturb = self.phi_source + float(delt)
             # get the ylms for this theta
-            ylm_temp[k] = self.ylm_gen(self.cache['ls_all'], self.cache['ms_all'], parameters_in['theta_source'], parameters_in['phi_source'])
+            ylm_temp[k] = self.ylm_gen(self.cache['ls_all'], self.cache['ms_all'], theta_source_perturb, phi_source_perturb)
 
         dYlm_dtheta = self._stencil(ylm_temp, self.delta, self.order, self.kind)
 

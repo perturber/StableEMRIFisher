@@ -11,9 +11,9 @@ sys.path.insert(0, os.path.abspath('..'))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'StableEMRIFisher'
-copyright = '2024, Shubham Kejriwal, Ollie Burke, Christian Chapman-Bird'  # pylint: disable=redefined-builtin
-author = 'Shubham Kejriwal, Ollie Burke, Christian Chapman-Bird'
-release = '1.1.3'
+copyright = '2024, Shubham Kejriwal, Ollie Burke, Christian Chapman-Bird and Alvin Chua'  # pylint: disable=redefined-builtin
+author = 'Shubham Kejriwal, Ollie Burke, Christian Chapman-Bird and Alvin Chua'
+release = '2.0.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

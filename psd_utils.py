@@ -100,7 +100,6 @@ def load_psd_from_file(psd_file, xp=np):
 
     min_psd = np.min(values[:, freqs < 1e-2], axis=1) # compatible with both tdi 1 and tdi 2
     max_psd = np.max(values, axis=1)
-    print("PSD range", min_psd, max_psd)
     psd_interp = CubicSplineInterpolant(freqs, values, force_backend=backend)
 
     def psd_clipped(f, **kwargs):

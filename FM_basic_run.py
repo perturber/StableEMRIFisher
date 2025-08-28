@@ -39,18 +39,6 @@ t_traj, p_traj, e_traj, xI_traj, Phi_phi_traj, Phi_r_traj, Phi_theta_traj = traj
                                                                                  Phi_theta0=Phi_theta0, 
                                                                                  Phi_r0=Phi_r0, 
                                                                                  T=T)
-if t_traj[-1] < T*YRSID_SI:
-    print("Ah, looks like things are plunging, nightmare. redefining time T")
-    end_time_seconds = (t_traj[-1]/YRSID_SI)
-    T = end_time_seconds - 0.5*(ONE_HOUR)/YRSID_SI
-    t_traj, p_traj, e_traj, xI_traj, Phi_phi_traj, Phi_r_traj, Phi_theta_traj = traj(m1, m2, a, 
-                                                                                 p0, e0, xI0,
-                                                                                 Phi_phi0=Phi_phi0, 
-                                                                                 Phi_theta0=Phi_theta0, 
-                                                                                 Phi_r0=Phi_r0, 
-                                                                                 T=T)
-
-
 
 print("Final time in years is ", t_traj[-1]/YRSID_SI)
 traj_args = [m1, m2, a, e_traj[0], xI_traj[0]]
@@ -78,7 +66,7 @@ print(f"Final eccentricity = {e_traj[-1]}")
 
 # ========================= SET UP RESPONSE FUNCTION ===============================#
 RESPONSE_FUNCTION = True
-USE_GPU = False
+USE_GPU = True
 if RESPONSE_FUNCTION:
     from fastlisaresponse import ResponseWrapper             # Response
     from lisatools.detector import EqualArmlengthOrbits
@@ -97,7 +85,6 @@ if RESPONSE_FUNCTION:
     t0 = 20000.0  # throw away on both ends when our orbital information is weird
 
     ResponseWrapper_kwargs = dict(
-        #waveform_gen=waveform_generator,
         Tobs = T,
         dt = dt,
         index_lambda = INDEX_LAMBDA,
@@ -149,13 +136,13 @@ PSD_AE_interp = load_psd_from_file(run_direc + PSD_filename, xp=xp)
 # noise_model = get_sensitivity
 # noise_kwargs = [{"sens_fn": channel_i} for channel_i in channels]
 
-# noise_model = PSD_AE_interp
-# noise_kwargs = {}
-# channels = ["A", "E"]
+noise_model = PSD_AE_interp
+noise_kwargs = {}
+channels = ["A", "E"]
 
-noise_model = None
-noise_kwargs = None
-channels = None
+# noise_model = None
+# noise_kwargs = None
+# channels = None
 der_order = 4
 Ndelta = 8
 stability_plot = False
@@ -171,7 +158,8 @@ sef = StableEMRIFisher(waveform_class=waveform_class,
                        Ndelta = Ndelta,
                        stability_plot = stability_plot,
                        return_derivatives = True,
-                       filename="MCMC_FM_Data/fisher_matrices/plunging_EMRI",
+                    #    filename="MCMC_FM_Data/fisher_matrices/plunging_EMRI",
+                       filename=None,
                        live_dangerously = False,
                        deriv_type='stable')
 
@@ -183,8 +171,8 @@ sef = StableEMRIFisher(waveform_class=waveform_class,
 #                       stats_for_nerds = True, use_gpu = USE_GPU,
 #                       deriv_type='stable')
 
-# param_names = ['m1','m2','a','p0','e0','dist','qS','phiS','qK','phiK','Phi_phi0','Phi_r0']
-param_names = ['m1','m2','a','p0','e0','Phi_r0']
+param_names = ['m1','m2','a','p0','e0','dist','qS','phiS','qK','phiK','Phi_phi0','Phi_r0']
+# param_names = ['m1','m2','a','p0','e0','Phi_r0']
 
 delta_range = dict(
     m1 = np.geomspace(1e-4*m1, 1e-9*m1, Ndelta),
@@ -192,24 +180,15 @@ delta_range = dict(
     a = np.geomspace(1e-5, 1e-9, Ndelta),
     p0 = np.geomspace(1e-5, 1e-9, Ndelta),
     e0 = np.geomspace(1e-5, 1e-9, Ndelta),
-    qS = np.array([1e-6]),
-    phiS = np.array([1e-6]),
-    qK = np.array([1e-6]),
-    phiK = np.array([1e-6]),
-    Phi_phi0 = np.array([1e-6]),
-    Phi_r0 = np.array([1e-6]),
-    # qS = np.geomspace(1e-4,    1e-9,    Ndelta),
-    # phiS = np.geomspace(1e-4,    1e-9,    Ndelta),
-    # qK = np.geomspace(1e-4,    1e-9,    Ndelta),
-    # phiK = np.geomspace(1e-4,    1e-9,    Ndelta),
-    # Phi_phi0 = np.geomspace(1e-3,    1e-7,    Ndelta),
-    # Phi_r0 = np.geomspace(1e-3,    1e-7,    Ndelta),
+    qS = np.array([1e-6]),      # Flat errors in angles
+    phiS = np.array([1e-6]),    # Flat errors in angles
+    qK = np.array([1e-6]),      # Flat errors in angles
+    phiK = np.array([1e-6]),    # Flat errors in angles
 )
 
 print("Computing FM")
 start = time.time()
-derivs, fisher_matrix = sef(*pars_list, param_names = None,
-                            T = T, dt = dt,        
+derivs, fisher_matrix = sef(*pars_list, param_names = param_names,
                             delta_range = delta_range
                             )
 end = time.time() - start

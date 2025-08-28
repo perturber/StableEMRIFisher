@@ -14,20 +14,20 @@ except ImportError:
 # ================== CASE 1 IN TABLE ======================
 # EMRI source, eps ~ 1e-5, SNR 50, prograde
 
-# m1 = 1e6; m2 = 10; a = 0.998; p0 = 7.7275; e0 = 0.73; xI0 = 1.0
-# SNR_choice = 50.0;
-# dist = 2.20360838037185 # Animal -- hardcoded distance for case 1
+m1 = 1e6; m2 = 10; a = 0.998; p0 = 7.7275; e0 = 0.73; xI0 = 1.0
+SNR_choice = 50.0;
+dist = 2.20360838037185 # Animal -- hardcoded distance for case 1
+qS = 0.8 ; phiS = 2.2; qK = 1.6; phiK = 1.2; 
+Phi_phi0 = 2.0; Phi_theta0 = 0.0; Phi_r0 = 3.0
+dt = 5.0; T = 2.0
+
+# ==================== PLUNGING EMRI =====================
+# m1 = 1e6; m2 = 100; a = 0.99; p0 = 14.7275; e0 = 0.4; xI0 = 1.0
+# SNR_choice = 30.0
+# dist = 14.399336686341377 # Animal -- hardcoded distance for case 1
 # qS = 0.8 ; phiS = 2.2; qK = 1.6; phiK = 1.2; 
 # Phi_phi0 = 2.0; Phi_theta0 = 0.0; Phi_r0 = 3.0
 # dt = 5.0; T = 2.0
-
-# ==================== PLUNGING EMRI =====================
-m1 = 1e6; m2 = 100; a = 0.99; p0 = 14.7275; e0 = 0.4; xI0 = 1.0
-SNR_choice = 30.0
-dist = 14.399336686341377 # Animal -- hardcoded distance for case 1
-qS = 0.8 ; phiS = 2.2; qK = 1.6; phiK = 1.2; 
-Phi_phi0 = 2.0; Phi_theta0 = 0.0; Phi_r0 = 3.0
-dt = 5.0; T = 0.01
 # dt = 5.0; T = 1.796 #really good
 # dt = 5.0; T = 1.7963
 

@@ -97,6 +97,8 @@ class StableEMRIFisher:
         deriv_type: str = "stable",
         stats_for_nerds: bool = False,
         use_gpu: bool = False,
+        dt: float = 10.0,
+        T: float = 1.0,
         # Fisher matrix computation defaults
         der_order: int = 2,
         Ndelta: int = 8,
@@ -144,8 +146,6 @@ class StableEMRIFisher:
         """
         # placeholders for attributes configured at call-time
         self.waveform = None
-        self.dt = None
-        self.T = None
         self.wave_params = {}
         self.traj_params = {}
         self.wave_params_list = []
@@ -188,7 +188,7 @@ class StableEMRIFisher:
             self._stencil = waveform_derivative._stencil
         elif self.deriv_type == "direct":
             waveform_derivative = derivative
-            self.waveform_derivative_kwargs = dict(use_gpu=self.use_gpu)
+            self.waveform_derivative_kwargs = {"use_gpu":self.use_gpu}
         else:
             raise ValueError("deriv_type must be 'stable' or 'direct'.")
         
@@ -212,9 +212,14 @@ class StableEMRIFisher:
                 response_for_derivative = ResponseWrapper(waveform_derivative, **ResponseWrapper_kwargs) #this is the response wrapper to apply LISA response to the waveform derivative.
                 self.derivative = response_for_derivative # stable derivative wrapped with response. No kwargs needed. !! Does not include derivative of the response itself. !!
             self.has_ResponseWrapper = True
+            breakpoint()
+            self.T = ResponseWrapper_kwargs["Tobs"]
+            self.dt = ResponseWrapper_kwargs["dt"]
         else:
             self.waveform_generator = waveform_generator #waveform generator without LISA response.
             self.derivative = waveform_derivative #either stable or direct derivative without response.
+            self.T = T
+            self.dt = dt
             if self.deriv_type == "direct":
                 self.waveform_derivative_kwargs.update(dict(waveform_generator=self.waveform_generator)) #direct derivative waveform_generator without response.
             self.has_ResponseWrapper = False
@@ -226,16 +231,19 @@ class StableEMRIFisher:
             run_direc = os.getcwd()
             if ResponseWrapper_kwargs["tdi"] == "2nd generation":
                 PSD_filename = "tdi2_wo_background.npy"
+                kwargs_PSD = {"stochastic_params": [T*YRSID_SI]} # We include the background
                 write_psd_file(model='scirdv1', channels='AE',
                                 tdi2=True, include_foreground=False,
-                                filename=run_direc + PSD_filename)
-                logger.info("\nTDI2 A and E with no background.")
+                                filename=run_direc + PSD_filename,
+                                **kwargs_PSD)
+                logger.info("\nTDI2 A and E with stochastic background.")
             else:
                 PSD_filename = "tdi1_wo_background.npy"
+                kwargs_PSD = {"stochastic_params": [T*YRSID_SI]} # We include the background
                 write_psd_file(model='scirdv1', channels='AE',
                                 tdi2=False, include_foreground=False,
-                                filename=run_direc + PSD_filename)
-                logger.info("\nTDI1 A and E with no background.")
+                                filename=run_direc + PSD_filename, **kwargs_PSD)
+                logger.info("\nTDI1 A and E with stochastic background.")
 
             if self.use_gpu:
                 self.noise_model = load_psd_from_file(run_direc + PSD_filename, xp=cp)
@@ -316,8 +324,6 @@ class StableEMRIFisher:
         Phi_phi0: float,
         Phi_theta0: float,
         Phi_r0: float,
-        dt: float = 10.0,
-        T: float = 1.0,
         add_param_args: Optional[Dict[str, Any]] = None,
         waveform_kwargs: Optional[Dict[str, Any]] = None,
         window: Optional[Union[np.ndarray, Any]] = None,
@@ -388,11 +394,7 @@ class StableEMRIFisher:
         Raises:
             ValueError: If `param_names` is None or empty.
         """
-        # store runtime waveform settings
-        self.dt = dt
-        self.T = T
-
-
+        
         # initialize deltas (can be provided up-front)
         if deltas is not None and len(deltas) != self.npar:
             logger.critical('Length of deltas array should be equal to length of param_names.\nAssuming deltas = None.')
@@ -424,10 +426,13 @@ class StableEMRIFisher:
 
         # Store for use throughout this call
         self.current_waveform_kwargs = call_waveform_kwargs
-        print("T: ", T, "dt: ", dt)
 
         # optional custom delta grids per parameter
-        self.delta_range = delta_range if delta_range is not None else {}
+        if delta_range is None:
+            self.live_dangerously = True
+            self.delta_range = {}
+        else:
+            self.delta_range = delta_range 
 
         # initialize parameter dictionaries for this call
         self.wave_params = {
@@ -475,6 +480,7 @@ class StableEMRIFisher:
         self.wave_params_list = list(self.wave_params.values())
 
         # # Redefine final time if small body is plunging. More stable FMs.
+        breakpoint()
         if self.plunge_check:
             final_time = self.check_if_plunging()
             self.T = final_time / YRSID_SI  # Years
@@ -515,7 +521,7 @@ class StableEMRIFisher:
                 logger.info("Time taken to compute stable deltas is %s seconds", end)
         else:
             logger.debug("You have elected for dangerous living, I like it. ")
-            fudge_factor_intrinsic = 3 * (self.wave_params["m2"] / self.wave_params["m1"]) * (self.SNR2) ** -1
+            fudge_factor_intrinsic = 3 * (self.wave_params["m2"] / self.wave_params["m1"]) * (1/self.SNR2) ** (1/2)
             delta_intrinsic = fudge_factor_intrinsic * np.array([
                 self.wave_params["m1"], self.wave_params["m2"], 1.0, 1.0, 1.0, 1.0
             ])
@@ -881,8 +887,6 @@ class StableEMRIFisher:
         
         # Check for positive-definiteness
         if 'm1' in self.param_names:
-            #index_of_M = np.where(np.array(self.param_names) == 'm1')[0][0]
-            #Fisher_inv = fishinv(self.wave_params['m1'], Fisher, index_of_M = index_of_M)
             Fisher_inv = np.linalg.inv(Fisher)
         else:
             Fisher_inv = np.linalg.inv(Fisher)

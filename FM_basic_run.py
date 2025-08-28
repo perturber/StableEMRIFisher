@@ -156,14 +156,24 @@ PSD_AE_interp = load_psd_from_file(run_direc + PSD_filename, xp=xp)
 noise_model = None
 noise_kwargs = None
 channels = None
+der_order = 4
+Ndelta = 8
+stability_plot = False
+
 sef = StableEMRIFisher(waveform_class=waveform_class, 
                        waveform_class_kwargs=waveform_class_kwargs,
                        waveform_generator=waveform_generator,
                        waveform_generator_kwargs=waveform_generator_kwargs,
                        ResponseWrapper=ResponseWrapper, ResponseWrapper_kwargs=ResponseWrapper_kwargs,
                        noise_model=noise_model, noise_kwargs=noise_kwargs, channels=channels,
-                      stats_for_nerds = True, use_gpu = USE_GPU,
-                      deriv_type='stable')
+                       stats_for_nerds = True, use_gpu = USE_GPU,
+                       der_order = der_order,
+                       Ndelta = Ndelta,
+                       stability_plot = stability_plot,
+                       return_derivatives = True,
+                       filename="MCMC_FM_Data/fisher_matrices/plunging_EMRI",
+                       live_dangerously = False,
+                       deriv_type='stable')
 
 # sef = StableEMRIFisher(waveform_class=waveform_class, 
 #                        waveform_class_kwargs=waveform_class_kwargs,
@@ -174,10 +184,7 @@ sef = StableEMRIFisher(waveform_class=waveform_class,
 #                       deriv_type='stable')
 
 # param_names = ['m1','m2','a','p0','e0','dist','qS','phiS','qK','phiK','Phi_phi0','Phi_r0']
-param_names = ['m1','m2','a','p0','e0','Phi_phi0','Phi_r0']
-der_order = 4
-Ndelta = 8
-stability_plot = True
+param_names = ['m1','m2','a','p0','e0','Phi_r0']
 
 delta_range = dict(
     m1 = np.geomspace(1e-4*m1, 1e-9*m1, Ndelta),
@@ -201,15 +208,10 @@ delta_range = dict(
 
 print("Computing FM")
 start = time.time()
-derivs, fisher_matrix = sef(*pars_list, param_names = param_names, 
-             T = T, dt = dt, 
-             der_order = der_order, 
-             Ndelta = Ndelta, 
-             stability_plot = stability_plot,
-             delta_range = delta_range,
-             return_derivatives = True,
-             filename="MCMC_FM_Data/fisher_matrices/plunging_EMRI",
-            live_dangerously = False)
+derivs, fisher_matrix = sef(*pars_list, param_names = None,
+                            T = T, dt = dt,        
+                            delta_range = delta_range
+                            )
 end = time.time() - start
 print("Time taken to compute Fisher matrix and stable deltas is", end, "seconds")
 

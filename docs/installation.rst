@@ -1,141 +1,100 @@
 Installation
 ============
 
-StableEMRIFisher requires Python 3.9 or later and has several key dependencies for gravitational wave modeling and computation.
+StableEMRIFisher requires Python 3.9 or later and has several key 
+dependencies. The first main dependency is **FastEMRIWaveforms (FEW)**, 
+which is the current state-of-the-art framework for generating 
+computationally efficient and accurate EMRI waveform models suitable for LISA 
+data analysis. 
 
-Requirements
-------------
+Pip Installation on PyPi
+~~~~~~~~~~~~~~~~~~~~~~~
 
-Core Dependencies
-~~~~~~~~~~~~~~~~~
+You can install StableEMRIFisher directly from PyPi using pip:
 
-The package requires the following dependencies that will be automatically installed:
+.. code-block:: bash
+
+   pip install stableemrifisher
+
+**Note:** This will automatically install FastEMRIWaveforms version 2.0.0 and required 
+dependencies.
+
+Installing from Source
+~~~~~~~~~~~~~~~~~~~~~~
+
+Our package StableEMRIFisher is both CPU and GPU agnostic. If installing directly from source, you can do so by cloning the repository and running the 
+following commands. 
+
+.. code-block:: bash
+
+   git clone https://github.com/perturber/StableEMRIFisher.git
+   cd StableEMRIFisher
+   # Install CPU version 
+   pip install -e ".[cpu]"
+   # Install with CUDA 11.x support if available
+   pip install -e ".[cuda11x]"  
+   # Install with CUDA 12.x support if available
+   pip install -e ".[cuda12x]"
+
+.. note::
+   This package requires the latest (v2.0.0) FastEMRIWaveforms (FEW) package to be installed. 
+   Installing StableEMRIFisher will install FastEMRIWaveforms by default (for both CPU and GPU).
+
+For full development, documentation and GPU support, we recommend installing all of the dependencies 
+.. code-block:: bash
+
+   # Install with CUDA 12.x support if available
+   pip install -e ".[dev, docs, cuda12x]"
+
+Our package `StableEMRIFFisher` will automatically install the following dependencies
 
 * **NumPy**: Array computation and numerical operations
 * **SciPy**: Scientific computing utilities
 * **h5py**: HDF5 file format support for data storage
+* **cython**: C-Extensions for python. Essential if the user wants to incorporate the LISA response.
+* **matplotlib**: To help assess stability of numerical derivatives
+* **setuptools**: TO help build `lisa-on-gpu` and `LISAAnalysisTools` from source. 
 
-Required External Packages
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-You must install these packages separately before using StableEMRIFisher:
-
-* **FastEMRIWaveforms (FEW)**: Core EMRI waveform generation
-  
-  .. code-block:: bash
-  
-     # Install from PyPI
-     pip install fastemriwaveforms
-     
-     # Or from source
-     git clone https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms.git
-     cd FastEMRIWaveforms
-     pip install .
-
-Installation Options
---------------------
-
-CPU-Only Installation (Default)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The default installation provides CPU-only computation using NumPy. This works on all platforms:
+Building Documentation Locally
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+To build the documentation, make sure that the documentation dependencies are installed.
 
 .. code-block:: bash
 
-   # From PyPI (coming soon)
-   pip install stableemrifisher
-   
-   # From source
-   git clone https://github.com/perturber/StableEMRIFisher.git
-   cd StableEMRIFisher
-   pip install .
+   cd docs
+   make clean
+   make html
+   # View documentation
+   open _build/html/index.html  # macOS
+   # or
+   xdg-open _build/html/index.html  # Linux
 
-   # With Poetry
-   poetry install
+Within `docs/_build/html` you can find the generated documentation. The file `index.html` can be opened in a web browser. 
 
-GPU-Accelerated Installation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For GPU acceleration with NVIDIA CUDA (Linux x86_64 only):
+Response Function
+~~~~~~~~~~~~~~~~~~
 
-.. code-block:: bash
+The package `StableEMRIFisher` can optionally include the LISA response function to compute the Fisher matrix in the LISA detector frame. This requires two additional packages to be installed from source:
 
-   # For CUDA 11.x systems
-   pip install stableemrifisher[cuda11]
-   
-   # For CUDA 12.x systems  
-   pip install stableemrifisher[cuda12]
-   
-   # Generic GPU support (latest CuPy)
-   pip install stableemrifisher[gpu]
+* **LISAAnalysisTools**: To interface with the LISA response function and generate LISA-based Power Spectral Densities that describe the instrumental noise
 
-   # With Poetry
-   poetry install --extras cuda12
+  .. code-block:: bash
+  
+     git clone https://github.com/mikekatz04/LISAanalysistools.git
+     python scripts/prebuild.py
+     python setup.py install
 
-.. note::
-   GPU support requires:
-   
-   * Linux x86_64 operating system
-   * NVIDIA GPU with CUDA capability
-   * Appropriate CUDA drivers installed
-   * macOS and Windows systems will automatically fall back to CPU-only mode
-     git clone https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms.git
-     cd FastEMRIWaveforms
-     pip install .
-
-Optional Dependencies
-~~~~~~~~~~~~~~~~~~~~~
-
-For enhanced functionality, you may also install:
-
-* **CuPy**: GPU acceleration support
+* **LISA-on-gpu**: GPU-accelerated time-domain LISA response function
   
   .. code-block:: bash
   
-     # For CUDA 11.x
-     pip install cupy-cuda11x
-     
-     # For CUDA 12.x  
-     pip install cupy-cuda12x
-
-* **LISAAnalysisTools**: Additional LISA detector utilities
-  
-  .. code-block:: bash
-  
-     pip install git+https://github.com/mikekatz04/LISAanalysistools.git
-
-* **LISA-on-gpu**: GPU-accelerated LISA response functions
-  
-  .. code-block:: bash
-  
-     pip install git+https://github.com/mikekatz04/lisa-on-gpu.git
-
-Installing StableEMRIFisher
----------------------------
-
-From PyPI (Recommended)
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: bash
-
-   pip install stableemrifisher
-
-From Source
-~~~~~~~~~~~
-
-For the latest development version or if you want to contribute:
-
-.. code-block:: bash
-
-   # Clone the repository
-   git clone https://github.com/perturber/StableEMRIFisher.git
-   cd StableEMRIFisher
-   
-   # Install in development mode
-   pip install -e .
+     git clone https://github.com/mikekatz04/lisa-on-gpu.git
+     python scripts/prebuild.py
+     python setup.py install
 
 Verifying Installation
-----------------------
+~~~~~~~~~~~~~~~~~~~~~~
 
 Test your installation by running:
 
@@ -158,58 +117,4 @@ Test your installation by running:
    except ImportError:
        print("ERROR: FastEMRIWaveforms not found - please install FEW")
 
-Building Documentation (Optional)
-----------------------------------
-
-To build the documentation locally:
-
-.. code-block:: bash
-
-   # Install documentation dependencies
-   pip install sphinx sphinx_rtd_theme nbsphinx
    
-   # Build documentation
-   cd docs
-   make html
-   
-   # View documentation
-   open _build/html/index.html  # macOS
-   # or
-   xdg-open _build/html/index.html  # Linux
-
-Troubleshooting
----------------
-
-Common Issues
-~~~~~~~~~~~~~
-
-**ImportError: No module named 'few'**
-
-This means FastEMRIWaveforms is not installed. Follow the FEW installation instructions above.
-
-**CUDA/GPU Issues**
-
-If you encounter GPU-related errors:
-
-1. Ensure you have a compatible NVIDIA GPU
-2. Install the correct CUDA toolkit version
-3. Install the matching CuPy version
-4. Set ``use_gpu=False`` to fall back to CPU computation
-
-**Memory Issues**
-
-For large parameter spaces or long waveforms:
-
-1. Reduce the observation time ``T``
-2. Increase the time step ``dt`` 
-3. Use fewer derivative points in finite difference calculations
-4. Enable GPU computation to access more memory
-
-Getting Help
-~~~~~~~~~~~~
-
-If you encounter issues:
-
-1. Check the `GitHub Issues <https://github.com/perturber/StableEMRIFisher/issues>`_
-2. Review the FastEMRIWaveforms installation guide
-3. Open a new issue with your error message and system details

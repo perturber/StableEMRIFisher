@@ -788,7 +788,7 @@ class StableEMRIFisher:
         deltas = {}
         relerr_min = {}
 
-        for i, param_name in enumerate(self.param_names):
+        for param_name in self.param_names:
 
             try:
                 delta_init = self.delta_range[param_name]
@@ -861,7 +861,7 @@ class StableEMRIFisher:
                     relerr_min["dist"] = 0.0
                     break
 
-                elif (param_name in ["Phi_phi0", "Phi_theta0", "Phi_r0"]) & (
+                if (param_name in ["Phi_phi0", "Phi_theta0", "Phi_r0"]) & (
                     self.deriv_type == "stable"
                 ):
                     # derivatives are analytically available
@@ -879,7 +879,7 @@ class StableEMRIFisher:
                     relerr_min[param_name] = 0.0
                     break
 
-                elif (
+                if (
                     (param_name in ["qS", "phiS", "qK", "phiK"])
                     & (self.deriv_type == "stable")
                     & (self.has_ResponseWrapper)
@@ -956,7 +956,6 @@ class StableEMRIFisher:
                 else:
                     Gamma.append(Gammai)
 
-            breakpoint()
             if not relerr_flag:
                 if self.use_gpu:
                     Gamma = xp.asnumpy(xp.array(Gamma))

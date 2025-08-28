@@ -886,13 +886,10 @@ class StableEMRIFisher:
                 ):
                     # cannot calculate derivative of the response-wrapped waveform with respect to 
                     # the angles for the stable deriv_type, so we use the direct derivative method.
-                    if k >= len(
-                        delta_init
-                    ):  # Fall into this part only if we feed in our own delta vec
-                        if len(delta_init) == 1:
-                            relerr_flag = True
-                            deltas[param_name] = delta_k
-                            break
+                    if len(delta_init) == 1:
+                        relerr_flag = True
+                        deltas[param_name] = delta_k
+                        break
                     deltas_grid = self._deltas(delta_k, self.order, kind=kind)
                     Rh_temp = xp.zeros(
                         (len(deltas_grid), len(self.waveform), len(self.waveform[0])),

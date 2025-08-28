@@ -3,12 +3,13 @@ from matplotlib.patches import Ellipse
 from matplotlib import transforms
 import numpy as np
 
+
 def cov_ellipse(mean, cov, ax, n_std=1.0, **kwargs):
     """
     Plot a covariance ellipse.
 
     This function plots a covariance ellipse for visualizing the parameter covariance matrix.
-    
+
     Args:
         mean (tuple): Mean of the distribution in the form of (mean_x, mean_y).
         cov (np.ndarray): Covariance matrix of the distribution.
@@ -19,15 +20,12 @@ def cov_ellipse(mean, cov, ax, n_std=1.0, **kwargs):
     Returns:
         matplotlib.patches.Ellipse: The covariance ellipse plotted on the given Axes object.
     """
-    
+
     pearson = cov[0, 1] / np.sqrt(cov[0, 0] * cov[1, 1])
     ell_radius_x = np.sqrt(1 + pearson)
     ell_radius_y = np.sqrt(1 - pearson)
-    
-    ellipse = Ellipse((0, 0),
-        width=ell_radius_x * 2,
-        height=ell_radius_y * 2,
-        **kwargs)
+
+    ellipse = Ellipse((0, 0), width=ell_radius_x * 2, height=ell_radius_y * 2, **kwargs)
 
     scale_x = np.sqrt(cov[0, 0]) * n_std
     mean_x = mean[0]
@@ -35,104 +33,150 @@ def cov_ellipse(mean, cov, ax, n_std=1.0, **kwargs):
     scale_y = np.sqrt(cov[1, 1]) * n_std
     mean_y = mean[1]
 
-    transf = transforms.Affine2D() \
-        .rotate_deg(45) \
-        .scale(scale_x, scale_y) \
+    transf = (
+        transforms.Affine2D()
+        .rotate_deg(45)
+        .scale(scale_x, scale_y)
         .translate(mean_x, mean_y)
+    )
 
     ellipse.set_transform(transf + ax.transData)
     return ax.add_patch(ellipse)
 
-def normal(mean, var, x):
-    return np.exp(-(mean-x)**2/var/2)
 
-def CovEllipsePlot(covariance, param_names=None, wave_params=None, fig = None, axs = None, filename=None, ellipse_kwargs={}, line_kwargs={}):
+def normal(mean, var, x):
+    return np.exp(-((mean - x) ** 2) / var / 2)
+
+
+def CovEllipsePlot(
+    covariance,
+    param_names=None,
+    wave_params=None,
+    fig=None,
+    axs=None,
+    filename=None,
+    ellipse_kwargs={},
+    line_kwargs={},
+):
 
     if fig == None:
-        fig, axs = plt.subplots(len(covariance),len(covariance), figsize=(20,20))
+        fig, axs = plt.subplots(len(covariance), len(covariance), figsize=(20, 20))
 
-    #first param index
+    # first param index
     for i in range(len(covariance)):
-        #second param index
-        for j in range(i,len(covariance)):
+        # second param index
+        for j in range(i, len(covariance)):
 
             if i != j:
-                cov = np.array(((covariance[i][i],covariance[i][j]),(covariance[j][i],covariance[j][j])))
-                #print(cov)
-                
+                cov = np.array(
+                    (
+                        (covariance[i][i], covariance[i][j]),
+                        (covariance[j][i], covariance[j][j]),
+                    )
+                )
+                # print(cov)
+
                 if not wave_params == None:
-                    mean = np.array((wave_params[param_names[i]],wave_params[param_names[j]]))
+                    mean = np.array(
+                        (wave_params[param_names[i]], wave_params[param_names[j]])
+                    )
                 else:
                     mean = np.zeros(2)
-                    
-                cov_ellipse(mean,cov,axs[j,i],**ellipse_kwargs)
 
-                #custom setting the x-y lim for each plot
-                
-                axs[j,i].set_xlim([mean[0]-2.5*np.sqrt(covariance[i][i]), mean[0]+2.5*np.sqrt(covariance[i][i])])
-                axs[j,i].set_ylim([mean[1]-2.5*np.sqrt(covariance[j][j]), mean[1]+2.5*np.sqrt(covariance[j][j])])
+                cov_ellipse(mean, cov, axs[j, i], **ellipse_kwargs)
+
+                # custom setting the x-y lim for each plot
+
+                axs[j, i].set_xlim(
+                    [
+                        mean[0] - 2.5 * np.sqrt(covariance[i][i]),
+                        mean[0] + 2.5 * np.sqrt(covariance[i][i]),
+                    ]
+                )
+                axs[j, i].set_ylim(
+                    [
+                        mean[1] - 2.5 * np.sqrt(covariance[j][j]),
+                        mean[1] + 2.5 * np.sqrt(covariance[j][j]),
+                    ]
+                )
 
                 if not param_names == None:
-                    axs[j,i].set_xlabel(param_names[i],labelpad=20,fontsize=16)
-                    axs[j,i].set_ylabel(param_names[j],labelpad=20,fontsize=16)
+                    axs[j, i].set_xlabel(param_names[i], labelpad=20, fontsize=16)
+                    axs[j, i].set_ylabel(param_names[j], labelpad=20, fontsize=16)
 
             else:
-                
+
                 if not wave_params == None:
                     mean = wave_params[param_names[i]]
                 else:
                     mean = 0.0
-                    
+
                 var = covariance[i][i]
 
-                x = np.linspace(mean-3*np.sqrt(var),mean+3*np.sqrt(var))
+                x = np.linspace(mean - 3 * np.sqrt(var), mean + 3 * np.sqrt(var))
 
-                axs[j,i].plot(x,normal(mean,var,x),**line_kwargs)
-                
-                axs[j,i].set_xlim([mean - 2.5*np.sqrt(covariance[i][i]), mean + 2.5*np.sqrt(covariance[i][i])])
-                
+                axs[j, i].plot(x, normal(mean, var, x), **line_kwargs)
+
+                axs[j, i].set_xlim(
+                    [
+                        mean - 2.5 * np.sqrt(covariance[i][i]),
+                        mean + 2.5 * np.sqrt(covariance[i][i]),
+                    ]
+                )
+
                 if not param_names == None:
-                
-                    axs[j,i].set_xlabel(param_names[i],labelpad=20,fontsize=16)
-                    
-                    #if i == j and j == 0:
+
+                    axs[j, i].set_xlabel(param_names[i], labelpad=20, fontsize=16)
+
+                    # if i == j and j == 0:
                     #    axs[j,i].set_ylabel(param_names[i],labelpad=20,fontsize=16)
 
     for ax in fig.get_axes():
         ax.label_outer()
 
     for i in range(len(covariance)):
-        for j in range(i+1,len(covariance)):
+        for j in range(i + 1, len(covariance)):
             try:
-                fig.delaxes(axs[i,j])
+                fig.delaxes(axs[i, j])
             except KeyError:
                 continue
 
     if filename is None:
         return fig, axs
     else:
-        plt.savefig(filename,dpi=300,bbox_inches='tight')
+        plt.savefig(filename, dpi=300, bbox_inches="tight")
         plt.close()
-            
-def StabilityPlot(deltas,Gammas,stable_index=None,param_name=None,filename=None):
-    
-    plt.figure(figsize=(12,5))
-    plt.loglog(deltas,Gammas,'ro-')
-    
+
+
+def StabilityPlot(deltas, Gammas, stable_index=None, param_name=None, filename=None):
+
+    plt.figure(figsize=(12, 5))
+    plt.loglog(deltas, Gammas, "ro-")
+
     if stable_index != None:
-        plt.scatter(deltas[stable_index],Gammas[stable_index],marker='s',s=20,color='b',label='the chosen one',zorder=5)
+        plt.scatter(
+            deltas[stable_index],
+            Gammas[stable_index],
+            marker="s",
+            s=20,
+            color="b",
+            label="the chosen one",
+            zorder=5,
+        )
 
     if param_name != None:
-        plt.xlabel(r'$\Delta\theta_i$',fontsize=12)
+        plt.xlabel(r"$\Delta\theta_i$", fontsize=12)
 
-    plt.ylabel(r'$\left.\langle \frac{\partial h}{\partial \theta_i}\right|\frac{\partial h}{\partial \theta_i}\rangle$',fontsize=14)
-    plt.title(r'$\theta_i = $'+f'${param_name}$',fontsize=12)
+    plt.ylabel(
+        r"$\left.\langle \frac{\partial h}{\partial \theta_i}\right|\frac{\partial h}{\partial \theta_i}\rangle$",
+        fontsize=14,
+    )
+    plt.title(r"$\theta_i = $" + f"${param_name}$", fontsize=12)
     plt.grid(True)
     plt.legend()
 
     if filename != None:
-        plt.savefig(filename,dpi=300,bbox_inches='tight')
+        plt.savefig(filename, dpi=300, bbox_inches="tight")
         plt.close()
     else:
         plt.show()
-        

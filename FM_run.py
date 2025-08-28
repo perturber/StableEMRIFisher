@@ -1,5 +1,5 @@
 # Import relevant EMRI packages
-from few.waveform import GenerateEMRIWaveform, FastSchwarzschildEccentricFlux, FastKerrEccentricEquatorialFlux
+from few.waveform import GenerateEMRIWaveform, FastKerrEccentricEquatorialFlux
 
 from few.trajectory.ode import KerrEccEqFlux
 
@@ -10,7 +10,6 @@ from few.utils.geodesic import get_separatrix
 from stableemrifisher.fisher import StableEMRIFisher
 from stableemrifisher.utils import check_if_plunging
 from stableemrifisher.noise import write_psd_file, load_psd_from_file
-# from lisatools.sensitivity import get_sensitivity, A1TDISens, E1TDISens, T1TDISens
 
 from psd_utils import (write_psd_file, load_psd_from_file)
 from EMRI_Params import (m1, m2, a, p0, e0, xI0, dist, qS, phiS, qK, phiK, Phi_phi0, Phi_theta0, Phi_r0, T, dt)
@@ -156,7 +155,6 @@ PSD_AE_interp = load_psd_from_file(run_direc + PSD_filename, xp=cp)
 noise_model = PSD_AE_interp
 noise_kwargs = {}
 channels = ["A", "E"]
-breakpoint()
 sef = StableEMRIFisher(waveform_class=waveform_class, 
                        waveform_class_kwargs=waveform_class_kwargs,
                        waveform_generator=waveform_generator,
@@ -183,12 +181,6 @@ delta_range = dict(
     phiK = np.array([1e-6]),
     Phi_phi0 = np.array([1e-6]),
     Phi_r0 = np.array([1e-6]),
-    # qS = np.geomspace(1e-4,    1e-9,    Ndelta),
-    # phiS = np.geomspace(1e-4,    1e-9,    Ndelta),
-    # qK = np.geomspace(1e-4,    1e-9,    Ndelta),
-    # phiK = np.geomspace(1e-4,    1e-9,    Ndelta),
-    # Phi_phi0 = np.geomspace(1e-3,    1e-7,    Ndelta),
-    # Phi_r0 = np.geomspace(1e-3,    1e-7,    Ndelta),
 )
 
 print("Computing FM")
@@ -211,7 +203,6 @@ param_cov = np.linalg.inv(fisher_matrix)
 for k, item in enumerate(param_names):
     print("Precision measurement in param {} is {}".format(item, param_cov[k,k]**(1/2)))
 
-breakpoint()
 # ================= Compute fluctuation due to noise realisation ========================
 def zero_pad(data):
     """

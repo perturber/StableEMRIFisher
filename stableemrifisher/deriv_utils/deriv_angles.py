@@ -1,16 +1,22 @@
 import numpy as np
-from .antenna_derivs import fplusI_derivs, fcrossI_derivs, fplusII_derivs, fcrossII_derivs
+from .antenna_derivs import (
+    fplusI_derivs,
+    fcrossI_derivs,
+    fplusII_derivs,
+    fcrossII_derivs,
+)
+
 
 def viewing_angle_partials(qS, phiS, qK, phiK):
     """
-    Compute partial derivatives of theta_src = arccos(-R · S) with respect to 
+    Compute partial derivatives of theta_src = arccos(-R · S) with respect to
     detector-frame angles.
 
     Parameters
     ----------
     qS : float
         Polar angle theta_S (radians)
-    phiS : float  
+    phiS : float
         Azimuthal angle phi_S (radians)
     qK : float
         Polar angle theta_K (radians)
@@ -42,36 +48,37 @@ def viewing_angle_partials(qS, phiS, qK, phiK):
 
     # u = cos theta_S = -(R . S) in FEW
     u = -(sS * sK * np.cos(phiS - phiK) + cS * cK)
-    
+
     theta_src = np.arccos(u)
     sin_theta_src_sq = 1.0 - u * u
     sin_theta_src = np.sqrt(np.maximum(0.0, sin_theta_src_sq))
-    
+
     # Handle singular geometry: sin(theta_src) == 0
     # (theta_src == 0 or pi) -> derivatives undefined
     if sin_theta_src == 0.0:
         raise ValueError("sin(theta_src) is zero, derivatives are undefined.")
     else:
         # ∂u/∂x pieces from the algebra
-        du_dphiS =  sS * sK * np.sin(phiS - phiK)
-        du_dqS   =  sS * cK - cS * sK * np.cos(phiS - phiK)
-        du_dqK   = -sS * cK * np.cos(phiS - phiK) + cS * sK
+        du_dphiS = sS * sK * np.sin(phiS - phiK)
+        du_dqS = sS * cK - cS * sK * np.cos(phiS - phiK)
+        du_dqK = -sS * cK * np.cos(phiS - phiK) + cS * sK
         du_dphiK = -sS * sK * np.sin(phiS - phiK)
-        
-        inv_sin = 1.0 / sin_theta_src # Blows up as theta_src = 0,pi. Careful. 
+
+        inv_sin = 1.0 / sin_theta_src  # Blows up as theta_src = 0,pi. Careful.
         # d theta_src / d x = -(1/sin theta_src) * du/dx
         d_theta_d_phiS = -inv_sin * du_dphiS
-        d_theta_d_qS   = -inv_sin * du_dqS
-        d_theta_d_qK   = -inv_sin * du_dqK
+        d_theta_d_qS = -inv_sin * du_dqS
+        d_theta_d_qK = -inv_sin * du_dqK
         d_theta_d_phiK = -inv_sin * du_dphiK
 
     return {
         "theta_src": theta_src,
         "del theta_src / del phi_S": d_theta_d_phiS,
-        "del theta_src / del qS": d_theta_d_qS,      # key as requested
+        "del theta_src / del qS": d_theta_d_qS,  # key as requested
         "del theta_src / del qK": d_theta_d_qK,
         "del theta_src / del phi_K": d_theta_d_phiK,
     }
+
 
 def fplus_fcross(qS, phiS, qK, phiK):
     """
@@ -99,14 +106,14 @@ def fplus_fcross(qS, phiS, qK, phiK):
     v = sK * sdp
     psi = -np.arctan2(u, v)
 
-    c2p, s2p = np.cos(2*psi), np.sin(2*psi)
+    c2p, s2p = np.cos(2 * psi), np.sin(2 * psi)
     FplusI, FcrossI = c2p, -s2p
     FplusII, FcrossII = s2p, c2p
 
     return FplusI, FcrossI, FplusII, FcrossII
 
-def fplus_fcross_derivs(qS, phiS, qK, phiK,
-                       with_respect_to=None):
+
+def fplus_fcross_derivs(qS, phiS, qK, phiK, with_respect_to=None):
     """
     Compute psi, (FplusI,FcrossI,FplusII,FcrossII) and their partial derivatives.
 
@@ -132,10 +139,10 @@ def fplus_fcross_derivs(qS, phiS, qK, phiK,
     out = {}
 
     if phiS == phiK:
-        
-        #psi = 0.5*np.pi, antenna patterns are constant, all derivatives are zero.
+
+        # psi = 0.5*np.pi, antenna patterns are constant, all derivatives are zero.
         if with_respect_to is None:
-            with_respect_to = ['qS','phiS','qK','phiK']
+            with_respect_to = ["qS", "phiS", "qK", "phiK"]
 
         # Loop only over requested derivatives
         if isinstance(with_respect_to, str):
@@ -144,15 +151,15 @@ def fplus_fcross_derivs(qS, phiS, qK, phiK,
 
         for x in with_respect_to:
             # I-arm
-            out[f'dFplusI/d{x}']  = 0.0
-            out[f'dFcrossI/d{x}']  = 0.0
+            out[f"dFplusI/d{x}"] = 0.0
+            out[f"dFcrossI/d{x}"] = 0.0
             # II-arm
-            out[f'dFplusII/d{x}'] =  0.0
-            out[f'dFcrossII/d{x}'] = 0.0
-        return out 
-    
+            out[f"dFplusII/d{x}"] = 0.0
+            out[f"dFcrossII/d{x}"] = 0.0
+        return out
+
     if with_respect_to is None:
-        with_respect_to = ['qS','phiS','qK','phiK']
+        with_respect_to = ["qS", "phiS", "qK", "phiK"]
 
     # Loop only over requested derivatives
     if isinstance(with_respect_to, str):
@@ -161,12 +168,10 @@ def fplus_fcross_derivs(qS, phiS, qK, phiK,
 
     for x in with_respect_to:
         # I-arm
-        out[f'dFplusI/d{x}']  = fplusI_derivs(qS, phiS, qK, phiK, with_respect_to=x)
-        out[f'dFcrossI/d{x}']  = fcrossI_derivs(qS, phiS, qK, phiK, with_respect_to=x)
+        out[f"dFplusI/d{x}"] = fplusI_derivs(qS, phiS, qK, phiK, with_respect_to=x)
+        out[f"dFcrossI/d{x}"] = fcrossI_derivs(qS, phiS, qK, phiK, with_respect_to=x)
         # II-arm
-        out[f'dFplusII/d{x}'] =  fplusII_derivs(qS, phiS, qK, phiK, with_respect_to=x)
-        out[f'dFcrossII/d{x}'] = fcrossII_derivs(qS, phiS, qK, phiK, with_respect_to=x)
-    
+        out[f"dFplusII/d{x}"] = fplusII_derivs(qS, phiS, qK, phiK, with_respect_to=x)
+        out[f"dFcrossII/d{x}"] = fcrossII_derivs(qS, phiS, qK, phiK, with_respect_to=x)
+
     return out
-
-

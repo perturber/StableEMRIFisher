@@ -6,7 +6,7 @@ except:
     pass
 
 from scipy.interpolate import make_interp_spline
-from stableemrifisher.noise import noise_PSD_AE, sensitivity_LWA
+from stableemrifisher.noise import sensitivity_LWA
 from few.utils.constants import YRSID_SI
 
 def tukey(N, alpha=0.5, use_gpu=False):
@@ -40,7 +40,7 @@ def tukey(N, alpha=0.5, use_gpu=False):
     return window
     
 
-def generate_PSD(waveform, dt, noise_PSD=noise_PSD_AE, channels = ["A","E"], noise_kwargs={"TDI":"TDI1"}, use_gpu=False):
+def generate_PSD(waveform, dt, noise_PSD=sensitivity_LWA, channels = ["A","E"], noise_kwargs={"TDI":"TDI1"}, use_gpu=False):
     """
     generate the power spectral density for a given waveform, noise_PSD function,
     requested number of response channels, and response generation

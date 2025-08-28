@@ -77,7 +77,7 @@ print("Separation between separatrix and final p = ",abs(get_separatrix(a,e_traj
 print(f"Final eccentricity = {e_traj[-1]}")
 
 # ========================= SET UP RESPONSE FUNCTION ===============================#
-RESPONSE_FUNCTION = False
+RESPONSE_FUNCTION = True
 USE_GPU = False
 if RESPONSE_FUNCTION:
     from fastlisaresponse import ResponseWrapper             # Response
@@ -156,22 +156,22 @@ PSD_AE_interp = load_psd_from_file(run_direc + PSD_filename, xp=xp)
 noise_model = None
 noise_kwargs = None
 channels = None
-# sef = StableEMRIFisher(waveform_class=waveform_class, 
-#                        waveform_class_kwargs=waveform_class_kwargs,
-#                        waveform_generator=waveform_generator,
-#                        waveform_generator_kwargs=waveform_generator_kwargs,
-#                        ResponseWrapper=ResponseWrapper, ResponseWrapper_kwargs=ResponseWrapper_kwargs,
-#                        noise_model=noise_model, noise_kwargs=noise_kwargs, channels=channels,
-#                       stats_for_nerds = True, use_gpu = USE_GPU,
-#                       deriv_type='stable')
-
 sef = StableEMRIFisher(waveform_class=waveform_class, 
                        waveform_class_kwargs=waveform_class_kwargs,
                        waveform_generator=waveform_generator,
                        waveform_generator_kwargs=waveform_generator_kwargs,
+                       ResponseWrapper=ResponseWrapper, ResponseWrapper_kwargs=ResponseWrapper_kwargs,
                        noise_model=noise_model, noise_kwargs=noise_kwargs, channels=channels,
                       stats_for_nerds = True, use_gpu = USE_GPU,
                       deriv_type='stable')
+
+# sef = StableEMRIFisher(waveform_class=waveform_class, 
+#                        waveform_class_kwargs=waveform_class_kwargs,
+#                        waveform_generator=waveform_generator,
+#                        waveform_generator_kwargs=waveform_generator_kwargs,
+#                        noise_model=noise_model, noise_kwargs=noise_kwargs, channels=channels,
+#                       stats_for_nerds = True, use_gpu = USE_GPU,
+#                       deriv_type='stable')
 
 # param_names = ['m1','m2','a','p0','e0','dist','qS','phiS','qK','phiK','Phi_phi0','Phi_r0']
 param_names = ['m1','m2','a','p0','e0','Phi_phi0','Phi_r0']

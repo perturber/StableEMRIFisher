@@ -239,12 +239,12 @@ sef = StableEMRIFisher(
 #                       deriv_type='stable')
 
 param_names = [
-    # "m1",
-    # "m2",
-    # "a",
-    # "p0",
-    # "e0",
-    # "dist",
+    "m1",
+    "m2",
+    "a",
+    "p0",
+    "e0",
+    "dist",
     "qS",
     "phiS",
     "qK",

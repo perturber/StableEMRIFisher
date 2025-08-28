@@ -41,29 +41,16 @@ For GPU acceleration, install with CUDA support. **Note**: GPU support requires 
 **Using pip:**
 ```bash
 # For CUDA 11.x (Linux x86_64 only)
-pip install -e ".[cuda11]"
+pip install -e ".[cuda11x]"
 
 # For CUDA 12.x (Linux x86_64 only)  
-pip install -e ".[cuda12]"
+pip install -e ".[cuda12x]"
 ```
 
-**StableEMRIFisher automatically installs FastEMRIWaveforms 2.0.0** as a core dependency. Our package StableEMRIFisher specifically works with
-version 2.0.0 of FEW. 
+**StableEMRIFisher with the LISA response**
 
-**For CUDA installations (match your CUDA toolkit version):**
-```bash
-# For CUDA 11.x environments
-pip install fastemriwaveforms-cuda11x
-
-# For CUDA 12.x environments  
-pip install fastemriwaveforms-cuda12x
-```
-
-#### Platform Support
-
-- **Linux x86_64**: Full support including GPU acceleration with CUDA 11.x/12.x
-- **macOS (Intel/ARM)**: CPU-only support (CUDA not available)
-- **Windows**: CPU-only support (CUDA support experimental)
+- First install `lisaanalysistools` by following the instructions [here](https://github.com/mikekatz04/lisa-on-gpu.git). If using GPUs, then install from source.
+- Second install `fastlisaresponse` by following the instructions [here](https://github.com/mikekatz04/LISAanalysistools.git). If using GPUs, then install from source. 
 
 ### Basic Usage
 

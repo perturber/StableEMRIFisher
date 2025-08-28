@@ -19,7 +19,7 @@
 pip install stableemrifisher
 ```
 
-#### Development Installation (Recommended)
+### Development Installation (Recommended)
 
 If you're using conda 
 
@@ -34,7 +34,7 @@ cd StableEMRIFisher
 pip install -e .
 ```
 
-#### GPU-Accelerated Installation
+### GPU-Accelerated Installation
 
 For GPU acceleration, install with CUDA support. **Note**: GPU support requires Linux x86_64 systems with NVIDIA GPUs and appropriate CUDA drivers.
 

@@ -7,12 +7,13 @@ packages = ["stableemrifisher", "stableemrifisher.fisher"]
 
 [project]
 name = "stableemrifisher"
-version = "2.0.1"
+version = "2.0.0"
 requires-python = ">=3.9"
 authors = [
   {name = "Shubham Kejriwal", email = "shubhamkejriwal@u.nus.edu"},
   {name = "Ollie Burke", email = "ollie.burke@l2it.in2p3.fr"},
   {name = "Christian Chapman-Bird", email = "c.chapmanbird@gmail.com"},
+  {name = "Alvin Chua", email = "alvinchua@u.nus.edu"},
 ]
 description = "Stable Fisher matrix computation for EMRI gravitational wave parameter estimation"
 readme = "README.md"
@@ -36,18 +37,14 @@ dependencies = [
     "scipy>=1.7.0",
     "h5py>=3.0.0",
     "cython>=3.1.3",
+    "matplotlib>=3.10.5",
     "fastemriwaveforms==2.0.0",
+    "setuptools >= 61.0",
 ]
 
 [project.optional-dependencies]
 # CPU-only installation (default, works on all platforms)
-cpu = []
-
-# GPU support - platform dependent  
-# Note: GPU support primarily for Linux x86_64 systems with NVIDIA GPUs
-gpu = [
-    "cupy>=12.0.0; platform_system=='Linux' and platform_machine=='x86_64'",
-]
+cpu = ["fastemriwaveforms"]
 
 # Specific CUDA toolkit versions (Linux x86_64 only)
 # Note: These will install CUDA-specific versions of FastEMRIWaveforms

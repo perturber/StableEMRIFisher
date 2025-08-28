@@ -220,7 +220,7 @@ class StableEMRIFisher:
             if self.deriv_type == "direct":
                 self.derivative = waveform_derivative
                 self.waveform_derivative_kwargs.update(
-                    dict(waveform_generator=self.waveform_generator)
+                    {"waveform_generator": self.waveform_generator}
                 )  # direct derivative waveform_generator with response.
             else:
                 response_for_derivative = ResponseWrapper(
@@ -228,7 +228,6 @@ class StableEMRIFisher:
                 )  # this is the response wrapper to apply LISA response to the waveform derivative.
                 self.derivative = response_for_derivative  # stable derivative wrapped with response. No kwargs needed. !! Does not include derivative of the response itself. !!
             self.has_ResponseWrapper = True
-            breakpoint()
             self.T = ResponseWrapper_kwargs["Tobs"]
             self.dt = ResponseWrapper_kwargs["dt"]
         else:
@@ -240,12 +239,12 @@ class StableEMRIFisher:
             self.dt = dt
             if self.deriv_type == "direct":
                 self.waveform_derivative_kwargs.update(
-                    dict(waveform_generator=self.waveform_generator)
+                    {"waveform_generator": self.waveform_generator}
                 )  # direct derivative waveform_generator without response.
             self.has_ResponseWrapper = False
 
         # ================ Initialise Noise Model if provide =======================
-        if noise_model is None and self.has_ResponseWrapper == True:
+        if noise_model is None and self.has_ResponseWrapper is True:
             logger.info("No noise model provided but response has been provided")
             logger.info("Generating and loading default PSD file")
             run_direc = os.getcwd()
@@ -284,7 +283,7 @@ class StableEMRIFisher:
                 self.noise_model = load_psd_from_file(run_direc + PSD_filename, xp=np)
             self.noise_kwargs = {}
             self.channels = ["A", "E"]
-        elif noise_model is None and self.has_ResponseWrapper == False:
+        elif noise_model is None and self.has_ResponseWrapper is False:
             logger.warning("No noise model or response wrapper provided.")
             logger.warning("Defaulting to the sky-averaged sensitivity curve")
 
@@ -323,7 +322,7 @@ class StableEMRIFisher:
 
         # Initialize default waveform kwargs
         if waveform_kwargs is not None:
-            self.waveform_kwargs = dict(**waveform_kwargs)
+            self.waveform_kwargs = {**waveform_kwargs}
         else:
             self.waveform_kwargs = {}
 
@@ -558,7 +557,6 @@ class StableEMRIFisher:
         self.wave_params_list = list(self.wave_params.values())
 
         # # Redefine final time if small body is plunging. More stable FMs.
-        breakpoint()
         if self.plunge_check:
             final_time = self.check_if_plunging()
             self.T = final_time / YRSID_SI  # Years
@@ -585,20 +583,20 @@ class StableEMRIFisher:
         # update derivative kwargs
         if self.deriv_type == "direct":
             self.waveform_derivative_kwargs.update(
-                dict(
-                    parameters=self.wave_params,
-                    waveform=self.waveform,
-                    order=self.order,
-                    waveform_kwargs=self.current_waveform_kwargs,
-                )
+                {
+                    "parameters": self.wave_params,
+                    "waveform": self.waveform,
+                    "order": self.order,
+                    "waveform_kwargs": self.current_waveform_kwargs,
+                }
             )
         else:
             self.waveform_derivative_kwargs.update(
-                dict(
-                    parameters=self.wave_params,
-                    order=self.order,
+                {
+                    "parameters": self.wave_params,
+                    "order": self.order,
                     **self.current_waveform_kwargs,
-                )
+                }
             )
 
         # making parent folder
@@ -790,56 +788,56 @@ class StableEMRIFisher:
         deltas = {}
         relerr_min = {}
 
-        for i in range(len(self.param_names)):
+        for i, param_name in enumerate(self.param_names):
 
             try:
-                delta_init = self.delta_range[self.param_names[i]]
+                delta_init = self.delta_range[param_name]
 
             except KeyError:
 
                 # If a specific parameter equals zero, then consider stepsizes around zero.
-                if self.wave_params[self.param_names[i]] == 0.0:
+                if self.wave_params[param_name] == 0.0:
                     delta_init = np.geomspace(1e-4, 1e-9, Ndelta)
 
                 # Compute Ndelta number of delta values to compute derivative. Testing stability.
-                elif self.param_names[i] == "m1" or self.param_names[i] == "m2":
+                elif param_name == "m1" or param_name == "m2":
                     delta_init = np.geomspace(
-                        1e-4 * self.wave_params[self.param_names[i]],
-                        1e-9 * self.wave_params[self.param_names[i]],
+                        1e-4 * self.wave_params[param_name],
+                        1e-9 * self.wave_params[param_name],
                         Ndelta,
                     )
                 elif (
-                    self.param_names[i] == "a"
-                    or self.param_names[i] == "p0"
-                    or self.param_names[i] == "e0"
-                    or self.param_names[i] == "xI0"
+                    param_name == "a"
+                    or param_name == "p0"
+                    or param_name == "e0"
+                    or param_name == "xI0"
                 ):
                     delta_init = np.geomspace(
-                        1e-4 * self.wave_params[self.param_names[i]],
-                        1e-9 * self.wave_params[self.param_names[i]],
+                        1e-4 * self.wave_params[param_name],
+                        1e-9 * self.wave_params[param_name],
                         Ndelta,
                     )
                 else:
                     delta_init = np.geomspace(
-                        1e-1 * self.wave_params[self.param_names[i]],
-                        1e-6 * self.wave_params[self.param_names[i]],
+                        1e-1 * self.wave_params[param_name],
+                        1e-6 * self.wave_params[param_name],
                         Ndelta,
                     )
 
             Gamma = []
 
             relerr_flag = False
-            for k in range(Ndelta):
+            for k, delta_k in enumerate(delta_init):
 
-                if self.param_names[i] in list(self.minmax.keys()):
+                if param_name in list(self.minmax.keys()):
                     if (
-                        self.wave_params[self.param_names[i]]
-                        <= self.minmax[self.param_names[i]][0]
+                        self.wave_params[param_name]
+                        <= self.minmax[param_name][0]
                     ):
                         kind = "forward"
                     elif (
-                        self.wave_params[self.param_names[i]]
-                        > self.minmax[self.param_names[i]][1]
+                        self.wave_params[param_name]
+                        > self.minmax[param_name][1]
                     ):
                         kind = "backward"
                     else:
@@ -847,12 +845,12 @@ class StableEMRIFisher:
                 else:
                     kind = "central"
 
-                if self.param_names[i] == "dist":
+                if param_name == "dist":
                     del_k = xp.asarray(
                         self.derivative(
                             *self.wave_params_list,
-                            param_to_vary=self.param_names[i],
-                            delta=delta_init[k],
+                            param_to_vary=param_name,
+                            delta=delta_k,
                             kind=kind,
                             **self.waveform_derivative_kwargs,
                         )
@@ -863,38 +861,39 @@ class StableEMRIFisher:
                     relerr_min["dist"] = 0.0
                     break
 
-                elif (self.param_names[i] in ["Phi_phi0", "Phi_theta0", "Phi_r0"]) & (
+                elif (param_name in ["Phi_phi0", "Phi_theta0", "Phi_r0"]) & (
                     self.deriv_type == "stable"
                 ):
                     # derivatives are analytically available
                     del_k = xp.asarray(
                         self.derivative(
                             *self.wave_params_list,
-                            param_to_vary=self.param_names[i],
-                            delta=delta_init[k],
+                            param_to_vary=param_name,
+                            delta=delta_k,
                             kind=kind,
                             **self.waveform_derivative_kwargs,
                         )
                     )
                     relerr_flag = True
-                    deltas[self.param_names[i]] = 0.0
-                    relerr_min[self.param_names[i]] = 0.0
+                    deltas[param_name] = 0.0
+                    relerr_min[param_name] = 0.0
                     break
 
                 elif (
-                    (self.param_names[i] in ["qS", "phiS", "qK", "phiK"])
+                    (param_name in ["qS", "phiS", "qK", "phiK"])
                     & (self.deriv_type == "stable")
                     & (self.has_ResponseWrapper)
                 ):
-                    # cannot calculate derivative of the response-wrapped waveform with respect to the angles for the stable deriv_type, so we use the direct derivative method.
+                    # cannot calculate derivative of the response-wrapped waveform with respect to 
+                    # the angles for the stable deriv_type, so we use the direct derivative method.
                     if k >= len(
                         delta_init
                     ):  # Fall into this part only if we feed in our own delta vec
                         if len(delta_init) == 1:
                             relerr_flag = True
-                            deltas[self.param_names[i]] = delta_init[0]
+                            deltas[param_name] = delta_k
                             break
-                    deltas_grid = self._deltas(delta_init[k], self.order, kind=kind)
+                    deltas_grid = self._deltas(delta_k, self.order, kind=kind)
                     Rh_temp = xp.zeros(
                         (len(deltas_grid), len(self.waveform), len(self.waveform[0])),
                         dtype=xp.complex128,
@@ -904,7 +903,7 @@ class StableEMRIFisher:
                         parameters_in = self.waveform_derivative_kwargs[
                             "parameters"
                         ].copy()
-                        parameters_in[self.param_names[i]] += float(
+                        parameters_in[param_name] += float(
                             delt
                         )  # theta is of the same order as the other angles, so we use the same deltas.
                         parameters_in_list = list(parameters_in.values())
@@ -916,26 +915,22 @@ class StableEMRIFisher:
                         )  # R[h] on the stencil grid
 
                     del_k = self._stencil(
-                        Rh_temp, delta=delta_init[k], order=self.order, kind=kind
+                        Rh_temp, delta=delta_k, order=self.order, kind=kind
                     )  # derivative of R[h]
 
                 else:
-                    if k >= len(
-                        delta_init
-                    ):  # Fall into this part only if we feed in our own delta vec
-                        if len(delta_init) == 1:
-                            relerr_flag = True
-                            deltas[self.param_names[i]] = delta_init[0]
-                            break
+                    deltas[param_name] = delta_k
                     del_k = xp.asarray(
                         self.derivative(
                             *self.wave_params_list,
-                            param_to_vary=self.param_names[i],
-                            delta=delta_init[k],
+                            param_to_vary=param_name,
+                            delta=delta_k,
                             kind=kind,
                             **self.waveform_derivative_kwargs,
                         )
                     )
+                    if len(delta_init) == 1:
+                        relerr_flag = True
 
                 if not self.has_ResponseWrapper:
                     # If the derivative is 1D
@@ -952,7 +947,7 @@ class StableEMRIFisher:
                     fmax=self.fmax,
                     use_gpu=self.use_gpu,
                 )
-                logger.debug("Gamma_ii for %s: %s", self.param_names[i], Gammai)
+                logger.debug("Gamma_ii for %s: %s", param_name, Gammai)
                 if np.isnan(Gammai):
                     Gamma.append(0.0)  # handle nan's
                     logger.warning(
@@ -961,7 +956,8 @@ class StableEMRIFisher:
                 else:
                     Gamma.append(Gammai)
 
-            if relerr_flag == False:
+            breakpoint()
+            if not relerr_flag:
                 if self.use_gpu:
                     Gamma = xp.asnumpy(xp.array(Gamma))
                 else:
@@ -986,28 +982,28 @@ class StableEMRIFisher:
                 if relerr[relerr_min_i] >= 0.01:
                     logger.warning(
                         "minimum relative error is greater than 1%% for %s. Fisher may be unstable!",
-                        self.param_names[i],
+                        param_name,
                     )
 
                 deltas_min_i = (
                     relerr_min_i + 1
                 )  # +1 because relerr grid starts from Gamma_i index of 1 (not zero)
-                deltas[self.param_names[i]] = delta_init[deltas_min_i].item()
-                relerr_min[self.param_names[i]] = relerr[
+                deltas[param_name] = delta_init[deltas_min_i].item()
+                relerr_min[param_name] = relerr[
                     relerr_min_i
                 ]  # save the relerr minima. these can be used as error estimates on the FIM
 
                 if self.stability_plot:
-                    if self.filename != None:
-                        if self.suffix != None:
+                    if self.filename is not None:
+                        if self.suffix is not None:
                             StabilityPlot(
                                 delta_init,
                                 Gamma,
                                 stable_index=deltas_min_i,
-                                param_name=self.param_names[i],
+                                param_name=param_name,
                                 filename=os.path.join(
                                     self.filename,
-                                    f"stability_{self.suffix}_{self.param_names[i]}.png",
+                                    f"stability_{self.suffix}_{param_name}.png",
                                 ),
                             )
                         else:
@@ -1015,10 +1011,10 @@ class StableEMRIFisher:
                                 delta_init,
                                 Gamma,
                                 stable_index=deltas_min_i,
-                                param_name=self.param_names[i],
+                                param_name=param_name,
                                 filename=os.path.join(
                                     self.filename,
-                                    f"stability_{self.param_names[i]}.png",
+                                    f"stability_{param_name}.png",
                                 ),
                             )
                     else:
@@ -1026,7 +1022,7 @@ class StableEMRIFisher:
                             delta_init,
                             Gamma,
                             stable_index=deltas_min_i,
-                            param_name=self.param_names[i],
+                            param_name=param_name,
                         )
 
         logger.debug("stable deltas: %s", deltas)
@@ -1042,7 +1038,7 @@ class StableEMRIFisher:
         is configured, this function does nothing.
         """
         if self.filename is not None:
-            if self.suffix != None:
+            if self.suffix is not None:
                 with open(
                     f"{self.filename}/stable_deltas_{self.suffix}.txt",
                     "w",
@@ -1159,8 +1155,8 @@ class StableEMRIFisher:
             dtv_save = xp.asarray(dtv)
             if self.use_gpu:
                 dtv_save = xp.asnumpy(dtv_save)
-            if not self.filename == None:
-                if not self.suffix == None:
+            if not self.filename is None:
+                if not self.suffix is None:
                     with h5py.File(
                         f"{self.filename}/Fisher_{self.suffix}.h5", "w"
                     ) as f:
@@ -1226,20 +1222,20 @@ class StableEMRIFisher:
         else:
             logger.info("Calculated Fisher is *atleast* positive-definite.")
 
-        if self.filename == None:
+        if self.filename is None:
             pass
         else:
             if self.save_derivatives:
                 mode = "a"  # append
             else:
                 mode = "w"  # write new
-            if self.suffix != None:
+            if self.suffix is not None:
                 with h5py.File(f"{self.filename}/Fisher_{self.suffix}.h5", mode) as f:
                     f.create_dataset("Fisher", data=Fisher)
             else:
                 with h5py.File(f"{self.filename}/Fisher.h5", mode) as f:
                     f.create_dataset("Fisher", data=Fisher)
-        if self.return_derivatives == True:
+        if self.return_derivatives is True:
             return dtv, Fisher
         else:
             return Fisher

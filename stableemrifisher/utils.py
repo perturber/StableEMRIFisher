@@ -461,6 +461,4 @@ def check_if_plunging(traj, T, m1, m2,a,p0,e0,xI0,Phi_phi0, Phi_theta0, Phi_r0, 
                                                                                     Phi_theta0=Phi_theta0, 
                                                                                     Phi_r0=Phi_r0, 
                                                                                     T=T)
-        return T
-    else:
-        return 0
+    return T

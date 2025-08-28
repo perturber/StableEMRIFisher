@@ -8,7 +8,7 @@ computationally efficient and accurate EMRI waveform models suitable for LISA
 data analysis. 
 
 Pip Installation on PyPi
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You can install StableEMRIFisher directly from PyPi using pip:
 

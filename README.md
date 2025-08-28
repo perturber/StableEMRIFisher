@@ -19,7 +19,7 @@
 pip install stableemrifisher
 ```
 
-#### Development Installation (Recommended)
+### Development Installation (Recommended)
 
 If you're using conda 
 
@@ -34,7 +34,7 @@ cd StableEMRIFisher
 pip install -e .
 ```
 
-#### GPU-Accelerated Installation
+### GPU-Accelerated Installation
 
 For GPU acceleration, install with CUDA support. **Note**: GPU support requires Linux x86_64 systems with NVIDIA GPUs and appropriate CUDA drivers.
 
@@ -45,12 +45,10 @@ pip install -e ".[cuda11]"
 
 # For CUDA 12.x (Linux x86_64 only)  
 pip install -e ".[cuda12]"
-
-# Generic GPU support - installs latest CuPy (Linux x86_64 only)
-pip install -e ".[gpu]"
 ```
 
-**StableEMRIFisher automatically installs FastEMRIWaveforms 2.0.0** as a core dependency. For GPU acceleration, you may need to reinstall with CUDA-specific variants:
+**StableEMRIFisher automatically installs FastEMRIWaveforms 2.0.0** as a core dependency. Our package StableEMRIFisher specifically works with
+version 2.0.0 of FEW. 
 
 **For CUDA installations (match your CUDA toolkit version):**
 ```bash

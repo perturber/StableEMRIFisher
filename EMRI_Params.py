@@ -27,7 +27,7 @@ SNR_choice = 30.0
 dist = 14.399336686341377 # Animal -- hardcoded distance for case 1
 qS = 0.8 ; phiS = 2.2; qK = 1.6; phiK = 1.2; 
 Phi_phi0 = 2.0; Phi_theta0 = 0.0; Phi_r0 = 3.0
-dt = 5.0; T = 2.0
+dt = 5.0; T = 0.01
 # dt = 5.0; T = 1.796 #really good
 # dt = 5.0; T = 1.7963
 

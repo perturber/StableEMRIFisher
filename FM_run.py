@@ -11,8 +11,8 @@ from stableemrifisher.fisher import StableEMRIFisher
 from stableemrifisher.utils import check_if_plunging
 from lisatools.sensitivity import get_sensitivity, A1TDISens, E1TDISens, T1TDISens
 
-from psd_utils import (write_psd_file, load_psd_from_file, load_psd)
-from EMRI_Params import (m1, m2, a, p0, e0, xI0, dist, SNR_choice, qS, phiS, qK, phiK, Phi_phi0, Phi_theta0, Phi_r0, T, dt)
+from psd_utils import (write_psd_file, load_psd_from_file)
+from EMRI_Params import (m1, m2, a, p0, e0, xI0, dist, qS, phiS, qK, phiK, Phi_phi0, Phi_theta0, Phi_r0, T, dt)
 
 import numpy as np
 try:
@@ -29,31 +29,6 @@ ONE_HOUR = 60*60
 # Waveform params
 pars_list = [m1,m2,a,p0,e0,xI0,dist,qS,phiS,qK,phiK,Phi_phi0, Phi_theta0, Phi_r0]
 
-
-
-# def check_if_plunging(traj, T, m1, m2,a,p0,e0,xI0,Phi_phi0, Phi_theta0, Phi_r0, chop_inspiral_time = 0.0):
-
-#     t_traj, p_traj, e_traj, xI_traj, Phi_phi_traj, Phi_r_traj, Phi_theta_traj = traj(m1, m2, a, 
-#                                                                                     p0, e0, xI0,
-#                                                                                     Phi_phi0=Phi_phi0, 
-#                                                                                     Phi_theta0=Phi_theta0, 
-#                                                                                     Phi_r0=Phi_r0, 
-#                                                                                     T=T)
-#     if t_traj[-1] < T*YRSID_SI:
-#         print("Ah, looks like things are plunging, nightmare. redefining time T")
-#         end_time_seconds = (t_traj[-1]/YRSID_SI)
-#         T = end_time_seconds - chop_inspiral_time*(ONE_HOUR)/YRSID_SI
-#         t_traj, p_traj, e_traj, xI_traj, Phi_phi_traj, Phi_r_traj, Phi_theta_traj = traj(m1, m2, a, 
-#                                                                                     p0, e0, xI0,
-#                                                                                     Phi_phi0=Phi_phi0, 
-#                                                                                     Phi_theta0=Phi_theta0, 
-#                                                                                     Phi_r0=Phi_r0, 
-#                                                                                     T=T)
-#         return T
-#     else:
-#         return 0
-        
-## ===================== CHECK TRAJECTORY ====================
 traj = EMRIInspiral(func=KerrEccEqFlux)  # Set up trajectory module, pn5 AAK
 T = check_if_plunging(traj, T, m1, m2,a,p0,e0,xI0,Phi_phi0, Phi_theta0, Phi_r0, chop_inspiral_time = 0.5) # Remove 30 minutes if plunging
 
@@ -64,7 +39,6 @@ t_traj, p_traj, e_traj, xI_traj, Phi_phi_traj, Phi_r_traj, Phi_theta_traj = traj
                                                                                  Phi_theta0=Phi_theta0, 
                                                                                  Phi_r0=Phi_r0, 
                                                                                  T=T)
-breakpoint()
 if t_traj[-1] < T*YRSID_SI:
     print("Ah, looks like things are plunging, nightmare. redefining time T")
     end_time_seconds = (t_traj[-1]/YRSID_SI)
@@ -90,7 +64,6 @@ p_new = get_p_at_t(
 
 
 
-breakpoint()
 print("We require initial semi-latus rectum of ",p_new, "for inspiral lasting", T, "years")
 print("Your chosen semi-latus rectum is", p0)
 if p0 < p_new:
@@ -104,7 +77,7 @@ print("Separation between separatrix and final p = ",abs(get_separatrix(a,e_traj
 print(f"Final eccentricity = {e_traj[-1]}")
 
 # ========================= SET UP RESPONSE FUNCTION ===============================#
-RESPONSE_FUNCTION = True
+RESPONSE_FUNCTION = False
 USE_GPU = True
 if RESPONSE_FUNCTION:
     from fastlisaresponse import ResponseWrapper             # Response
@@ -140,6 +113,8 @@ if RESPONSE_FUNCTION:
     data_channels = ['TDIA','TDIE']
     N_channels = len(data_channels)
 else:
+    ResponseWrapper = None
+    ResponseWrapper_kwargs = None
     data_channels = ["I", "II"]
     N_channels = len(data_channels)
 

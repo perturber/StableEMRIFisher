@@ -24,8 +24,3 @@ Functions
    :members:
    :undoc-members:
    :show-inheritance:
-
-.. automodule:: stableemrifisher.fisher.new_derivs
-   :members:
-   :undoc-members:
-   :show-inheritance:

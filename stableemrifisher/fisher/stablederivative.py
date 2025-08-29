@@ -105,7 +105,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                 'phase_coefficients_t':self.inspiral_generator.integrator_spline_t, 
             }
             
-            amps_here = self._amplitudes_from_trajectory(parameters, t = t, y = y, qsource=float(theta_source), phisource=phi_source, cache=True, **kwargs_remaining)
+            amps_here = self._amplitudes_from_trajectory(parameters, t = t, y = y, theta_source=float(theta_source), phi_source=phi_source, cache=True, **kwargs_remaining)
 
             #create waveform at injection
 
@@ -163,7 +163,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
         # sky angles (SSB)
         elif param_to_vary in ['qS', 'phiS', 'qK', 'phiK']:
             # finite differencing of the ylms w.r.t. theta, then chain rule partial h / partial theta * partial theta / partial angle
-            modified_amps = self._modify_amplitudes_for_angle_derivative(parameters, param_to_vary)
+            modified_amps = self._modify_amplitudes_for_angle_derivative(parameters, param_to_vary, theta_source=float(theta_source), phi_source=phi_source)
             
             waveform_derivative_source = self._create_waveform_in_batches(
                 self.cache['t'],
@@ -637,7 +637,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
         modified_amps = self.cache['teuk_modes_with_ylms'] * factor[None, :]
         return modified_amps
 
-    def _modify_amplitudes_for_angle_derivative(self, parameters, param_to_vary):
+    def _modify_amplitudes_for_angle_derivative(self, parameters, param_to_vary, theta_source, phi_source):
         """
         calculates modified amplitudes for angle derivatives (qS, phiS, qK, phiK)
 
@@ -652,10 +652,10 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
 
         #first calculate dylm_dtheta
         for k, delt in enumerate(self.deltas):
-            parameters_in = parameters.copy()
-            parameters_in['theta_source'] += float(delt) #theta is of the same order as the other angles, so we use the same deltas.
+            theta_source_in = theta_source.copy()
+            theta_source_in += float(delt) #theta is of the same order as the other angles, so we use the same deltas.
             # get the ylms for this theta
-            ylm_temp[k] = self.ylm_gen(self.cache['ls_all'], self.cache['ms_all'], parameters_in['theta_source'], parameters_in['phi_source'])
+            ylm_temp[k] = self.ylm_gen(self.cache['ls_all'], self.cache['ms_all'], theta_source_in, phi_source)
 
         dYlm_dtheta = self._stencil(ylm_temp, self.delta, self.order, self.kind)
 

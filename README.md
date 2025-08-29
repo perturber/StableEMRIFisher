@@ -26,7 +26,7 @@ If you're using conda
 ```bash
 # Create and activate environment
 conda create -n sef_env python=3.12
-conda activate stableemri
+conda activate sef_env
 
 # Clone and install
 git clone https://github.com/perturber/StableEMRIFisher.git
@@ -49,15 +49,9 @@ pip install -e ".[cuda12x]"
 
 **StableEMRIFisher with the LISA response**
 
-- First install `lisaanalysistools` by following the instructions [here](https://github.com/mikekatz04/lisa-on-gpu.git). If using GPUs, then install from source.
-- Second install `fastlisaresponse` by following the instructions [here](https://github.com/mikekatz04/LISAanalysistools.git). If using GPUs, then install from source. 
+- First install `lisaanalysistools` by following the instructions [here](https://github.com/mikekatz04/lisa-on-gpu.git). If using GPUs, install from source.
+- Second install `fastlisaresponse` by following the instructions [here](https://github.com/mikekatz04/LISAanalysistools.git). If using GPUs, install from source.
 
-### Basic Usage
-
-```python
-from stableemrifisher.fisher import StableEMRIFisher
-
-```
 
 ## Documentation
 
@@ -73,10 +67,11 @@ from stableemrifisher.fisher import StableEMRIFisher
 
 ```bash
 # Install documentation dependencies
-pip install sphinx sphinx_rtd_theme nbsphinx
+pip install -e ".[docs]"
 
 # Build documentation
 cd docs
+make clean
 make html
 
 # View documentation
@@ -84,23 +79,6 @@ open _build/html/index.html  # macOS
 # or 
 xdg-open _build/html/index.html  # Linux
 ```
-
-## Examples
-
-The `examples/` directory contains:
-
-- **`basic_usage_stability_check.py`**: Complete Fisher matrix calculation with validation
-- **`basic_usage_no_stability_check.py`**: Fast computation without stability checks
-- **`SEF_inner_product_example.ipynb`**: Jupyter notebook showing inner product calculations
-
-### Fisher Matrix Analysis
-
-The Fisher Information Matrix provides a powerful framework for gravitational wave parameter estimation:
-
-- **Parameter Uncertainties**: Diagonal elements give variance estimates
-- **Parameter Correlations**: Off-diagonal elements reveal degeneracies
-- **Detectability**: Matrix properties relate to signal-to-noise ratio
-- **Mission Planning**: Optimize detector configurations and observation strategies
 
 ## Contributing
 

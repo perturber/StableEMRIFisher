@@ -10,7 +10,9 @@ from lisatools.detector import EqualArmlengthOrbits
 import numpy as np
 
 from stableemrifisher.fisher import StableEMRIFisher
-    
+from few.utils.constants import YRSID_SI
+
+ONE_HOUR = 60 * 60
 # ================== CASE 1 PARAMETERS ======================
 T = 2.0
 dt = 5.0
@@ -41,16 +43,9 @@ emri_params = {
     "Phi_phi0": 2.0,    # Azimuthal phase
     "Phi_theta0": 0.0,  # Polar phase
     "Phi_r0": 3.0,      # Radial phase
-    
-    # Time domain setup
-    "dt": 5.0,        # Time step (seconds)
-    "T": 0.01,        # Observation time (years)
 }
 
 
-
-YRSID_SI = 31558149.763545603
-ONE_HOUR = 60 * 60
 
 
 ####=======================True Responsed waveform==========================
@@ -77,22 +72,21 @@ waveform_generator_kwargs = {
 
 
 # ========================= SET UP RESPONSE FUNCTION ===============================#
-RESPONSE_FUNCTION = True
 USE_GPU = True
 
 tdi_kwargs = dict(
     orbits=EqualArmlengthOrbits(use_gpu=USE_GPU),
-    order=25,
-    tdi="2nd generation",
+    order=25,  # Order of Lagrange interpolant, used for fractional delays.
+    tdi="2nd generation", # Use second generation TDI variables
     tdi_chan="AE",
-)  # could do "AET"
+) 
 
 INDEX_LAMBDA = 8
 INDEX_BETA = 7
 
-# with longer signals we care less about this
 t0 = 20000.0  # throw away on both ends when our orbital information is weird
 
+# Set up Response key word arguments
 ResponseWrapper_kwargs = dict(
     Tobs=T,
     dt=dt,
@@ -105,30 +99,35 @@ ResponseWrapper_kwargs = dict(
     remove_garbage="zero",
     **tdi_kwargs,
 )
-# noise setup
 
-der_order = 4
-Ndelta = 8
+der_order = 4   # Fourth order derivatives
 
+Ndelta = 8      # Check 8 possible delta values to check convergence of derivatives
+
+# No noise model provided so will default to TDI2 A and E channels with galactic confusion noise
+# extracts relevant noise model from information provided to tdi_kwargs. 
+
+# Initialise fisher matrix
 sef = StableEMRIFisher(
+    # Set up waveform class 
     waveform_class=waveform_class,
     waveform_class_kwargs=waveform_class_kwargs,
+    # Set up waveform generator
     waveform_generator=waveform_generator,
     waveform_generator_kwargs=waveform_generator_kwargs,
+    # Set up response
     ResponseWrapper=ResponseWrapper,
     ResponseWrapper_kwargs=ResponseWrapper_kwargs,
-    dt = dt,
-    T = T,
-    stats_for_nerds=True,
-    use_gpu=USE_GPU,
-    der_order=der_order,
-    Ndelta=Ndelta,
-    return_derivatives=False,
+    stats_for_nerds=True,       # Output useful information governing stability
+    use_gpu=USE_GPU,            # select whether or not to use gpu
+    der_order=der_order,        # derivative order
+    Ndelta=Ndelta,              # delta spacing
+    return_derivatives=False,   # Do not return derivatives 
     filename="MCMC_FM_Data/fisher_matrices/case_1_for_docs",
-    deriv_type="stable",
+    deriv_type="stable",  # Type of derivative
 )
 
-
+# Specify full parameter set to compute Fisher matrix over
 param_names = [
     "m1",
     "m2",
@@ -144,6 +143,7 @@ param_names = [
     "Phi_r0",
 ]
 
+# Compute specific delta ranges
 delta_range = dict(
     m1=np.geomspace(1e2, 1e-3 , Ndelta),
     m2=np.geomspace(1e-1, 1e-7, Ndelta),
@@ -157,13 +157,15 @@ delta_range = dict(
 )
 
 print("Computing FM")
-derivs, fisher_matrix = sef(
+# Compute the fisher matrix
+fisher_matrix = sef(
     emri_params, param_names=param_names, delta_range=delta_range
 )
 
-
+# Compute paramter covariance matrix
 param_cov = np.linalg.inv(fisher_matrix)
 
+# Print precision measurements on parameters
 for k, item in enumerate(param_names):
     print(
         "Precision measurement in param {} is {}".format(

@@ -6,6 +6,8 @@ StableEMRIFisher has been validated against Monte Carlo Markov Chain (MCMC) para
 Fisher Matrix vs MCMC Comparison
 ---------------------------------
 
+Running Fisher Matrix on GPU
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 For this specific example, we consider an EMRI from the FEWv2 paper given by the first row in Tab.I in the latest FEW paper. We have applied the LISA response function and use second generation TDI variables (over A and E) with a ower spectral density
 given by SciRDv1 with the galactic confusion noise included. The source has SNR 50, with parameters below
 
@@ -32,7 +34,9 @@ given by SciRDv1 with the galactic confusion noise included. The source has SNR 
     | :math:`Φ_{θ0}`   | 0.0              | :math:`Φ_{r0}`   | 3.0              |
     +------------------+------------------+------------------+------------------+
 
-.. code-block: python
+The snippets of code below allow for the generation of the EMRI waveform and the setup of the Fisher matrix calculation. 
+
+.. code-block:: python
 
    # Import relevant EMRI packages
    from few.waveform import (
@@ -209,12 +213,15 @@ given by SciRDv1 with the galactic confusion noise included. The source has SNR 
          )
       )
 
+Checking Fisher Matrix on GPU
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 The following interactive analysis compares Fisher matrix parameter uncertainties with full MCMC posterior distributions, including quantitative goodness-of-fit measures.
 
 .. toctree::
    :maxdepth: 1
    
-    check_fisher_against_mcmc_executed.ipynb
+   check_fisher_against_mcmc_executed.ipynb
 
 The notebook shows pre-executed results for fast documentation builds. To update the analysis, re-run the notebook and regenerate the executed version.
 

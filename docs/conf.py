@@ -83,6 +83,16 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = 'sphinx_rtd_theme'
+
+# The name of an image file (relative to this directory) to place at the top
+# of the sidebar.
+html_logo = '_static/StableEMRIFisher_logo.png'
+
+# The name of an image file (within the static path) to use as favicon of the
+# docs.  This file should be a Windows icon file (.ico) - if you have a PNG
+# logo, you can convert it online or use it directly (browsers will handle PNG favicons)
+html_favicon = '_static/StableEMRIFisher_logo.png'
+
 html_static_path = ['_static']
 
 html_theme_options = {

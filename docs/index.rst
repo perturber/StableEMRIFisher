@@ -1,6 +1,11 @@
 StableEMRIFisher Documentation
 ==============================
 
+.. image:: _static/StableEMRIFisher_logo.png
+   :align: center
+   :alt: StableEMRIFisher Logo
+   :width: 400px
+
 **Stable EMRI Fisher Matrix Calculator**
 
 StableEMRIFisher (SEF) is a Python package for computing stable Fisher matrices 
@@ -67,7 +72,6 @@ Getting Help
 * Check the :doc:`quickstart` guide for a detailed walkthrough
 * Browse the :doc:`tutorials/index` for in-depth examples
 * Refer to the :doc:`api/index` for complete API documentation
-* See :doc:`examples` for ready-to-run code samples
 
 Indices and tables
 ==================

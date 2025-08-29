@@ -18,5 +18,10 @@ ipykernel>=6.0.0
 matplotlib>=3.5.0
 numpy>=1.20.0
 
+# Additional packages for notebook execution
+scipy>=1.7.0
+h5py>=3.0.0
+corner>=2.2.0
+
 # Mock packages that are hard to install on RTD
 # The actual package dependencies will be mocked in conf.py if needed

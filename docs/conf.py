@@ -58,9 +58,15 @@ autodoc_typehints_description_target = 'documented'
 # Autosummary settings
 autosummary_generate = True
 
-# NBsphinx settings
+# NBsphinx settings - optimized for fast builds with pre-executed notebooks
 nbsphinx_allow_errors = True
-nbsphinx_execute = 'never'  # Don't execute notebooks during build
+nbsphinx_execute = 'never'  # Use pre-executed notebooks for faster builds
+nbsphinx_timeout = 30  # Short timeout since we're not executing
+nbsphinx_codecell_lexer = 'ipython3'
+
+# Minimal configuration for faster processing
+nbsphinx_prompt_width = '0'  # Hide input/output prompts for cleaner look
+nbsphinx_responsive_width = '100%'
 
 # Intersphinx mapping
 intersphinx_mapping = {

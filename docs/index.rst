@@ -24,17 +24,17 @@ Parameter derivatives $\partial_{i} = \partial/\partial\theta^i$ are given by
 .. math::
 
    \begin{align}
-   \partial_{i}h(t;\boldsymbol{\theta}) &= \sum_{lmnk} (\partial_{i}A_{lmnk}(t;\boldsymbol{\theta}) -i A_{lmnk}\partial_{i}\Phi_{mnk})\exp(-i\Phi_{mnk}(t;\boldsymbol{\theta})) \\
+   \partial_{i}h(t;\boldsymbol{\theta}) &= \sum_{lmnk} (\partial_{i}A_{lmnk} -i A_{lmnk}\partial_{i}\Phi_{mnk})\exp(-i\Phi_{mnk}(t;\boldsymbol{\theta})) \\
    \partial_{i}h(t;\boldsymbol{\theta}) &= \sum_{lmnk} A_{lmnk}^{\prime}\exp(-i\Phi_{mnk}(t;\boldsymbol{\theta}))
    \end{align}
 
-with effective amplitudes $A_{lmnk}^{\prime} = \partial_{i}A_{lmnk}(t;\boldsymbol{\theta}) -i A_{lmnk}\partial_{i}\Phi_{mnk}$. 
+with effective amplitudes :math:`A_{lmnk}^{\prime} = \partial_{i}A_{lmnk}(t;\boldsymbol{\theta}) -i A_{lmnk}\partial_{i}\Phi_{mnk}`.
 
 These effective amplitudes are constructed using finite differences and then splined. The oscillatory waveform is then built using the 
 effective amplitudes $A^{\prime}_{lmnk}$ and the original phases $\Phi_{mnk}$. This method avoids direct finite differencing of the oscillatory waveform,
 resulting in more stable numerical derivatives. 
 
-.. note::
+.. note:::
    This package requires the latest (v2.0.0) FastEMRIWaveforms (FEW) package to be installed. 
    Installing StableEMRIFisher will install FastEMRIWaveforms by default (for both CPU and GPU).
    See the installation guide for details.
@@ -43,12 +43,10 @@ resulting in more stable numerical derivatives.
    :maxdepth: 2
    :caption: Contents:
 
+   api/index
    installation
    quickstart
-   tutorials/index
-   api/index
-   examples
-   validation
+   validation/validation
    contribution
    citation
 

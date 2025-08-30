@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import cupy as xp
 import numpy as np
+
 use_gpu=True
 
 #set initial parameters

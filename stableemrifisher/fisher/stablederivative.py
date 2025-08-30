@@ -247,7 +247,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
 
                 parameters_in = parameters.copy()
                 parameters_in[param_to_vary] += delt #perturb by finite-difference
-                amps_here = self._amplitudes_from_trajectory(parameters_in, t_interp, y_interps[k].T, qsource=float(theta_source), phisource=phi_source, cache=False, **kwargs_remaining) #remember, this function multiplies by Ylmns!
+                amps_here = self._amplitudes_from_trajectory(parameters_in, t_interp, y_interps[k].T, theta_source=float(theta_source), phi_source=phi_source, cache=False, **kwargs_remaining) #remember, this function multiplies by Ylmns!
                 amps_steps[k] = amps_here
 
             #finite differencing the amplitudes
@@ -410,7 +410,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
     
         return t, y
 
-    def _amplitudes_from_trajectory(self, parameters, t, y, qsource, phisource, cache=False, **kwargs):
+    def _amplitudes_from_trajectory(self, parameters, t, y, theta_source, phi_source, cache=False, **kwargs):
         """
         calculate the amplitudes (and ylms) from the trajectory.
 
@@ -418,8 +418,8 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             parameters (dict): dictionary of trajectory parameters
             t (np.ndarray): array of time steps for trajectory
             y (np.ndarray): array of evolving parameters in the trajectory at time steps
-            qsource (np.float): polar angle in source frame
-            phisource (np.float): azimuthal angle in source frame
+            theta_source (np.float): polar angle in source frame
+            phi_source (np.float): azimuthal angle in source frame
             cache (bool): whether to cache info (True) or not (False)
         Returns:
             Teukolsky amplitudes times Ylms
@@ -438,7 +438,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
         ) #these are all the Teukolsky amplitudes for the trajectory
 
         #ylms
-        ylms = self.ylm_gen(self.unique_l, self.unique_m, qsource, phisource).copy()[self.inverse_lm]
+        ylms = self.ylm_gen(self.unique_l, self.unique_m, theta_source, phi_source).copy()[self.inverse_lm]
             
         if cache: 
             #perform mode selection in the first call (with cache=True))

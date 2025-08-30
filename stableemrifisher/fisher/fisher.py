@@ -345,7 +345,7 @@ class StableEMRIFisher:
         self.window = None
         self.fmin = None
         self.fmax = None
-        self.filename = None
+        self.filename = filename
         self.suffix = None
         # self.filename = filename   # Always set per-call
 
@@ -354,9 +354,10 @@ class StableEMRIFisher:
         wave_params: Dict[str, float],
         add_param_args: Optional[Dict[str, Any]] = None,
         waveform_kwargs: Optional[Dict[str, Any]] = None,
+        fisher_kwargs: Optional[Dict[str, Any]] = None,
         window: Optional[Union[np.ndarray, Any]] = None,
-        fmin: Optional[float] = None,
-        fmax: Optional[float] = None,
+        # fmin: Optional[float] = None,
+        # fmax: Optional[float] = None,
         param_names: Optional[List[str]] = None,
         deltas: Optional[Dict[str, float]] = None,
         der_order: Optional[int] = None,

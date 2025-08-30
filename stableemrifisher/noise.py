@@ -10,7 +10,6 @@ Key components:
 """
 
 from few.summation.interpolatedmodesum import CubicSplineInterpolant
-from few.utils.constants import SPEED_OF_LIGHT as C_SI
 from lisatools.sensitivity import (
     get_sensitivity,
     A1TDISens,
@@ -20,7 +19,6 @@ from lisatools.sensitivity import (
 )
 from lisatools.utils.constants import lisaLT
 
-import numpy as np
 import numpy as np
 import os
 
@@ -59,10 +57,10 @@ def sensitivity_LWA(f):
         * np.exp(-(f**alpha) + beta * f * np.sin(kappa * f))
         * (1 + np.tanh(gamma * (fk - f)))
     )
-    sensitivity_LWA = (10 / (3 * L**2)) * (
+    sensitivity = (10 / (3 * L**2)) * (
         P_OMS + 4 * (P_acc) / ((2 * np.pi * f) ** 4)
     ) * (1 + 6 * f**2 / (10 * fstar**2)) + Sc
-    return sensitivity_LWA
+    return sensitivity
 
 
 def write_psd_file(

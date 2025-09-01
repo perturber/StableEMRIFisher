@@ -183,7 +183,10 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
         elif param_to_vary in ["qS", "phiS", "qK", "phiK"]:
             # finite differencing of the ylms w.r.t. theta, then chain rule partial h / partial theta * partial theta / partial angle
             modified_amps = self._modify_amplitudes_for_angle_derivative(
-                parameters, param_to_vary, theta_source=theta_source, phi_source=phi_source
+                parameters,
+                param_to_vary,
+                theta_source=theta_source,
+                phi_source=phi_source,
             )
 
             waveform_derivative_source = self._create_waveform_in_batches(
@@ -329,9 +332,9 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                     M = parameters["m1"] + parameters["m2"]
 
                     if param_to_vary == "m1":
-                        dmu_dm = parameters["m2"] ** 2 / (M ** 2)
+                        dmu_dm = parameters["m2"] ** 2 / (M**2)
                     else:
-                        dmu_dm = parameters["m1"] ** 2 / (M ** 2)
+                        dmu_dm = parameters["m1"] ** 2 / (M**2)
 
                     effective_amps += wave_amps / mu * dmu_dm
 
@@ -755,7 +758,9 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
         modified_amps = self.cache["teuk_modes_with_ylms"] * factor[None, :]
         return modified_amps
 
-    def _modify_amplitudes_for_angle_derivative(self, parameters, param_to_vary, theta_source, phi_source):
+    def _modify_amplitudes_for_angle_derivative(
+        self, parameters, param_to_vary, theta_source, phi_source
+    ):
         """
         calculates modified amplitudes for angle derivatives (qS, phiS, qK, phiK)
 
@@ -776,7 +781,9 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
         for k, delt in enumerate(self.deltas):
 
             theta_source_perturb = theta_source + float(delt)
-            phi_source_perturb = phi_source #no delta in phi_source because phi_source is fixed!
+            phi_source_perturb = (
+                phi_source  # no delta in phi_source because phi_source is fixed!
+            )
             # get the ylms for this theta
             ylm_temp[k] = self.ylm_gen(
                 self.cache["ls_all"],

@@ -6,6 +6,7 @@ from few.waveform import (
 from stableemrifisher.fisher import StableEMRIFisher
 
 import numpy as np
+
 # Waveform params
 dt = 5.0
 T = 0.01
@@ -69,9 +70,7 @@ delta_range = dict(
     a=np.geomspace(1e-4, 1e-9, Ndelta),
 )
 
-fisher_matrix = sef(
-    wave_params, param_names=param_names, delta_range=delta_range
-)
+fisher_matrix = sef(wave_params, param_names=param_names, delta_range=delta_range)
 
 param_cov = np.linalg.inv(fisher_matrix)
 

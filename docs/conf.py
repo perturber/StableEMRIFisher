@@ -5,28 +5,29 @@
 
 import os
 import sys
-sys.path.insert(0, os.path.abspath('..'))
+
+sys.path.insert(0, os.path.abspath(".."))
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'StableEMRIFisher'
-copyright = '2024, Shubham Kejriwal, Ollie Burke, Christian Chapman-Bird and Alvin Chua'  # pylint: disable=redefined-builtin
-author = 'Shubham Kejriwal, Ollie Burke, Christian Chapman-Bird and Alvin Chua'
-release = '2.0.0'
+project = "StableEMRIFisher"
+copyright = "2024, Shubham Kejriwal, Ollie Burke, Christian Chapman-Bird and Alvin Chua"  # pylint: disable=redefined-builtin
+author = "Shubham Kejriwal, Ollie Burke, Christian Chapman-Bird and Alvin Chua"
+release = "2.0.0"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.autosummary',
-    'sphinx.ext.viewcode',
-    'sphinx.ext.napoleon',
-    'sphinx.ext.intersphinx',
-    'sphinx.ext.mathjax',
-    'nbsphinx',
-    'sphinx_rtd_theme',
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.mathjax",
+    "nbsphinx",
+    "sphinx_rtd_theme",
 ]
 
 # Napoleon settings for Google/NumPy style docstrings
@@ -47,84 +48,84 @@ napoleon_attr_annotations = True
 
 # Autodoc settings
 autodoc_default_options = {
-    'members': True,
-    'undoc-members': True,
-    'show-inheritance': True,
-    'member-order': 'bysource',
+    "members": True,
+    "undoc-members": True,
+    "show-inheritance": True,
+    "member-order": "bysource",
 }
-autodoc_typehints = 'description'
-autodoc_typehints_description_target = 'documented'
+autodoc_typehints = "description"
+autodoc_typehints_description_target = "documented"
 
 # Autosummary settings
 autosummary_generate = True
 
 # NBsphinx settings - optimized for fast builds with pre-executed notebooks
 nbsphinx_allow_errors = True
-nbsphinx_execute = 'never'  # Use pre-executed notebooks for faster builds
+nbsphinx_execute = "never"  # Use pre-executed notebooks for faster builds
 nbsphinx_timeout = 30  # Short timeout since we're not executing
-nbsphinx_codecell_lexer = 'ipython3'
+nbsphinx_codecell_lexer = "ipython3"
 
 # Minimal configuration for faster processing
-nbsphinx_prompt_width = '0'  # Hide input/output prompts for cleaner look
-nbsphinx_responsive_width = '100%'
+nbsphinx_prompt_width = "0"  # Hide input/output prompts for cleaner look
+nbsphinx_responsive_width = "100%"
 
 # Intersphinx mapping
 intersphinx_mapping = {
-    'python': ('https://docs.python.org/3/', None),
-    'numpy': ('https://numpy.org/doc/stable/', None),
-    'scipy': ('https://docs.scipy.org/doc/scipy/', None),
-    'matplotlib': ('https://matplotlib.org/stable/', None),
+    "python": ("https://docs.python.org/3/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/", None),
+    "matplotlib": ("https://matplotlib.org/stable/", None),
 }
 
-templates_path = ['_templates']
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+templates_path = ["_templates"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'sphinx_rtd_theme'
+html_theme = "sphinx_rtd_theme"
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = '_static/StableEMRIFisher_logo.png'
+html_logo = "_static/StableEMRIFisher_logo.png"
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) - if you have a PNG
 # logo, you can convert it online or use it directly (browsers will handle PNG favicons)
-html_favicon = '_static/StableEMRIFisher_logo.png'
+html_favicon = "_static/StableEMRIFisher_logo.png"
 
-html_static_path = ['_static']
+html_static_path = ["_static"]
 
 html_theme_options = {
-    'logo_only': False,
-    'display_version': True,
-    'prev_next_buttons_location': 'bottom',
-    'style_external_links': False,
-    'collapse_navigation': False,
-    'sticky_navigation': True,
-    'navigation_depth': 4,
-    'includehidden': True,
-    'titles_only': False,
+    "logo_only": False,
+    "display_version": True,
+    "prev_next_buttons_location": "bottom",
+    "style_external_links": False,
+    "collapse_navigation": False,
+    "sticky_navigation": True,
+    "navigation_depth": 4,
+    "includehidden": True,
+    "titles_only": False,
 }
 
 # Add custom CSS
 html_css_files = [
-    'custom.css',
+    "custom.css",
 ]
 
 # The suffix(es) of source filenames.
 source_suffix = {
-    '.rst': None,
-    '.md': None,
+    ".rst": None,
+    ".md": None,
 }
 
 # The master toctree document.
-master_doc = 'index'
+master_doc = "index"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = ["_static"]
 
 # If true, "Created using Sphinx" is shown in the HTML footer. Default is True.
 html_show_sphinx = False

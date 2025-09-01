@@ -93,9 +93,6 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             parameters["qS"], parameters["phiS"], parameters["qK"], parameters["phiK"]
         )
 
-        self.theta_source = theta_source
-        self.phi_source = phi_source
-
         keys_exclude = ["T", "dt", "batch_size", "show_progress"]
         kwargs_remaining = {
             key: value for key, value in kwargs.items() if key not in keys_exclude
@@ -121,8 +118,6 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                 parameters,
                 t=t,
                 y=y,
-                qsource=float(theta_source),
-                phisource=phi_source,
                 cache=True,
                 **kwargs_remaining,
             )
@@ -188,7 +183,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
         elif param_to_vary in ["qS", "phiS", "qK", "phiK"]:
             # finite differencing of the ylms w.r.t. theta, then chain rule partial h / partial theta * partial theta / partial angle
             modified_amps = self._modify_amplitudes_for_angle_derivative(
-                parameters, param_to_vary
+                parameters, param_to_vary, theta_source=theta_source, phi_source=phi_source
             )
 
             waveform_derivative_source = self._create_waveform_in_batches(
@@ -297,8 +292,6 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                     parameters_in,
                     t_interp,
                     y_interps[k].T,
-                    qsource=float(theta_source),
-                    phisource=phi_source,
                     cache=False,
                     **kwargs_remaining,
                 )  # remember, this function multiplies by Ylmns!
@@ -336,9 +329,9 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                     M = parameters["m1"] + parameters["m2"]
 
                     if param_to_vary == "m1":
-                        dmu_dm = parameters["m2"] ** 2 / (M**2)
+                        dmu_dm = parameters["m2"] ** 2 / (M ** 2)
                     else:
-                        dmu_dm = parameters["m1"] ** 2 / (M**2)
+                        dmu_dm = parameters["m1"] ** 2 / (M ** 2)
 
                     effective_amps += wave_amps / mu * dmu_dm
 
@@ -762,13 +755,15 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
         modified_amps = self.cache["teuk_modes_with_ylms"] * factor[None, :]
         return modified_amps
 
-    def _modify_amplitudes_for_angle_derivative(self, parameters, param_to_vary):
+    def _modify_amplitudes_for_angle_derivative(self, parameters, param_to_vary, theta_source, phi_source):
         """
         calculates modified amplitudes for angle derivatives (qS, phiS, qK, phiK)
 
         Args:
             parameters (dict): model parameters
             param_to_vary (str): one of qS, phiS, qK, phiK: parameter with respect to which to calculate the derivative
+            theta_source (float): polar angle in source frame
+            phi_source (float): azimuthal angle in source frame
         Returns:
             modified amplitudes = A * partial Y_lm / partial theta * partial_theta / partial kappa where kappa is the param_to_vary
         """
@@ -780,8 +775,8 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
         # first calculate dylm_dtheta
         for k, delt in enumerate(self.deltas):
 
-            theta_source_perturb = self.theta_source + float(delt)
-            phi_source_perturb = self.phi_source + float(delt)
+            theta_source_perturb = theta_source + float(delt)
+            phi_source_perturb = phi_source #no delta in phi_source because phi_source is fixed!
             # get the ylms for this theta
             ylm_temp[k] = self.ylm_gen(
                 self.cache["ls_all"],

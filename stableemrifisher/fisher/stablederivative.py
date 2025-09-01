@@ -652,7 +652,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
 
         #first calculate dylm_dtheta
         for k, delt in enumerate(self.deltas):
-            theta_source_in = theta_source.copy()
+            theta_source_in = theta_source
             theta_source_in += float(delt) #theta is of the same order as the other angles, so we use the same deltas.
             # get the ylms for this theta
             ylm_temp[k] = self.ylm_gen(self.cache['ls_all'], self.cache['ms_all'], theta_source_in, phi_source)

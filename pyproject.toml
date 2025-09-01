@@ -80,6 +80,8 @@ dev = [
     "isort>=5.0.0",
     "mypy>=0.900",
     "pylint>=2.15.0",
+    "build",
+    "twine",
 ]
 
 [project.urls]

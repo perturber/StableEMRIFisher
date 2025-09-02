@@ -16,11 +16,13 @@
 
 ## Installation
 
+<!-- 
 ## Quick Install (CPU-only)
 ```bash
 # Install from PyPI (coming soon)
 pip install stableemrifisher
 ```
+-->
 
 ### Development Installation (Recommended)
 

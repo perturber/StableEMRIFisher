@@ -28,8 +28,7 @@ data analysis.
 Installing from Source
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Our package StableEMRIFisher is both CPU and GPU agnostic. If installing directly from source, you can do so by cloning the repository and running the 
-following commands. 
+StableEMRIFisher works on both CPUs and GPUs. If installing directly from source, you can do so by cloning the repository and running the following commands: 
 
 .. code-block:: bash
 
@@ -46,21 +45,23 @@ following commands.
    This package requires the latest (v2.0.0) FastEMRIWaveforms (FEW) package to be installed. 
    Installing StableEMRIFisher will install FastEMRIWaveforms by default (for both CPU and GPU).
 
-For full development, documentation and GPU support, we recommend installing all of the dependencies.
+StableEMRIFFisher will automatically install the following dependencies:
+
+* **NumPy**: Array computation and numerical operations
+* **SciPy**: Scientific computing utilities
+* **h5py**: HDF5 file format support for data storage
+* **Cython**: C-Extensions for python. Essential if the user wants to incorporate the LISA response.
+* **matplotlib**: To help assess stability of numerical derivatives
+* **setuptools**: To help build `lisa-on-gpu` and `LISAAnalysisTools` from source. 
+
+
+For full development, documentation and GPU support, we recommend installing all of the dependencies. For example, to install StableEMRIFisher with the development and documentation dependencies on a cuda-12x supported system, execute:
 
 .. code-block:: bash
 
    # Install with CUDA 12.x support if available
    pip install -e ".[dev, docs, cuda12x]"
 
-Our package `StableEMRIFFisher` will automatically install the following dependencies
-
-* **NumPy**: Array computation and numerical operations
-* **SciPy**: Scientific computing utilities
-* **h5py**: HDF5 file format support for data storage
-* **cython**: C-Extensions for python. Essential if the user wants to incorporate the LISA response.
-* **matplotlib**: To help assess stability of numerical derivatives
-* **setuptools**: To help build `lisa-on-gpu` and `LISAAnalysisTools` from source. 
 
 Building Documentation Locally
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

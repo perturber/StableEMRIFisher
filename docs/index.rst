@@ -1,10 +1,10 @@
 StableEMRIFisher Documentation
 ==============================
 
-.. image:: _static/StableEMRIFisher_logo.png
+.. image:: _static/Default.png
    :align: center
-   :alt: StableEMRIFisher Logo
-   :width: 400px
+   :alt: abbrev
+   :width: 200px
 
 **Stable EMRI Fisher Matrix Calculator**
 

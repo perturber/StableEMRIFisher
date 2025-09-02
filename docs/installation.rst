@@ -7,17 +7,23 @@ which is the current state-of-the-art framework for generating
 computationally efficient and accurate EMRI waveform models suitable for LISA 
 data analysis. 
 
-Pip Installation on PyPi
-~~~~~~~~~~~~~~~~~~~~~~~~~
+..
+   Pip Installation on PyPi
+..
+   ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You can install StableEMRIFisher directly from PyPi using pip:
+..
+   You can install StableEMRIFisher directly from PyPi using pip:
 
-.. code-block:: bash
+..
+   .. code-block:: bash
 
+..
    pip install stableemrifisher
 
-**Note:** This will automatically install FastEMRIWaveforms version 2.0.0 and required 
-dependencies.
+..
+   **Note:** This will automatically install FastEMRIWaveforms version 2.0.0 and required 
+   dependencies.
 
 Installing from Source
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -40,7 +46,8 @@ following commands.
    This package requires the latest (v2.0.0) FastEMRIWaveforms (FEW) package to be installed. 
    Installing StableEMRIFisher will install FastEMRIWaveforms by default (for both CPU and GPU).
 
-For full development, documentation and GPU support, we recommend installing all of the dependencies 
+For full development, documentation and GPU support, we recommend installing all of the dependencies.
+
 .. code-block:: bash
 
    # Install with CUDA 12.x support if available
@@ -53,7 +60,7 @@ Our package `StableEMRIFFisher` will automatically install the following depende
 * **h5py**: HDF5 file format support for data storage
 * **cython**: C-Extensions for python. Essential if the user wants to incorporate the LISA response.
 * **matplotlib**: To help assess stability of numerical derivatives
-* **setuptools**: TO help build `lisa-on-gpu` and `LISAAnalysisTools` from source. 
+* **setuptools**: To help build `lisa-on-gpu` and `LISAAnalysisTools` from source. 
 
 Building Documentation Locally
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

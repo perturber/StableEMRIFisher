@@ -87,10 +87,10 @@ Acknowledgments
 
 StableEMRIFisher development has been supported by:
 
-* **European Research Council**: ERC Consolidator Grant "NewNear" (Grant No. 864035)
-* **Mathematica methods workshop in Singapore**
+* **National University of Singapore**: IT Research and Computing Group
+* **Institute for Mathematical Science, National University of Singapore**: Workshop on Mathematical Methods for the General Relativistic Two-Body Problem
 * **Centre National de la Recherche Scientifique (CNRS)**: Laboratoire des 2 Infinis - Toulouse scientific computing
-* **National University of Singapore**: Department of Physics
+* **European Research Council**: ERC Consolidator Grant "NewNear" (Grant No. 864035)
 
 Contributing
 ------------

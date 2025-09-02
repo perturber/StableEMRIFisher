@@ -3,7 +3,7 @@ StableEMRIFisher Documentation
 
 .. image:: _static/Default.png
    :align: center
-   :alt: abbrev
+   :alt: Default
    :width: 200px
 
 **Stable EMRI Fisher Matrix Calculator**

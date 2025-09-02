@@ -4,7 +4,7 @@
   <img src="docs/_static/Default.png" alt="StableEMRIFisher Logo" width="200"/>
 </div>
 
-**StableEMRIFisher** is a Python package for computing stable Fisher information matrices for Extreme Mass Ratio Inspiral (EMRI) gravitational wave sources. It provides robust numerical derivatives of waveforms and returns Fisher matrices that can be used for accelerated parameter estimation analyses or population inference. StableEMRIFisher uses the [FastEMRIWaveforms](https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms) package.
+**StableEMRIFisher** is a Python package for computing stable Fisher information matrices for Extreme Mass Ratio Inspiral (EMRI) gravitational wave sources. It provides robust numerical derivatives of waveforms and returns Fisher matrices that can be used for accelerated parameter estimation analyses or population inference. StableEMRIFisher uses the [FastEMRIWaveforms](https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms) package. Please refer to the [documentation](https://stableemrifisher.readthedocs.io) to know how to get started.
 
 ## Key Features
 
@@ -12,8 +12,7 @@
 - **Stability Checks**: Careful validation of numerical stability and convergence of the derivatives. 
 - **GPU Acceleration**: Efficient computation for both CPUs and GPUs.
 - **Response Function** Utilises [fastlisaresponse](https://github.com/mikekatz04/lisa-on-gpu.git) to efficiently compute the response of the LISA detector to EMRI waveforms.
-- **Validated**: Compared against MCMC parameter estimation studies. 
-
+- **Validated**: Compared against MCMC parameter estimation studies.
 
 ## Installation
 
@@ -56,7 +55,6 @@ pip install -e ".[cuda12x]"
 - First install `lisaanalysistools` by following the instructions [here](https://github.com/mikekatz04/lisa-on-gpu.git). If using GPUs, install from source.
 - Second install `fastlisaresponse` by following the instructions [here](https://github.com/mikekatz04/LISAanalysistools.git). If using GPUs, install from source.
 
-
 ## Documentation
 
 **Full documentation is available at [stableemrifisher.readthedocs.io](https://stableemrifisher.readthedocs.io)**
@@ -83,6 +81,7 @@ open _build/html/index.html  # macOS
 # or 
 xdg-open _build/html/index.html  # Linux
 ```
+
 
 ## Contributing
 

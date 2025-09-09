@@ -16,32 +16,66 @@
 
 ## Installation
 
-<!-- 
-## Quick Install (CPU-only)
+### Quick Start with UV (Recommended)
+
+[UV](https://github.com/astral-sh/uv) is a fast Python package manager that provides better dependency resolution and faster installs:
+
 ```bash
-# Install from PyPI (coming soon)
-pip install stableemrifisher
+# Install uv if you haven't already
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Clone the repository
+git clone https://github.com/perturber/StableEMRIFisher.git
+cd StableEMRIFisher
+
+# Create virtual environment and install dependencies
+uv venv
+uv sync --dev
+
+# For GPU support (Linux x86_64 only)
+uv sync --extra cuda12x --dev
 ```
--->
 
-### Development Installation (Recommended)
-
-If you're using conda 
+### Alternative: Manual Setup with UV
 
 ```bash
-# Create and activate environment
+# Create virtual environment
+uv venv
+
+# Install in development mode (CPU only)
+uv pip install -e ".[docs,dev]"
+
+# Or install with GPU support (Linux x86_64 only)
+uv pip install -e ".[cuda12x,docs,dev]"
+```
+
+### Development Installation with Conda/Pip
+
+If you prefer traditional package managers:
+
+```bash
+# Create and activate environment (Python 3.10+ required)
 conda create -n sef_env python=3.12
 conda activate sef_env
 
 # Clone and install
 git clone https://github.com/perturber/StableEMRIFisher.git
 cd StableEMRIFisher
-pip install -e .
+pip install -e ".[docs,dev]"
 ```
 
 ### GPU-Accelerated Installation
 
 For GPU acceleration, install with CUDA support. **Note**: GPU support requires Linux x86_64 systems with NVIDIA GPUs and appropriate CUDA drivers.
+
+**Using uv (recommended):**
+```bash
+# For CUDA 12.x (Linux x86_64 only)
+uv sync --extra cuda12x --dev
+
+# Or manually with pip interface
+uv pip install -e ".[cuda12x,docs,dev]"
+```
 
 **Using pip:**
 ```bash
@@ -50,6 +84,56 @@ pip install -e ".[cuda11x]"
 
 # For CUDA 12.x (Linux x86_64 only)  
 pip install -e ".[cuda12x]"
+```
+
+### Common UV Development Commands
+
+Once installed with UV, you can use these commands for development:
+
+```bash
+# Run tests
+uv run pytest
+
+# Format code
+uv run black .
+uv run isort .
+
+# Lint code
+uv run pylint stableemrifisher/
+
+# Build documentation
+cd docs && uv run make html
+
+# Add new dependencies
+uv add numpy  # adds to main dependencies
+uv add --dev pytest  # adds to dev dependencies
+
+# Update dependencies
+uv lock --upgrade
+
+# Sync environment (install from lock file)
+uv sync --dev
+```
+
+### Verify Installation
+
+Test that everything is working:
+
+```bash
+# With UV
+uv run python -c "import stableemrifisher; print('✅ StableEMRIFisher imported successfully')"
+
+# Check GPU support (if installed)
+uv run python -c "
+try:
+    import cupy as cp
+    print(f'✅ GPU support available: {cp.cuda.is_available()}')
+except ImportError:
+    print('ℹ️  GPU support not available (CuPy not installed)')
+"
+
+# Run a quick test
+uv run pytest tests/ -v  # if you have tests
 ```
 
 **StableEMRIFisher with the LISA response**
@@ -71,12 +155,12 @@ pip install -e ".[cuda12x]"
 
 ```bash
 # Install documentation dependencies
-pip install -e ".[docs]"
+uv pip install -e ".[docs]"
 
 # Build documentation
 cd docs
-make clean
-make html
+uv run make clean
+uv run make html
 
 # View documentation
 open _build/html/index.html  # macOS

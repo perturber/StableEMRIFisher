@@ -1,34 +1,88 @@
 Installation
 ============
 
-StableEMRIFisher requires Python 3.9 or later and has several key 
+StableEMRIFisher requires Python 3.10 or later and has several key 
 dependencies. The first main dependency is **FastEMRIWaveforms (FEW)**, 
 which is the current state-of-the-art framework for generating 
 computationally efficient and accurate EMRI waveform models suitable for LISA 
-data analysis. 
+data analysis.
 
-..
-   Pip Installation on PyPi
-..
-   ~~~~~~~~~~~~~~~~~~~~~~~~~
+Quick Installation with UV (Recommended)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-..
-   You can install StableEMRIFisher directly from PyPi using pip:
+`UV <https://github.com/astral-sh/uv>`_ is a fast Python package manager that provides better dependency resolution and faster installs:
 
-..
-   .. code-block:: bash
+**Installation:**
 
-..
-   pip install stableemrifisher
+.. code-block:: bash
 
-..
-   **Note:** This will automatically install FastEMRIWaveforms version 2.0.0 and required 
-   dependencies.
+   # Install uv
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+
+   # Clone the repository
+   git clone https://github.com/perturber/StableEMRIFisher.git
+   cd StableEMRIFisher
+
+   # Create virtual environment and install dependencies
+   uv venv
+   uv sync --dev
+
+   # For GPU support (Linux x86_64 only)
+   uv sync --extra cuda12x --dev
+
+**Alternative manual installation with UV:**
+
+.. code-block:: bash
+
+   # Create virtual environment
+   uv venv
+
+   # Install in development mode (CPU only)
+   uv pip install -e ".[docs,dev]"
+
+   # Or install with GPU support (Linux x86_64 only)
+   uv pip install -e ".[cuda12x,docs,dev]"
+
+**Common UV development commands:**
+
+.. code-block:: bash
+
+   # Run tests
+   uv run pytest
+
+   # Format and lint code
+   uv run black .
+   uv run pylint stableemrifisher/
+
+   # Build documentation
+   cd docs && uv run make html
+
+   # Add dependencies
+   uv add numpy          # adds to main dependencies
+   uv add --dev pytest   # adds to dev dependencies
+
+   # Update dependencies
+   uv lock --upgrade
 
 Installing from Source
 ~~~~~~~~~~~~~~~~~~~~~~
 
-StableEMRIFisher works on both CPUs and GPUs. If installing directly from source, you can do so by cloning the repository and running the following commands: 
+StableEMRIFisher works on both CPUs and GPUs. If installing directly from source, you can use either UV (recommended) or pip:
+
+**With UV (recommended):**
+
+.. code-block:: bash
+
+   git clone https://github.com/perturber/StableEMRIFisher.git
+   cd StableEMRIFisher
+   
+   # CPU version
+   uv pip install -e ".[docs,dev]"
+   
+   # GPU version (Linux x86_64 only)
+   uv pip install -e ".[cuda12x,docs,dev]"
+
+**With pip:**
 
 .. code-block:: bash
 
@@ -55,17 +109,41 @@ StableEMRIFFisher will automatically install the following dependencies:
 * **setuptools**: To help build `lisa-on-gpu` and `LISAAnalysisTools` from source. 
 
 
-For full development, documentation and GPU support, we recommend installing all of the dependencies. For example, to install StableEMRIFisher with the development and documentation dependencies on a cuda-12x supported system, execute:
+For full development, documentation and GPU support, we recommend installing all of the dependencies:
+
+**With UV:**
 
 .. code-block:: bash
 
    # Install with CUDA 12.x support if available
-   pip install -e ".[dev, docs, cuda12x]"
+   uv pip install -e ".[dev,docs,cuda12x]"
+
+**With pip:**
+
+.. code-block:: bash
+
+   # Install with CUDA 12.x support if available
+   pip install -e ".[dev,docs,cuda12x]"
 
 
 Building Documentation Locally
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 To build the documentation, make sure that the documentation dependencies are installed.
+
+**With UV:**
+
+.. code-block:: bash
+
+   cd docs
+   uv run make clean
+   uv run make html
+   # View documentation
+   open _build/html/index.html  # macOS
+   # or
+   xdg-open _build/html/index.html  # Linux
+
+**With traditional tools:**
 
 .. code-block:: bash
 
@@ -106,23 +184,46 @@ Verifying Installation
 
 Test your installation by running:
 
-.. code-block:: python
+.. code-block:: bash
 
+   # With UV
+   uv run python -c "
    import stableemrifisher
    from stableemrifisher.fisher import StableEMRIFisher
    
    # Check if GPU support is available
    try:
        import cupy as cp
-       print(f"GPU support available: {cp.cuda.is_available()}")
+       print(f'GPU support available: {cp.cuda.is_available()}')
    except ImportError:
-       print("GPU support not available (CuPy not installed)")
+       print('GPU support not available (CuPy not installed)')
    
    # Check FEW installation
    try:
        import few
-       print("FastEMRIWaveforms successfully imported")
+       print('FastEMRIWaveforms successfully imported')
    except ImportError:
-       print("ERROR: FastEMRIWaveforms not found - please install FEW")
+       print('ERROR: FastEMRIWaveforms not found - please install FEW')
+   "
+
+   # Or with traditional Python
+   python -c "
+   import stableemrifisher
+   from stableemrifisher.fisher import StableEMRIFisher
+   
+   # Check if GPU support is available
+   try:
+       import cupy as cp
+       print(f'GPU support available: {cp.cuda.is_available()}')
+   except ImportError:
+       print('GPU support not available (CuPy not installed)')
+   
+   # Check FEW installation
+   try:
+       import few
+       print('FastEMRIWaveforms successfully imported')
+   except ImportError:
+       print('ERROR: FastEMRIWaveforms not found - please install FEW')
+   "
 
    

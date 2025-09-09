@@ -1,5 +1,9 @@
 # Documentation build requirements for StableEMRIFisher
 # These are the packages needed to build the documentation on Read the Docs
+# Compatible with both pip and uv
+
+# Install the package itself in development mode
+-e .
 
 # Core Sphinx packages
 sphinx>=5.0.0

@@ -51,7 +51,7 @@ uv pip install -e ".[cuda12x,docs,dev]"
 
 ### Development Installation with Conda/Pip
 
-If you prefer traditional package managers:
+If you prefer old-school package managers:
 
 ```bash
 # Create and activate environment (Python 3.10+ required)

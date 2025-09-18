@@ -118,6 +118,8 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                 parameters,
                 t=t,
                 y=y,
+                theta_source=float(theta_source),
+                phi_source=phi_source,
                 cache=True,
                 **kwargs_remaining,
             )
@@ -295,6 +297,8 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                     parameters_in,
                     t_interp,
                     y_interps[k].T,
+                    theta_source=float(theta_source),
+                    phi_source=phi_source,
                     cache=False,
                     **kwargs_remaining,
                 )  # remember, this function multiplies by Ylmns!
@@ -506,7 +510,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
         return t, y
 
     def _amplitudes_from_trajectory(
-        self, parameters, t, y, qsource, phisource, cache=False, **kwargs
+        self, parameters, t, y, theta_source, phi_source, cache=False, **kwargs
     ):
         """
         calculate the amplitudes (and ylms) from the trajectory.
@@ -515,8 +519,8 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             parameters (dict): dictionary of trajectory parameters
             t (np.ndarray): array of time steps for trajectory
             y (np.ndarray): array of evolving parameters in the trajectory at time steps
-            qsource (np.float): polar angle in source frame
-            phisource (np.float): azimuthal angle in source frame
+            theta_source (np.float): polar angle in source frame
+            phi_source (np.float): azimuthal angle in source frame
             cache (bool): whether to cache info (True) or not (False)
         Returns:
             Teukolsky amplitudes times Ylms
@@ -541,7 +545,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
         )  # these are all the Teukolsky amplitudes for the trajectory
 
         # ylms
-        ylms = self.ylm_gen(self.unique_l, self.unique_m, qsource, phisource).copy()[
+        ylms = self.ylm_gen(self.unique_l, self.unique_m, theta_source, phi_source).copy()[
             self.inverse_lm
         ]
 

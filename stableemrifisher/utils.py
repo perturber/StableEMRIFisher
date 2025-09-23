@@ -159,6 +159,7 @@ def inner_product(a, b, PSD, dt, window=None, fmin=None, fmax=None, use_gpu=Fals
 
     else:
         length = len(a[0])
+        
         freq = xp.fft.rfftfreq(length) / dt
 
         freq_mask = np.full(len(freq), True, dtype=bool)

@@ -185,6 +185,25 @@ class StableEMRIFisher:
             )
             ResponseWrapper_kwargs.pop("waveform_gen")
 
+        # ================== Initialize waveform model ==================
+        waveform_generator = waveform_generator(
+            waveform_class=waveform_class,
+            **waveform_generator_kwargs,
+        )
+        # This is the waveform generator without response to generate waveforms.
+        self.waveform_generator_kwargs = waveform_generator_kwargs
+
+        # trajectory module and function for plunge checks
+        self.traj_module = waveform_generator.waveform_generator.inspiral_generator
+        self.traj_module_func = waveform_generator.waveform_generator.inspiral_kwargs[
+            "func"
+        ]
+
+        if waveform_generator.waveform_generator.__class__.__name__ == "Pn5AAKWaveform" and deriv_type == "stable":
+            logger.warning("5PNAAK waveform model is incompatible " \
+            "with deriv_type 'stable'. Switching to deriv_type 'direct'.")
+            deriv_type = "direct"
+
         # ================== Initialize StableEMRIDerivatives ==================
         self.deriv_type = deriv_type
         if self.deriv_type == "stable":
@@ -201,20 +220,6 @@ class StableEMRIFisher:
             self.waveform_derivative_kwargs = {"use_gpu": self.use_gpu}
         else:
             raise ValueError("deriv_type must be 'stable' or 'direct'.")
-
-        # ================== Initialize waveform model ==================
-        waveform_generator = waveform_generator(
-            waveform_class=waveform_class,
-            **waveform_generator_kwargs,
-        )
-        # This is the waveform generator without response to generate waveforms.
-        self.waveform_generator_kwargs = waveform_generator_kwargs
-
-        # trajectory module and function for plunge checks
-        self.traj_module = waveform_generator.waveform_generator.inspiral_generator
-        self.traj_module_func = waveform_generator.waveform_generator.inspiral_kwargs[
-            "func"
-        ]
 
         # ================ Initialize ResponseWrapper if provided ==================
         if ResponseWrapper is not None:
@@ -354,13 +359,13 @@ class StableEMRIFisher:
         wave_params: Dict[str, float],
         add_param_args: Optional[Dict[str, Any]] = None,
         waveform_kwargs: Optional[Dict[str, Any]] = None,
-        fisher_kwargs: Optional[Dict[str, Any]] = None,
         window: Optional[Union[np.ndarray, Any]] = None,
         fmin: Optional[float] = None,
         fmax: Optional[float] = None,
         param_names: Optional[List[str]] = None,
         deltas: Optional[Dict[str, float]] = None,
         der_order: Optional[int] = None,
+        kind: Optional[str] = None,
         Ndelta: Optional[int] = None,
         delta_range: Optional[Dict[str, List[float]]] = None,
         CovEllipse: Optional[bool] = None,
@@ -382,6 +387,7 @@ class StableEMRIFisher:
             4) Optionally compute the covariance matrix and generate plots.
 
         Args:
+            TODO: update.
             m1: Primary mass (solar masses).
             m2: Secondary mass (solar masses).
             a: Spin parameter [0, 1).
@@ -406,6 +412,7 @@ class StableEMRIFisher:
             param_names: Ordered parameter names for derivatives.
             deltas: Optional fixed step sizes for derivatives.
             der_order: Finite-difference order for derivatives.
+            kind: kind of the derivative. Can be 'central', 'forward', 'backward'.
             Ndelta: Number of trial deltas in stability search.
             delta_range: Custom per-parameter delta grids.
             CovEllipse: If True, compute covariance and plots.
@@ -437,6 +444,7 @@ class StableEMRIFisher:
         # Use defaults from __init__ but allow per-call overrides
         self.order = der_order if der_order is not None else self.order
         self.Ndelta = Ndelta if Ndelta is not None else self.Ndelta
+        self.kind = kind if kind is not None else "central"
         self.window = window  # Always set per-call
         self.fmin = fmin  # Always set per-call
         self.fmax = fmax  # Always set per-call
@@ -475,7 +483,6 @@ class StableEMRIFisher:
 
         # optional custom delta grids per parameter
         if delta_range is None:
-            live_dangerously = True
             self.delta_range = {}
         else:
             self.delta_range = delta_range
@@ -484,12 +491,23 @@ class StableEMRIFisher:
         self.wave_params = wave_params
         # initialize parameter name list
         if param_names is None:
-            EMRI_ORBIT = (
-                self.waveform_generator.waveform_gen.waveform_generator.descriptor
-            )
-            BACKGROUND = (
-                self.waveform_generator.waveform_gen.waveform_generator.background
-            )
+            if self.has_ResponseWrapper:
+                EMRI_ORBIT = (
+                    self.waveform_generator.waveform_gen.waveform_generator.descriptor
+                )
+                BACKGROUND = (
+                    self.waveform_generator.waveform_gen.waveform_generator.background
+                )
+            else:
+                EMRI_ORBIT = (
+                    self.waveform_generator.waveform_generator.descriptor
+                )
+                BACKGROUND = (
+                    self.waveform_generator.waveform_generator.background
+                )
+
+            print("EMRI_ORBIT: ", EMRI_ORBIT, "BACKGROUND: ", BACKGROUND)
+
             if EMRI_ORBIT == "eccentric equatorial" and BACKGROUND == "Kerr":
                 param_names = [
                     "m1",
@@ -509,9 +527,39 @@ class StableEMRIFisher:
                 param_names = [
                     "m1",
                     "m2",
+                    "p0",
+                    "e0",
+                    "dist",
+                    "qS",
+                    "phiS",
+                    "qK",
+                    "phiK",
+                    "Phi_phi0",
+                    "Phi_r0",
+                ]
+            elif EMRI_ORBIT == "eccentric inclined" and BACKGROUND == "Kerr":
+                param_names = [
+                    "m1",
+                    "m2",
                     "a",
                     "p0",
                     "e0",
+                    "xI0",
+                    "dist",
+                    "qS",
+                    "phiS",
+                    "qK",
+                    "phiK",
+                    "Phi_phi0",
+                    "Phi_r0",
+                ]
+            elif EMRI_ORBIT == "eccentric inclined" and BACKGROUND == "Schwarzschild":
+                param_names = [
+                    "m1",
+                    "m2",
+                    "p0",
+                    "e0",
+                    "xI0",
                     "dist",
                     "qS",
                     "phiS",
@@ -682,6 +730,8 @@ class StableEMRIFisher:
         # create copies equivalent to the number of channels.
         if not self.has_ResponseWrapper:
             self.waveform = xp.asarray([self.waveform.real, -self.waveform.imag])
+
+        print("waveform shape: ", self.waveform.shape)
         ### HEREAFTER, THE WAVEFORM HAS SHAPE (NCHANNELS, N) ###
 
         logger.debug("wave ndim: %s", self.waveform.ndim)
@@ -814,9 +864,9 @@ class StableEMRIFisher:
                     elif self.wave_params[param_name] > self.minmax[param_name][1]:
                         kind = "backward"
                     else:
-                        kind = "central"
+                        kind = self.kind
                 else:
-                    kind = "central"
+                    kind = self.kind
 
                 if param_name == "dist":
                     del_k = xp.asarray(
@@ -901,10 +951,11 @@ class StableEMRIFisher:
                             **self.waveform_derivative_kwargs,
                         )
                     )
+
                     if len(delta_init) == 1:
                         relerr_flag = True
 
-                if not self.has_ResponseWrapper:
+                if del_k.ndim == 1:
                     # If the derivative is 1D
                     del_k = xp.asarray([del_k.real, -del_k.imag])
 
@@ -1062,9 +1113,9 @@ class StableEMRIFisher:
                 elif self.wave_params[param_name] > self.minmax[param_name][1]:
                     kind = "backward"
                 else:
-                    kind = "central"
+                    kind = self.kind
             else:
-                kind = "central"
+                kind = self.kind
 
             if (
                 (param_name in ["qS", "phiS", "qK", "phiK"])
@@ -1113,7 +1164,7 @@ class StableEMRIFisher:
                     )
                 )
 
-            if not self.has_ResponseWrapper:
+            if dtv_i.ndim == 1:
                 # If the derivative is 1D
                 dtv_i = xp.asarray([dtv_i.real, -dtv_i.imag])
 

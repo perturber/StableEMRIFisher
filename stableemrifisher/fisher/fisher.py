@@ -50,10 +50,10 @@ from stableemrifisher.noise import sensitivity_LWA, write_psd_file, load_psd_fro
 from stableemrifisher.plot import CovEllipsePlot, StabilityPlot
 
 logger = logging.getLogger("stableemrifisher")
-handler = logging.StreamHandler(sys.stdout)
-logger.addHandler(handler)
-logger.setLevel("INFO")
-logger.info("startup")
+if not logger.handlers:
+    handler = logging.StreamHandler(sys.stdout)
+    logger.addHandler(handler)
+    logger.setLevel("INFO")
 
 
 class StableEMRIFisher:
@@ -437,11 +437,10 @@ class StableEMRIFisher:
 
         # initialize deltas (can be provided up-front)
         if deltas is not None and len(deltas) != len(param_names):
-            logger.critical(
-                "Length of deltas array should be equal to "
-                "length of param_names.\nAssuming deltas = None."
+            raise ValueError(
+                f"Length of deltas ({len(deltas)}) must equal "
+                f"length of param_names ({len(param_names)})."
             )
-            deltas = None
         self.deltas = deltas  # Use deltas == None as a Flag
 
         # Use defaults from __init__ but allow per-call overrides
@@ -659,7 +658,7 @@ class StableEMRIFisher:
             delta_intrinsic = fudge_factor_intrinsic * np.array(
                 [self.wave_params["m1"], self.wave_params["m2"], 1.0, 1.0, 1.0, 1.0]
             )
-            danger_delta_dict = dict(zip(self.param_names[0:7], delta_intrinsic))
+            danger_delta_dict = dict(zip(self.param_names[0:6], delta_intrinsic))
             delta_dict_final_params = dict(
                 zip(self.param_names[6:14], np.array(8 * [1e-6]))
             )
@@ -1005,7 +1004,7 @@ class StableEMRIFisher:
                         if Gamma[m - 1] == 0.0:  # handle partially null contributors
                             relerr.append(1.0)
                         else:
-                            relerr.append(np.abs(Gamma[m] - Gamma[m - 1]) / Gamma[m])
+                            relerr.append(np.abs(Gamma[m] - Gamma[m - 1]) / np.abs(Gamma[m]))
 
                 logger.debug(relerr)
 
@@ -1239,17 +1238,22 @@ class StableEMRIFisher:
         diag_elements = np.diag(Fisher)
 
         if 0 in diag_elements:
-            logger.critical("Nasty. We have a degeneracy. Can't measure a parameter")
-            degen_index = np.argwhere(diag_elements == 0)[0][0]
-            Fisher[degen_index, degen_index] = 1.0
+            degen_params = [
+                self.param_names[i]
+                for i in np.argwhere(diag_elements == 0).flatten()
+            ]
+            raise ValueError(
+                f"Fisher matrix is degenerate: zero diagonal for {degen_params}. "
+                "The waveform is insensitive to these parameters under the chosen "
+                "step sizes. Check deltas, parameter ranges, or remove degenerate "
+                "parameters."
+            )
 
         # Check for positive-definiteness
         if (np.linalg.eigvals(Fisher) < 0.0).any():
-            logger.critical(
-                "Calculated Fisher is not positive "
-                "semi-definite. "
-                "Try lowering inspiral error tolerance "
-                "or increasing the derivative order."
+            logger.warning(
+                "Calculated Fisher is not positive semi-definite. "
+                "Try lowering inspiral error tolerance or increasing the derivative order."
             )
         else:
             logger.info("Calculated Fisher is *atleast* positive-definite.")

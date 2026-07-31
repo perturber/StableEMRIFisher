@@ -37,21 +37,19 @@ bibliography: paper.bib
 
 # Summary
 
+<!-- This is where we talk about the background and motivation. What are EMRIs? What are Fisher information matrices and why are they useful? Cite any other EMRI Fisher matrix tools here. What does StableEMRIFisher do? An executive summary in words of the tool, and structure of the package. Where is it hosted? Reference to readthedocs. -->
 
 # Statement of need
 
-
-# State of the field
-
-
-# Software design
-
+<!-- Why Fisher information matrices are difficult to compute reliably: highly oscillatory waveforms making finite differencing difficult: different tuning parameters in the finite difference calculations, strong correlations across the (intrinsic) parameter space, impact of the response, etc. How StableEMRIFisher circumvents these challenges by initializing a grid of finite difference deltas, finite differencing with respect to amplitude and mode-phases that vary on the radiation-reaction timescale which is much slower than the orbital timescale allowing stable finite differencing, etc... Emphasize the cost of Fisher matrix computation using SEF v/s MCMC citing previous studies -->
 
 # Research impact statement
 
-<!-- TODO: cite the specific papers that used SEF, e.g. your PRD paper(s),
-     the Hierarchical paper, and any beyond-GR/QPE studies. This section is
-     scrutinised by reviewers — make the evidence specific, not aspirational. -->
+<!-- TODO: cite the specific papers that used SEF -->
+
+So far, `StableEMRIFisher` has been used in the following publications:
+
+1. 
 
 # AI usage disclosure
 

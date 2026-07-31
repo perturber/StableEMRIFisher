@@ -45,11 +45,21 @@ bibliography: paper.bib
 
 # Research impact statement
 
-<!-- TODO: cite the specific papers that used SEF -->
+<!-- TODO: cite the specific papers that used SEF: add where the contributions have been made instead of just citation details? -->
 
-So far, `StableEMRIFisher` has been used in the following publications:
+`StableEMRIFisher` has been used to produce Fisher information matrices in a range of peer-reviewed EMRI studies. A non exhaustive, representative list of publications is given below:
 
-1. 
+1. L. Speri, F. Duque, S. Barsanti, A. Santini, S. Kejriwal, O. Burke, and C. E. A. Chapman-Bird, *Quantifying the Scientific Potential of Intermediate and Extreme Mass Ratio Inspirals with the Laser Interferometer Space Antenna*, arXiv:2603.17072 [astro-ph.IM] (2026) [@Speri:2026ade].
+
+2. S. Kejriwal, E. Barausse, and A. J. K. Chua, *Hierarchical modeling of gravitational-wave populations for disentangling environmental and modified-gravity effects*, Physical Review D **113**, 064001 (2026) [@Kejriwal:2025jao].
+
+3. S. Kejriwal, F. Duque, A. J. K. Chua, and J. Gair, *Bias-corrected importance sampling for inferring beyond-vacuum-GR effects in gravitational-wave sources*, Physical Review D **112**, 024005 (2025) [@Kejriwal:2025upp].
+
+4. C. E. A. Chapman-Bird, L. Speri, Z. Nasipak, O. Burke, M. L. Katz, A. Santini, S. Kejriwal, P. Lynch, J. Mathews, H. Khalvati, J. E. Thompson, S. Isoyama, S. A. Hughes, N. Warburton, A. J. K. Chua, and M. Pigou, *Efficient waveforms for asymmetric-mass eccentric equatorial inspirals into rapidly spinning black holes*, Physical Review D **112**, 104023 (2025) [@Chapman-Bird:2025xtd].
+
+5. F. Duque, S. Kejriwal, L. Sberna, L. Speri, and J. Gair, *Constraining accretion physics with gravitational waves from eccentric extreme-mass-ratio inspirals*, Physical Review D **111**, 084006 (2025) [@Duque:2024mfw].
+
+6. S. Kejriwal, L. Speri, and A. J. K. Chua, *Impact of correlations on the modeling and inference of beyond vacuum–general relativistic effects in extreme-mass-ratio inspirals*, Physical Review D **110**, 084060 (2024) [@Kejriwal:2023djc].
 
 # AI usage disclosure
 

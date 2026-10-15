@@ -2,6 +2,8 @@
 Testrun/
 # Types of files I don't want to upload:
 
+.DS_Store
+
 *.npy
 *.h5
 *.pdf

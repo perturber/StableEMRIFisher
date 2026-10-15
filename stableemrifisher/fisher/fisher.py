@@ -122,6 +122,11 @@ class StableEMRIFisher:
         Args:
             waveform_class: Uninitialized waveform class.
             waveform_class_kwargs: Optional kwargs for the waveform class.
+                For Circ1PAT1R`, evolve_primary is passed through inspiral_kwargs and zero_PA_amps_only through
+                amplitude_kwargs:
+                {"inspiral_kwargs": {"evolve_primary": False},
+                "amplitude_kwargs": {"zero_PA_amps_only": True}}.
+                Circ1PAT1R with secondary spin requires defining secondary spin via add_param_args={"chi2": ...} at call time.
             waveform_generator: Uninitialized waveform model class,
                                 defaults to `few.GenerateEMRIWaveform`.
             waveform_generator_kwargs: Optional kwargs for the waveform model.
@@ -145,7 +150,9 @@ class StableEMRIFisher:
             waveform_kwargs: Default kwargs for waveform generation.
 
         Raises:
-            ValueError: If `deriv_type` is not "stable" or "direct".
+            ValueError: If `deriv_type` is not "stable" or "direct", or if it
+                is "stable" for the `Circ1PAT1R` waveform model. deriv_type "stable" is incompatible with Circ1PAT1R
+                because the stable derivative method does not support the additional secondary spin parameter.
         """
         # placeholders for attributes configured at call-time
         self.waveform = None
@@ -203,6 +210,16 @@ class StableEMRIFisher:
             logger.warning("5PNAAK waveform model is incompatible " \
             "with deriv_type 'stable'. Switching to deriv_type 'direct'.")
             deriv_type = "direct"
+
+        # Circ1PAT1R takes chi2 as an additional trailing parameter
+        self.is_circ1pat1r = (
+            waveform_generator.waveform_generator.__class__.__name__ == "Circ1PAT1R"
+        )
+        if self.is_circ1pat1r and deriv_type == "stable":
+            raise ValueError(
+                "deriv_type 'stable' is not supported for the Circ1PAT1R "
+                "waveform model. Use deriv_type='direct'."
+            )
 
         # ================== Initialize StableEMRIDerivatives ==================
         self.deriv_type = deriv_type
@@ -322,6 +339,7 @@ class StableEMRIFisher:
             "qK": [0.1, np.pi * 0.9],
             "phiS": [0.1, 2 * np.pi * 0.9],
             "phiK": [0.1, 2 * np.pi * 0.9],
+            "chi2": [-1, 1],
         }
 
         # Initialize Fisher matrix computation configuration
@@ -496,6 +514,15 @@ class StableEMRIFisher:
         else:
             self.delta_range = delta_range
 
+        if self.is_circ1pat1r and (
+            add_param_args is None or "chi2" not in add_param_args
+        ):
+            raise ValueError(
+                "Circ1PAT1R requires the secondary spin chi2 as the last "
+                "positional argument (after Phi_r0). "
+                "Pass it via add_param_args={'chi2': ...}."
+            )
+
         # initialize parameter dictionaries for this call
         self.wave_params = wave_params
         # initialize parameter name list
@@ -517,7 +544,22 @@ class StableEMRIFisher:
 
             logger.info("EMRI_ORBIT: ", EMRI_ORBIT, "BACKGROUND: ", BACKGROUND)
 
-            if EMRI_ORBIT == "eccentric equatorial" and BACKGROUND == "Kerr":
+            if EMRI_ORBIT == "Circular" and BACKGROUND == "Kerr":
+                # e0, xI0, Phi_theta0 and Phi_r0 are ignored by the circular 1PA model
+                param_names = [
+                    "m1",
+                    "m2",
+                    "a",
+                    "p0",
+                    "dist",
+                    "qS",
+                    "phiS",
+                    "qK",
+                    "phiK",
+                    "Phi_phi0",
+                    "chi2",
+                ]
+            elif EMRI_ORBIT == "eccentric equatorial" and BACKGROUND == "Kerr":
                 param_names = [
                     "m1",
                     "m2",

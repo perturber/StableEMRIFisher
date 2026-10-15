@@ -359,3 +359,35 @@ Use the time-domain Response function alongside state-of-the-art Power Spectral 
     for k, item in enumerate(param_names):
         print("Precision measurement in param {} is {}".format(item, param_cov[k,k]**(1/2)))
 
+
+
+Circular 1PAT1R Waveforms
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``Circ1PAT1R`` waveform model (FEW >= 2.2) is supported with ``deriv_type="direct"``. The model takes the secondary spin :math:`\chi_2` as one extra trailing parameter, which is passed through ``add_param_args``. The 14 standard parameters stay in ``wave_params`` to keep FEW's positional order, but ``e0``, ``xI0``, ``Phi_theta0`` and ``Phi_r0`` are ignored by the circular model. The default ``param_names`` are ``m1, m2, a, p0, dist, qS, phiS, qK, phiK, Phi_phi0, chi2``.
+
+The options ``evolve_primary`` (trajectory) and ``zero_PA_amps_only`` (amplitudes) are passed through ``waveform_class_kwargs``:
+
+.. code-block:: python
+
+    from few.waveform import Circ1PAT1R
+
+    sef = StableEMRIFisher(
+        waveform_class=Circ1PAT1R,
+        waveform_class_kwargs=dict(
+            inspiral_kwargs={"evolve_primary": True},
+            amplitude_kwargs={"zero_PA_amps_only": False},
+        ),
+        waveform_generator_kwargs={"return_list": False, "frame": "detector"},
+        deriv_type="direct",  # 'stable' is not supported for Circ1PAT1R
+        T=T,
+        dt=dt,
+    )
+
+    fisher_matrix = sef(
+        wave_params,  # m1, m2, a, p0, e0, xI0, dist, qS, phiS, qK, phiK, Phi_phi0, Phi_theta0, Phi_r0
+        add_param_args={"chi2": 0.5},  # required
+        delta_range={"chi2": np.geomspace(1e-2, 1e-7, Ndelta)},  # absolute steps
+    )
+
+``chi2`` is bounded to :math:`[-1, 1]` for one-sided derivatives near the edges. The default step range for a non-zero ``chi2`` is relative and wide, so an explicit ``delta_range`` is recommended. The response settings are unchanged (``index_beta = 7``, ``index_lambda = 8``).

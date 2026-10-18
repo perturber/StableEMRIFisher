@@ -138,5 +138,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 Development supported by:
 - Centre National de la Recherche Scientifique (CNRS)
 - National University of Singapore
+- Max Planck Institute for Gravitational Physics (Albert Einstein Institute), Potsdam
 
 Special thanks to the FastEMRIWaveforms development team and the LISA Consortium.

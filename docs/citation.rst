@@ -91,6 +91,8 @@ StableEMRIFisher development has been supported by:
 * **Institute for Mathematical Science, National University of Singapore**: Workshop on Mathematical Methods for the General Relativistic Two-Body Problem
 * **Centre National de la Recherche Scientifique (CNRS)**: Laboratoire des 2 Infinis - Toulouse scientific computing
 * **European Research Council**: ERC Consolidator Grant "NewNear" (Grant No. 864035)
+* **European Research Council**: ERC Synergy Grant "GWSky" (Grant No. 101167314), funded by the European Union
+* **Max Planck Institute for Gravitational Physics (Albert Einstein Institute), Potsdam**
 
 Contributing
 ------------

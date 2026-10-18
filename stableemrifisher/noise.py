@@ -10,17 +10,32 @@ Key components:
 """
 
 from few.summation.interpolatedmodesum import CubicSplineInterpolant
-from lisatools.sensitivity import (
-    get_sensitivity,
-    A1TDISens,
-    E1TDISens,
-    T1TDISens,
-    LISASens,
-)
-from lisatools.utils.constants import lisaLT
 
 import numpy as np
 import os
+
+# lisatools (pip: lisaanalysistools) is an optional dependency. write_psd_file and load_psd
+# are only defined if it imports and a test sensitivity evaluation succeeds.
+try:
+    from lisatools.sensitivity import (
+        get_sensitivity,
+        A1TDISens,
+        E1TDISens,
+        T1TDISens,
+        LISASens,
+    )
+    from lisatools.utils.constants import lisaLT
+
+    _test_psd = get_sensitivity(
+        np.array([1e-3, 1e-2]), sens_fn=A1TDISens, model="scirdv1", return_type="PSD"
+    )
+    if not np.all(np.isfinite(_test_psd)):
+        raise RuntimeError("lisatools test sensitivity evaluation returned non-finite values")
+    del _test_psd
+
+    LISATOOLS_AVAILABLE = True
+except Exception:
+    LISATOOLS_AVAILABLE = False
 
 
 def sensitivity_LWA(f, galactic_confusion=False, **kwargs):
@@ -55,7 +70,7 @@ def sensitivity_LWA(f, galactic_confusion=False, **kwargs):
     sensitivity = (10 / (3 * L**2)) * (
             P_OMS + 4 * (P_acc) / ((2 * np.pi * f) ** 4)
         ) * (1 + 6 * f**2 / (10 * fstar**2))
-    
+
     if galactic_confusion:
         Sc = (
             A
@@ -67,79 +82,6 @@ def sensitivity_LWA(f, galactic_confusion=False, **kwargs):
         return sensitivity + Sc
 
     return sensitivity
-
-
-def write_psd_file(
-    model="scirdv1",
-    channels="AET",
-    tdi2=True,
-    include_foreground=False,
-    filename="example_psd.npy",
-    **kwargs,
-):
-    """
-    Write a PSD file for a given model.
-
-    Parameters
-    ----------
-    model : str
-        The noise model to use. Default is 'scirdv1'.
-    channels : str
-        The channels to include in the PSD. Default is 'AET'. if None, the sensitivity curve without projections is computed.
-    tdi2 : bool
-        Whether to use Second generation TDI. Default is True.
-    include_foreground : bool
-        Whether to include the foreground noise. Default is False. This is just an extra check, the actual
-        argument is in the kwargs.
-    filename : str
-        The name of the file to save the PSD to. Default is 'example_psd.npy'.
-    **kwargs : dict
-        Additional keyword arguments to pass to the PSD generation function.
-    """
-
-    assert channels in [
-        None,
-        "A",
-        "AE",
-        "AET",
-    ], "channels must be None, 'A', 'AE', or 'AET'"
-    if include_foreground:
-        assert (
-            "stochastic_params" in kwargs.keys()
-        ), "`stochastic_params = List(Tobs) [s]` must be provided if include_foreground is True"
-
-    freqs = np.linspace(0, 1, 100001)[1:]
-
-    if channels is None:
-        sens_fns = [LISASens]
-
-        default_kwargs = dict(return_type="PSD", average=False)
-
-    elif "A" in channels:
-        sens_fns = [A1TDISens]
-        if "E" in channels:
-            sens_fns.append(E1TDISens)
-        if "T" in channels:
-            sens_fns.append(T1TDISens)
-
-        default_kwargs = dict(
-            return_type="PSD",
-        )
-
-    updated_kwargs = default_kwargs | kwargs
-
-    Sn = [
-        get_sensitivity(freqs, sens_fn=sens_fn, model=model, **updated_kwargs)
-        for sens_fn in sens_fns
-    ]
-
-    if tdi2:
-        x = 2.0 * np.pi * lisaLT * freqs
-        tdi_factor = 4 * np.sin(2 * x) ** 2
-        Sn = [sens * tdi_factor for sens in Sn]
-
-    Sn = np.array(Sn)
-    np.save(filename, np.vstack((freqs, Sn)).T)
 
 
 def load_psd_from_file(psd_file, xp=np):
@@ -191,56 +133,130 @@ def load_psd_from_file(psd_file, xp=np):
     return psd_clipped
 
 
-def load_psd(
-    logger,
-    model="scirdv1",
-    channels="AET",
-    tdi2=True,
-    include_foreground=False,
-    filename="example_psd.npy",
-    xp=np,
-    **kwargs,
-):
-    """
-    Load the PSD from a file and returns an interpolant. If the file does not exist, it will be created.
+if LISATOOLS_AVAILABLE:
 
-    Parameters
-    ----------
-    model : str
-        The noise model to use. Default is 'scirdv1'.
-    channels : str
-        The channels to include in the PSD. Default is 'AET'.
-    tdi2 : bool
-        Whether to use Second generation TDI. Default is True.
-    include_foreground : bool
-        Whether to include the foreground noise. Default is False. This is just an extra check, the actual
-        argument is in the kwargs.
-    filename : str
-        The name of the file to save the PSD to. Default is 'example_psd.npy'.
-    xp : module
-        The module to use for array operations. Default is np.
-    **kwargs : dict
-        Additional keyword arguments to pass to the PSD generation function.
+    def write_psd_file(
+        model="scirdv1",
+        channels="AET",
+        tdi2=True,
+        include_foreground=False,
+        filename="example_psd.npy",
+        **kwargs,
+    ):
+        """
+        Write a PSD file for a given model.
 
-    Returns
-    -------
-    psd_clipped : function
-        A function that takes a frequency and returns the PSD at that frequency
-    """
-    if filename is None or filename == "None":
-        tdi_gen = "tdi2" if tdi2 else "tdi1"
-        foreground = "wd" if include_foreground else "no_wd"
-        filename = f"noise_psd_{model}_{channels}_{tdi_gen}_{foreground}.npy"
-    if not os.path.exists(filename):
-        logger.warning(f"PSD file {filename} does not exist. Creating it now.")
-        write_psd_file(
-            model=model,
-            channels=channels,
-            tdi2=tdi2,
-            include_foreground=include_foreground,
-            filename=filename,
-            **kwargs,
-        )
+        Parameters
+        ----------
+        model : str
+            The noise model to use. Default is 'scirdv1'.
+        channels : str
+            The channels to include in the PSD. Default is 'AET'. if None, the sensitivity curve without projections is computed.
+        tdi2 : bool
+            Whether to use Second generation TDI. Default is True.
+        include_foreground : bool
+            Whether to include the foreground noise. Default is False. This is just an extra check, the actual
+            argument is in the kwargs.
+        filename : str
+            The name of the file to save the PSD to. Default is 'example_psd.npy'.
+        **kwargs : dict
+            Additional keyword arguments to pass to the PSD generation function.
+        """
 
-    logger.info(f"Loading PSD from {filename}")
-    return load_psd_from_file(filename, xp=xp)
+        assert channels in [
+            None,
+            "A",
+            "AE",
+            "AET",
+        ], "channels must be None, 'A', 'AE', or 'AET'"
+        if include_foreground:
+            assert (
+                "stochastic_params" in kwargs.keys()
+            ), "`stochastic_params = List(Tobs) [s]` must be provided if include_foreground is True"
+
+        freqs = np.linspace(0, 1, 100001)[1:]
+
+        if channels is None:
+            sens_fns = [LISASens]
+
+            default_kwargs = dict(return_type="PSD", average=False)
+
+        elif "A" in channels:
+            sens_fns = [A1TDISens]
+            if "E" in channels:
+                sens_fns.append(E1TDISens)
+            if "T" in channels:
+                sens_fns.append(T1TDISens)
+
+            default_kwargs = dict(
+                return_type="PSD",
+            )
+
+        updated_kwargs = default_kwargs | kwargs
+
+        Sn = [
+            get_sensitivity(freqs, sens_fn=sens_fn, model=model, **updated_kwargs)
+            for sens_fn in sens_fns
+        ]
+
+        if tdi2:
+            x = 2.0 * np.pi * lisaLT * freqs
+            tdi_factor = 4 * np.sin(2 * x) ** 2
+            Sn = [sens * tdi_factor for sens in Sn]
+
+        Sn = np.array(Sn)
+        np.save(filename, np.vstack((freqs, Sn)).T)
+
+    def load_psd(
+        logger,
+        model="scirdv1",
+        channels="AET",
+        tdi2=True,
+        include_foreground=False,
+        filename="example_psd.npy",
+        xp=np,
+        **kwargs,
+    ):
+        """
+        Load the PSD from a file and returns an interpolant. If the file does not exist, it will be created.
+
+        Parameters
+        ----------
+        model : str
+            The noise model to use. Default is 'scirdv1'.
+        channels : str
+            The channels to include in the PSD. Default is 'AET'.
+        tdi2 : bool
+            Whether to use Second generation TDI. Default is True.
+        include_foreground : bool
+            Whether to include the foreground noise. Default is False. This is just an extra check, the actual
+            argument is in the kwargs.
+        filename : str
+            The name of the file to save the PSD to. Default is 'example_psd.npy'.
+        xp : module
+            The module to use for array operations. Default is np.
+        **kwargs : dict
+            Additional keyword arguments to pass to the PSD generation function.
+
+        Returns
+        -------
+        psd_clipped : function
+            A function that takes a frequency and returns the PSD at that frequency
+        """
+        if filename is None or filename == "None":
+            tdi_gen = "tdi2" if tdi2 else "tdi1"
+            foreground = "wd" if include_foreground else "no_wd"
+            filename = f"noise_psd_{model}_{channels}_{tdi_gen}_{foreground}.npy"
+        if not os.path.exists(filename):
+            logger.warning(f"PSD file {filename} does not exist. Creating it now.")
+            write_psd_file(
+                model=model,
+                channels=channels,
+                tdi2=tdi2,
+                include_foreground=include_foreground,
+                filename=filename,
+                **kwargs,
+            )
+
+        logger.info(f"Loading PSD from {filename}")
+        return load_psd_from_file(filename, xp=xp)

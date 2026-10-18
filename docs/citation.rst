@@ -18,7 +18,7 @@ Software Citation
      publisher    = {GitHub},
      year         = {2024},
      url          = {https://github.com/perturber/StableEMRIFisher},
-     note         = {Version 2.0.0}
+     note         = {Version 1.0.0}
    }
 
 Related Publications

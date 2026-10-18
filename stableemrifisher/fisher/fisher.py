@@ -46,7 +46,10 @@ from few.waveform import GenerateEMRIWaveform
 from stableemrifisher.fisher.derivatives import derivative, handle_a_flip
 from stableemrifisher.fisher.stablederivative import StableEMRIDerivative
 from stableemrifisher.utils import inner_product, SNRcalc, generate_PSD
-from stableemrifisher.noise import sensitivity_LWA, write_psd_file, load_psd_from_file
+from stableemrifisher.noise import sensitivity_LWA, load_psd_from_file, LISATOOLS_AVAILABLE
+
+if LISATOOLS_AVAILABLE:
+    from stableemrifisher.noise import write_psd_file
 from stableemrifisher.plot import CovEllipsePlot, StabilityPlot
 
 logger = logging.getLogger("stableemrifisher")
@@ -260,6 +263,11 @@ class StableEMRIFisher:
         # ================ Initialise Noise Model if provide =======================
         if noise_model is None and self.has_ResponseWrapper is True:
             logger.info("No noise model provided but response has been provided")
+            if not LISATOOLS_AVAILABLE:
+                raise ImportError(
+                    "Generating the default PSD requires lisatools (pip install lisaanalysistools). "
+                    "Install it, or pass a noise_model explicitly."
+                )
             logger.info("Generating and loading default PSD file")
             run_direc = os.getcwd()
             if ResponseWrapper_kwargs["tdi"] == "2nd generation":

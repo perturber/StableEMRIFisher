@@ -113,7 +113,7 @@ You can easily copy the citation in APA or BibTeX format by clicking the **"Cite
 @software{Kejriwal_StableEMRIFisher_2026,
   author       = {Kejriwal, Shubham and Burke, Ollie and Chapman-Bird, Christian and J. K. Chua, Alvin},
   title        = {StableEMRIFisher},
-  version      = {2.0.0},
+  version      = {1.0.0},
   year         = {2026},
   publisher    = {Zenodo},
   doi          = {10.5281/zenodo.18778938},

@@ -10,11 +10,11 @@ authors:
   - family-names: "J. K. Chua"
     given-names: "Alvin"
 title: "StableEMRIFisher"
-version: 2.0.0
+version: 1.0.0
 identifiers:
   - type: doi
     value: 10.5281/zenodo.18778938
-date-released: 2026-02-26
+date-released: 2026-10-18
 url: "https://github.com/perturber/StableEMRIFisher"
 repository-code: "https://github.com/perturber/StableEMRIFisher"
 notes: "GitHub repository: https://github.com/perturber/StableEMRIFisher"

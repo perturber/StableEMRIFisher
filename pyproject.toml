@@ -47,6 +47,15 @@ dependencies = [
 # CPU-only installation (default, works on all platforms)
 cpu = ["fastemriwaveforms"]
 
+# LISA response and LISA noise PSDs (CPU builds). Pinned because the examples use the
+# lisatools.detector API, which newer lisaanalysistools releases have restructured.
+# Skipped on macOS (sys_platform 'darwin'): the PyPI macOS wheels of these two packages crash
+# when loaded together, so macOS users must build them from source first (see README.md).
+response = [
+    "lisaanalysistools==1.2.0; sys_platform != 'darwin'",
+    "fastlisaresponse==1.1.17; sys_platform != 'darwin'",
+]
+
 # Specific CUDA toolkit versions (Linux x86_64 only)
 # Note: These will install CUDA-specific versions of FastEMRIWaveforms
 cuda11x = [

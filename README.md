@@ -96,12 +96,34 @@ StableEMRIFisher can optionally include the LISA response function, to compute t
 - **[LISAanalysistools](https://github.com/mikekatz04/LISAanalysistools)** (`lisaanalysistools` on PyPI): LISA orbits and LISA noise power spectral densities (PSDs) that describe the instrumental noise.
 - **[lisa-on-gpu](https://github.com/mikekatz04/lisa-on-gpu)** (`fastlisaresponse` on PyPI): the GPU-accelerated time-domain LISA response function.
 
+The examples need specific versions of both packages (`lisaanalysistools` 1.2.0 and `fastlisaresponse` 1.1.17), because newer `lisaanalysistools` releases have restructured the API the examples use. On Linux, install them with the `response` extra:
+
 ```bash
-# CPU
-pip install lisaanalysistools fastlisaresponse
+# CPU (Linux)
+pip install -e ".[response]"
 
 # GPU (CUDA 12.x)
-pip install lisaanalysistools-cuda12x fastlisaresponse-cuda12x
+pip install lisaanalysistools-cuda12x==1.2.0 fastlisaresponse-cuda12x==1.1.17
+```
+
+> **macOS: the `response` extra does not install these packages.** Their pre-built macOS wheels each bundle a separate copy of the GCC C++ runtime, and loading both into one Python process crashes it (the Jupyter kernel dies when `StableEMRIFisher` sets up the response). On macOS the `response` extra therefore skips them, and you need to **build both packages from source before installing StableEMRIFisher**, preferably `lisaanalysistools` 1.2.0 and `fastlisaresponse` 1.1.17.
+
+Building from source links both packages against the system C++ runtime, which avoids the crash. These versions have no source releases on PyPI, so build them from their GitHub tags. You need a C++ compiler, for example from conda (`conda install -c conda-forge cxx-compiler`, then re-activate the environment). Then:
+
+```bash
+# 1. Build lisaanalysistools from source. Its LATW submodule is listed with an SSH
+#    address; these variables fetch it over HTTPS instead, for this command only.
+GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0='url.https://github.com/.insteadOf' GIT_CONFIG_VALUE_0='git@github.com:' \
+    pip install "lisaanalysistools @ git+https://github.com/mikekatz04/LISAanalysistools.git@v1.2.0"
+
+# 2. Build fastlisaresponse against that lisaanalysistools. --no-build-isolation makes it
+#    compile against the installed lisaanalysistools, so its build tools must be installed first.
+pip install scikit-build-core setuptools-scm astropy cmake ninja
+pip install --no-build-isolation \
+    "fastlisaresponse @ git+https://github.com/mikekatz04/lisa-on-gpu.git@v1.1.17"
+
+# 3. Install StableEMRIFisher
+pip install -e .
 ```
 
 If the packaged GPU builds don't work on your system, install both packages from source by following the instructions in their repositories.

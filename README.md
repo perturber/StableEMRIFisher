@@ -1,19 +1,16 @@
 # StableEMRIFisher (SEF)
 
-<table>
-<tr>
-<td style="width: 220px; vertical-align: middle;">
-  <img src="docs/_static/Default.png" alt="StableEMRIFisher Logo" width="200"/>
-</td>
-<td style="vertical-align: middle; padding-left: 20px;">
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/_static/Default%20reversed.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/_static/Default.png">
+    <img src="docs/_static/Default.png" alt="StableEMRIFisher Logo" width="300"/>
+  </picture>
+</p>
 
 <!-- overview-start: this section is also included in docs/index.rst -->
 **StableEMRIFisher** (SEF) is a Python package for computing stable Fisher information matrices for Extreme Mass Ratio Inspiral (EMRI) gravitational wave sources, on both CPUs and GPUs. It computes robust numerical derivatives of EMRI waveforms using finite differencing, and returns Fisher matrices that can be used for accelerated parameter estimation analyses or population inference.
 <!-- overview-end -->
-
-</td>
-</tr>
-</table>
 
 StableEMRIFisher uses the [FastEMRIWaveforms](https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms) package. Please refer to the [documentation](https://stableemrifisher.readthedocs.io) to know how to get started.
 

@@ -9,7 +9,14 @@ SEF: StableEMRIFisher
 Stable EMRI Fisher Matrix Calculator
 ------------------------------------
 
-StableEMRIFisher (SEF) is a Python package for computing stable Fisher information matrices using finite-differencing for Extreme Mass Ratio Inspiral (EMRI) waveform models on both CPUs and GPUs.
+..
+   Sections pulled in with ``.. include:: ../README.md`` come from README.md at build
+   time, so the README is the single source for them. Edit them there.
+
+.. include:: ../README.md
+   :parser: myst_parser.sphinx_
+   :start-after: <!-- overview-start: this section is also included in docs/index.rst -->
+   :end-before: <!-- overview-end -->
 
 The Fisher information matrix has elements: 
 
@@ -49,9 +56,9 @@ effective amplitudes :math:`A^{\prime}_{lmnk}` and the original phases :math:`\P
 resulting in more stable numerical derivatives. 
 
 .. note::
-   This package requires the latest (v2.0.0) FastEMRIWaveforms (FEW) package to be installed. 
+   This package requires FastEMRIWaveforms (FEW) v2.0.0 or later.
    Installing StableEMRIFisher will install FastEMRIWaveforms by default (for both CPU and GPU).
-   See the installation guide for details.
+   See the :doc:`installation` guide for details.
 
 .. toctree::
    :maxdepth: 2
@@ -68,19 +75,18 @@ resulting in more stable numerical derivatives.
 Key Features
 ------------
 
-* **Stable Numerical Derivatives**: Robust finite difference methods for parameter derivatives
-* **GPU/CPU Support**: Efficient computation on both CPU (NumPy) and GPU (CuPy) backends
-* **EMRI Waveforms**: Integration with FastEMRIWaveforms for accurate EMRI modeling
-* **Fisher Information Matrix Analysis**: Complete parameter estimation uncertainty analysis
-* **LISA Noise Models**: Built-in support for LISA detector noise characteristics
-* **Validation Tools**: Comparison utilities against MCMC parameter estimation
+.. include:: ../README.md
+   :parser: myst_parser.sphinx_
+   :start-after: <!-- features-start: this section is also included in docs/index.rst -->
+   :end-before: <!-- features-end -->
 
 Getting Help
 ------------
 
-* Check the :doc:`quickstart` guide for a detailed walkthrough
-* Browse the :doc:`tutorials/index` for in-depth examples
-* Refer to the :doc:`api/index` for complete API documentation
+.. include:: ../README.md
+   :parser: myst_parser.sphinx_
+   :start-after: <!-- support-start: this section is also included in docs/index.rst -->
+   :end-before: <!-- support-end -->
 
 Indices and tables
 ==================

@@ -28,6 +28,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "nbsphinx",
     "sphinx_rtd_theme",
+    "myst_parser",  # lets citation.rst include sections of README.md
 ]
 
 # Napoleon settings for Google/NumPy style docstrings

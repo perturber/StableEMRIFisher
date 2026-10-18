@@ -7,14 +7,14 @@ version: 2
 build:
   os: ubuntu-22.04
   tools:
-    python: "3.11"
+    python: "3.12"
   jobs:
     post_checkout:
       # Cancel building pull requests when there aren't changes in the docs directory or YAML file.
       # You can add any other files or directories that you'd like here as well,
       # like your docs requirements file, or other files that will change your docs build.
       - |
-        if [ "$READTHEDOCS_VERSION_TYPE" = "external" ] && git diff --quiet HEAD^ HEAD -- docs/ .readthedocs.yaml pyproject.toml;
+        if [ "$READTHEDOCS_VERSION_TYPE" = "external" ] && git diff --quiet HEAD^ HEAD -- docs/ .readthedocs.yaml pyproject.toml README.md;
         then
           echo "No changes to docs/ - exiting the build"
           exit 183;

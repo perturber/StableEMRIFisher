@@ -1,13 +1,11 @@
 Contributing and Development
 =============================
 
-For the latest development version and/or you want to build the documentation locally
+..
+   This page is pulled in from README.md at build time, so the README is the single
+   source for it. Edit it there.
 
-.. code-block:: bash
-
-   # Clone the repository
-   git clone https://github.com/perturber/StableEMRIFisher.git
-   cd StableEMRIFisher
-   
-   # Install in development mode
-   pip install -e ".[docs,dev]" # Maybe want cuda12x here aswell if using GPUs
+.. include:: ../README.md
+   :parser: myst_parser.sphinx_
+   :start-after: <!-- contributing-start: this section is also included in docs/contribution.rst -->
+   :end-before: <!-- contributing-end -->

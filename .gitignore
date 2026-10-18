@@ -172,3 +172,4 @@ cython_debug/
 /MCMC_FM_Data/
 /FM_case_1.py
 /*.sh
+/examples/1D_likes/

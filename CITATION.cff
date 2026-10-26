@@ -13,7 +13,7 @@ title: "StableEMRIFisher"
 version: 1.0.0
 identifiers:
   - type: doi
-    value: 10.5281/zenodo.18778938
+    value: 10.5281/zenodo.23449876
 date-released: 2026-10-18
 url: "https://github.com/perturber/StableEMRIFisher"
 repository-code: "https://github.com/perturber/StableEMRIFisher"

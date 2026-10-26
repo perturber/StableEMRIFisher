@@ -209,21 +209,31 @@ pip install -e ".[dev,docs]"
 ## Citation
 
 <!-- citation-start: this section is also included in docs/citation.rst -->
-If you use StableEMRIFisher in your research, please cite it using the metadata in our `CITATION.cff` file.
+If you use StableEMRIFisher in your research, please cite it. Each release of StableEMRIFisher is archived on Zenodo with its own DOI. **We recommend citing the exact version of the code you used**, which makes your results reproducible and helps us debug any issues you report. You can check your installed version with:
 
-You can easily copy the citation in APA or BibTeX format by clicking the **"Cite this repository"** button in the right sidebar of this GitHub page. Alternatively, you can use the following BibTeX entry:
+```python
+import stableemrifisher
+print(stableemrifisher.__version__)
+```
 
+For the correct citation of any release, including the latest one, see the [StableEMRIFisher Zenodo page](https://doi.org/10.5281/zenodo.23449876). The "Versions" panel there lists every release, and the "Citation" box gives the citation in many styles (APA, BibTeX, and others). For v1.0.0, an APA-style citation reads:
+
+> Kejriwal, S., Burke, O., Chapman-Bird, C., & J. K. Chua, A. (2026). StableEMRIFisher (Version v1.0.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.23449876
+
+and the corresponding BibTeX entry is:
 ```bibtex
 @software{Kejriwal_StableEMRIFisher_2026,
   author       = {Kejriwal, Shubham and Burke, Ollie and Chapman-Bird, Christian and J. K. Chua, Alvin},
   title        = {StableEMRIFisher},
-  version      = {1.0.0},
+  version      = {v1.0.0},
   year         = {2026},
   publisher    = {Zenodo},
-  doi          = {10.5281/zenodo.18778938},
-  note         = {GitHub repository: \url{https://github.com/perturber/StableEMRIFisher}}
+  doi          = {10.5281/zenodo.23449876},
+  url          = {https://doi.org/10.5281/zenodo.23449876}
 }
 ```
+
+The same metadata is in our `CITATION.cff` file, and you can also copy it via the **"Cite this repository"** button in the right sidebar of this GitHub page.
 
 Please also cite the underlying [FastEMRIWaveforms](https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms) package and other dependencies as appropriate.
 

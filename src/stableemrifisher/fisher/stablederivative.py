@@ -3,7 +3,7 @@ from few.waveform import GenerateEMRIWaveform
 from few.utils.constants import Gpc, MRSUN_SI
 from tqdm import tqdm
 
-from ..deriv_utils.deriv_angles import viewing_angle_partials, fplus_fcross_derivs
+from ..utils.deriv_utils.deriv_angles import viewing_angle_partials, fplus_fcross_derivs
 
 import time
 
@@ -413,9 +413,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
         )
 
         # if derivative is with respect to one of the angles, also need derivatives with antenna pattern
-        if (param_to_vary in ["qS", "phiS", "qK", "phiK"]) & (
-            parameters["phiS"] != parameters["phiK"]
-        ):
+        if param_to_vary in ["qS", "phiS", "qK", "phiK"]:
 
             Fderivs = fplus_fcross_derivs(
                 parameters["qS"],

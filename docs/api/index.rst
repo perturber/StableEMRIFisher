@@ -19,6 +19,6 @@ Core Modules
    :template: module.rst
    
    stableemrifisher.fisher
-   stableemrifisher.utils
-   stableemrifisher.noise
-   stableemrifisher.plot
+   stableemrifisher.utils.utils
+   stableemrifisher.utils.noise
+   stableemrifisher.utils.plot

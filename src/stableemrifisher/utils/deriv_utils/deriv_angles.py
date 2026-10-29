@@ -138,26 +138,6 @@ def fplus_fcross_derivs(qS, phiS, qK, phiK, with_respect_to=None):
 
     out = {}
 
-    if phiS == phiK:
-
-        # psi = 0.5*np.pi, antenna patterns are constant, all derivatives are zero.
-        if with_respect_to is None:
-            with_respect_to = ["qS", "phiS", "qK", "phiK"]
-
-        # Loop only over requested derivatives
-        if isinstance(with_respect_to, str):
-            with_respect_to = [with_respect_to]
-            # Ensure it's a list for consistency
-
-        for x in with_respect_to:
-            # I-arm
-            out[f"dFplusI/d{x}"] = 0.0
-            out[f"dFcrossI/d{x}"] = 0.0
-            # II-arm
-            out[f"dFplusII/d{x}"] = 0.0
-            out[f"dFcrossII/d{x}"] = 0.0
-        return out
-
     if with_respect_to is None:
         with_respect_to = ["qS", "phiS", "qK", "phiK"]
 

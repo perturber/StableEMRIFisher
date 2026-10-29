@@ -139,7 +139,7 @@ Test your installation by running:
 ```python
 import stableemrifisher
 from stableemrifisher.fisher import StableEMRIFisher
-from stableemrifisher.noise import LISATOOLS_AVAILABLE
+from stableemrifisher.utils.noise import LISATOOLS_AVAILABLE
 
 print(f"StableEMRIFisher {stableemrifisher.__version__}")
 print(f"LISAanalysistools available: {LISATOOLS_AVAILABLE}")

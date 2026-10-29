@@ -46,11 +46,11 @@ from few.waveform import GenerateEMRIWaveform
 from stableemrifisher.fisher.derivatives import derivative, handle_a_flip
 from stableemrifisher.fisher.stablederivative import StableEMRIDerivative
 from stableemrifisher.utils import inner_product, SNRcalc, generate_PSD
-from stableemrifisher.noise import sensitivity_LWA, load_psd_from_file, LISATOOLS_AVAILABLE
+from stableemrifisher.utils.noise import sensitivity_LWA, load_psd_from_file, LISATOOLS_AVAILABLE
 
 if LISATOOLS_AVAILABLE:
-    from stableemrifisher.noise import write_psd_file
-from stableemrifisher.plot import CovEllipsePlot, StabilityPlot
+    from stableemrifisher.utils.noise import write_psd_file
+from stableemrifisher.utils.plot import CovEllipsePlot, StabilityPlot
 
 logger = logging.getLogger("stableemrifisher")
 handler = logging.StreamHandler(sys.stdout)

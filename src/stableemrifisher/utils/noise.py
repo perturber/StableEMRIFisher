@@ -9,10 +9,19 @@ Key components:
 
 """
 
-from few.summation.interpolatedmodesum import CubicSplineInterpolant
+import logging
+import os
 
 import numpy as np
-import os
+from few.summation.interpolatedmodesum import CubicSplineInterpolant
+from few.utils.constants import YRSID_SI
+
+try:
+    import cupy as cp
+except ImportError:
+    cp = None
+
+logger = logging.getLogger("stableemrifisher")
 
 # lisatools (pip: lisaanalysistools) is an optional dependency. write_psd_file and load_psd
 # are only defined if it imports and a test sensitivity evaluation succeeds.
@@ -38,7 +47,7 @@ except Exception:
     LISATOOLS_AVAILABLE = False
 
 
-def sensitivity_LWA(f, galactic_confusion=False, **kwargs):
+def sensitivity_lwa(f, galactic_confusion=False, **kwargs):
     """
     LISA sensitivity function in the long-wavelength approximation (https://arxiv.org/pdf/1803.01944.pdf).
 
@@ -84,6 +93,78 @@ def sensitivity_LWA(f, galactic_confusion=False, **kwargs):
     return sensitivity
 
 
+def generate_psd(
+    waveform,
+    dt,
+    noise_PSD=sensitivity_lwa,
+    channels=None,
+    noise_kwargs=None,
+    use_gpu=False,
+):
+    """
+    Evaluate the noise PSD of each channel on the frequency grid of a waveform.
+
+    The PSD is evaluated at the positive frequencies of the real FFT of the
+    waveform, np.fft.rfftfreq(N, dt)[1:] (the f = 0 bin is left out), which is
+    the grid `inner_product` expects.
+
+    `noise_PSD` is called once per dict in `noise_kwargs` (or once, if it is a
+    single dict). Each call may return one channel (a 1D array) or several
+    channels at once (a 2D array, one row per channel, like the interpolant
+    from `load_psd_from_file`). A single channel in total is used for every
+    channel; otherwise there must be at least one PSD per channel, and the
+    first len(channels) are used.
+
+    Args:
+        waveform (array): the waveform, shape (N_channels, N). Only its
+            length N is used.
+        dt (float): sampling interval of the waveform in seconds.
+        noise_PSD (callable): function of frequency (Hz) returning the
+            one-sided PSD. Default `sensitivity_lwa`.
+        channels (list): channel names; only their number is used.
+            Default ["A", "E"].
+        noise_kwargs (dict or list of dict): kwargs passed to `noise_PSD`.
+            Default {"TDI": "TDI1"}.
+        use_gpu (bool): return CuPy arrays. Default False.
+
+    Returns:
+        list of arrays: the PSD of each channel, each of length N // 2.
+
+    Raises:
+        ValueError: if `noise_PSD` gives fewer PSDs than there are channels.
+    """
+    if channels is None:
+        channels = ["A", "E"]
+    if noise_kwargs is None:
+        noise_kwargs = {"TDI": "TDI1"}
+    xp = cp if use_gpu else np
+
+    # Extract fourier frequencies
+    length = waveform.shape[-1]
+    freq = xp.fft.rfftfreq(length) / dt
+
+    if use_gpu:
+        freq_np = freq.get()
+    else:
+        freq_np = freq
+
+    kwargs_list = noise_kwargs if isinstance(noise_kwargs, list) else [noise_kwargs]
+    PSD = []
+    for kwargs in kwargs_list:
+        psd = xp.asarray(noise_PSD(freq_np[1:], **kwargs))
+        # a 2D result holds one channel per row
+        PSD.extend(list(psd) if psd.ndim == 2 else [psd])
+
+    if len(PSD) == 1:
+        PSD = PSD * len(channels)
+    if len(PSD) < len(channels):
+        raise ValueError(
+            f"noise_PSD gave {len(PSD)} PSDs for {len(channels)} channels "
+            f"({channels})."
+        )
+    return PSD[: len(channels)]
+
+
 def load_psd_from_file(psd_file, xp=np):
     """
     Load the PSD from a file and return an interpolant.
@@ -109,7 +190,7 @@ def load_psd_from_file(psd_file, xp=np):
     values = xp.asarray(values)
 
     backend = "cpu" if xp is np else "gpu"
-    print(f"Using {backend} backend for PSD interpolation")
+    logger.info("Using %s backend for PSD interpolation", backend)
 
     min_psd = np.min(
         values[:, freqs < 1e-2], axis=1
@@ -248,7 +329,7 @@ if LISATOOLS_AVAILABLE:
             foreground = "wd" if include_foreground else "no_wd"
             filename = f"noise_psd_{model}_{channels}_{tdi_gen}_{foreground}.npy"
         if not os.path.exists(filename):
-            logger.warning(f"PSD file {filename} does not exist. Creating it now.")
+            logger.warning("PSD file %s does not exist. Creating it now.", filename)
             write_psd_file(
                 model=model,
                 channels=channels,
@@ -258,5 +339,89 @@ if LISATOOLS_AVAILABLE:
                 **kwargs,
             )
 
-        logger.info(f"Loading PSD from {filename}")
+        logger.info("Loading PSD from %s", filename)
         return load_psd_from_file(filename, xp=xp)
+
+
+def resolve_noise_model(
+    noise_model=None,
+    noise_kwargs=None,
+    channels=None,
+    ResponseWrapper_kwargs=None,
+    use_gpu=False,
+):
+    """
+    Noise model, its kwargs and the channel names StableEMRIFisher uses.
+
+    - A `noise_model` is used as given, with `noise_kwargs` defaulting to
+      {"TDI": "TDI1"} and `channels` to ["A", "E"].
+    - Without a noise model and without a response: the sky-averaged
+      long-wavelength sensitivity `sensitivity_lwa` on channels ["I", "II"].
+    - Without a noise model but with a response (not recommended): a PSD is
+      generated with lisatools (scirdv1 noise, A and E channels, the TDI
+      generation from `ResponseWrapper_kwargs["tdi"]`, galactic foreground for
+      the observation time `ResponseWrapper_kwargs["Tobs"]`), written to the
+      current directory and loaded back. It is built independently of the
+      rest of the response configuration, which it may not match.
+
+    Args:
+        noise_model (callable, optional): function of frequency returning
+            the one-sided PSD.
+        noise_kwargs (dict or list of dict, optional): kwargs for noise_model.
+        channels (list of str, optional): channel names.
+        ResponseWrapper_kwargs (dict, optional): kwargs of the response
+            wrapper, None if no response is used.
+        use_gpu (bool): load the generated PSD as CuPy arrays.
+
+    Returns:
+        tuple: (noise_model, noise_kwargs, channels).
+    """
+    if noise_model is not None:
+        if noise_kwargs is None:
+            noise_kwargs = {"TDI": "TDI1"}
+        if channels is None:
+            channels = ["A", "E"]
+        return noise_model, noise_kwargs, channels
+
+    if ResponseWrapper_kwargs is None:
+        logger.warning("No noise model or response wrapper provided.")
+        logger.warning("Defaulting to the sky-averaged sensitivity curve")
+        return sensitivity_lwa, {}, channels if channels is not None else ["I", "II"]
+
+    if not LISATOOLS_AVAILABLE:
+        raise ImportError(
+            "Generating the default PSD requires lisatools (pip install lisaanalysistools). "
+            "Install it, or pass a noise_model explicitly."
+        )
+
+    tdi2 = ResponseWrapper_kwargs.get("tdi") == "2nd generation"
+    Tobs = ResponseWrapper_kwargs["Tobs"]
+    logger.warning(
+        "NOT RECOMMENDED: no noise_model was given, so a default PSD is generated "
+        "(lisatools scirdv1 noise, channels A and E, %s TDI, galactic foreground "
+        "for Tobs = %s yr). It is built independently of the ResponseWrapper "
+        "configuration used for the waveform (TDI channels, orbits, noise model), "
+        "which it may not match; a mismatch, e.g. tdi_chan='AET' (three channels) "
+        "against this two-channel PSD, gives wrong results or errors later on. "
+        "Pass a noise_model (with noise_kwargs and channels) consistent with "
+        "the response instead.",
+        "2nd generation" if tdi2 else "1st generation",
+        Tobs,
+    )
+
+    PSD_filename = os.path.join(
+        os.getcwd(),
+        f"tdi{2 if tdi2 else 1}_with_foreground.npy",
+    )
+    write_psd_file(
+        model="scirdv1",
+        channels="AE",
+        tdi2=tdi2,
+        include_foreground=True,
+        filename=PSD_filename,
+        stochastic_params=[Tobs * YRSID_SI],
+    )
+    logger.info("Default PSD written to %s", PSD_filename)
+
+    noise_model = load_psd_from_file(PSD_filename, xp=cp if use_gpu else np)
+    return noise_model, {}, ["A", "E"]

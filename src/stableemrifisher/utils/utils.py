@@ -1,31 +1,37 @@
+"""General helpers: windowing, padding, plunge check and Fisher-matrix inversion."""
+
+import logging
+
 import numpy as np
 
 try:
     import cupy as cp
-except:
-    pass
+except ImportError:
+    cp = None
 
-from scipy.interpolate import make_interp_spline
-from stableemrifisher.utils.noise import sensitivity_LWA
 from few.utils.constants import YRSID_SI
+
+logger = logging.getLogger("stableemrifisher")
 
 
 def tukey(N, alpha=0.5, use_gpu=False):
     """
-    Generate a Tukey window function using GPU acceleration.
+    Tukey (tapered cosine) window of length N.
 
-    Parameters:
-    - N (int): The number of points in the window.
-    - alpha (float): Shape parameter of the Tukey window. It determines the fraction of the window inside the tapered regions.
-      When alpha=0, the Tukey window reduces to a rectangular window, and when alpha=1, it reduces to a Hann window.
+    The window is 1 in the middle and rises/falls as a half cosine over a
+    fraction alpha/2 of the samples at each end. alpha = 1 gives a Hann
+    window. Multiply it into a time series (or pass it as `window` to
+    `inner_product`) to suppress the spectral leakage caused by the abrupt
+    start and end of the signal.
+
+    Args:
+        N (int): number of samples.
+        alpha (float): fraction of the window that is tapered, 0 < alpha <= 1.
+            Default 0.5.
+        use_gpu (bool): return a CuPy array. Default False.
 
     Returns:
-    - window (cupy.ndarray): The Tukey window function as a 1-dimensional CuPy array of length N.
-
-    Note:
-    The Tukey window is defined as a function of the input vector t, where t is a linearly spaced vector from 0 to 1
-    with N points. The function computes the values of the Tukey window function at each point in t using GPU-accelerated
-    operations and returns the resulting window as a CuPy array.
+        array: the window, shape (N,).
     """
     if use_gpu:
         xp = cp
@@ -45,198 +51,24 @@ def tukey(N, alpha=0.5, use_gpu=False):
     return window
 
 
-def generate_PSD(
-    waveform,
-    dt,
-    noise_PSD=sensitivity_LWA,
-    channels=["A", "E"],
-    noise_kwargs={"TDI": "TDI1"},
-    use_gpu=False,
-):
-    """
-    generate the power spectral density for a given waveform, noise_PSD function,
-    requested number of response channels, and response generation
-
-    Args:
-        waveform (nd.array): the waveform which will decide some properties of the PSD. It should have dimensions (N_channels, N), where N is the length of the signal.
-        dt (float): time step in seconds at which the waveform is samples.
-        noise_PSD (func): function to calculate the noise of the instrument at a given frequency and noise configuration (default is noise_PSD_AE)
-        channels (list): list of LISA response channels (default is ["A","E"]
-        noise_kwargs (dict): additional keyword arguments to be provided to the noise function
-
-    returns:
-        nd.array: power spectral density of the requested noise model and of the size of the input waveform.
-    """
-    # generate PSD
-    if use_gpu:
-        xp = cp
-    else:
-        xp = np
-
-    # Extract fourier frequencies
-    length = waveform.shape[-1]
-    freq = xp.fft.rfftfreq(length) / dt
-    df = 1 / (length * dt)
-
-    # Compute evolution time of EMRI
-    T = (df * YRSID_SI) ** -1
-
-    if use_gpu:
-        freq_np = freq.get()  # Compute frequencies
-    else:
-        freq_np = freq
-
-    # Generate PSDs given LWA/TDI variables
-    if isinstance(noise_kwargs, list):
-        PSD = [
-            noise_PSD(freq_np[1:], **noise_kwargs_temp)
-            for noise_kwargs_temp in noise_kwargs
-        ]
-        PSD_cp = [xp.asarray(item) for item in PSD]  # Convert to cupy array
-        return PSD_cp[0 : len(channels)]
-    elif (channels == ["A", "E"]) and (
-        noise_kwargs == {}
-    ):  # TODO: FIX. This is horrendous Ollie
-        PSD_cp = noise_PSD(freq_np[1:])
-        return PSD_cp
-    else:
-        PSD = len(channels) * [noise_PSD(freq_np[1:], **noise_kwargs)]
-        PSD_cp = [xp.asarray(item) for item in PSD]  # Convert to cupy array
-        return PSD_cp[0 : len(channels)]
-
-    # PSD_funcs = PSD_cp[0:len(PSD_cp)] # Choose which channels to include
-
-
-def inner_product(
-        a, 
-        b, 
-        PSD, 
-        dt, 
-        window=None, 
-        fmin=None, 
-        fmax=None, 
-        freq_mask=None, 
-        normalize=False,
-        use_gpu=False):
-    """
-    Compute the frequency domain inner product of two time-domain arrays.
-
-    This function computes the frequency domain inner product of two time-domain arrays using the GPU for acceleration.
-    It operates under the assumption that the signals are evenly spaced and applies a Tukey window to each signal.
-    This function is optimized for GPUs.
-
-    Args:
-        a (np.ndarray): The first time-domain signal. It should have dimensions (N_channels, N), where N is the length of the signal.
-        b (np.ndarray): The second time-domain signal. It should have dimensions (N_channels, N), where N is the length of the signal.
-        PSD (np.ndarray): The power spectral density (PSD) of the signals. It should be a 1D array of length N_channels.
-        dt (float): The sampling interval, i.e., the spacing between time samples.
-        window (np.ndarray, optional): a window array to envelope the waveform time series. Default is None (no window).
-        fmin (float, optional): minimum frequency for inner_product sum. Default is None.
-        fmax (float, optional): maximum frequency for inner_product sum. Default is None.
-        freq_mask (np.ndarray, optional): Precomputed boolean mask for frequencies.
-        normalize (bool, optional): whether to normalize by sqrt{(a|a)(b|b)}
-        use_gpu (bool, optional): whether to use gpu. Default is False.
-    Returns:
-        float: The frequency-domain inner product of the two signals.
-
-    """
-    xp = cp if use_gpu else np
-
-    a = xp.atleast_2d(a)
-    b = xp.atleast_2d(b)
-    PSD = xp.atleast_2d(xp.asarray(PSD))
-    N = a.shape[1]
-    df = (N * dt) ** -1
-
-    # 1. Freqnuency masking
-    if freq_mask is None:
-        freq = xp.fft.rfftfreq(N)/dt
-        if not use_gpu:
-            pass
-        elif use_gpu and hasattr(freq, 'get'):
-            freq = freq.get()
-
-        freq_mask = np.full(len(freq), True, dtype=bool)
-        if fmin is not None:
-            freq_mask &= (freq > fmin)
-        if fmax is not None:
-            freq_mask &= (freq < fmax)
-        freq_mask = freq_mask[1:] #skip f = 0
-    else:
-        # Assume the f = 0 component is already stripped.
-        pass
-
-    # 2. Windowing & Template FFT
-    if window is not None:
-        window = xp.atleast_2d(xp.asarray(window))
-        a_in = a * window
-        b_in = b * window
-    else:
-        a_in = a
-        b_in = b
-
-    if xp.iscomplexobj(a_in):
-        a_fft_plus = (dt * xp.fft.rfft(a_in.real, axis=-1)[:, 1:])[:, freq_mask]
-        a_fft_cross = (dt * xp.fft.rfft(a_in.imag, axis=-1)[:, 1:])[:, freq_mask]
-
-        b_fft_plus = (dt * xp.fft.rfft(b_in.real, axis=-1)[:, 1:])[:, freq_mask]
-        b_fft_cross = (dt * xp.fft.rfft(b_in.imag, axis=-1)[:, 1:])[:, freq_mask]
-
-        inner_prod = (
-            4
-            * df
-            * (
-                (a_fft_plus.conj() * b_fft_plus + a_fft_cross * b_fft_cross.conj()).real
-                / PSD[:, freq_mask]
-            ).sum()
-        )
-
-    else:
-        a_fft = (dt * xp.fft.rfft(a_in, axis=-1)[:, 1:])[:, freq_mask]
-        b_fft = (dt * xp.fft.rfft(b_in, axis=-1)[:, 1:])[:, freq_mask]
-
-        # Compute inner products over given channels
-        inner_prod = 4 * df * ((a_fft.conj() * b_fft).real / PSD[:, freq_mask]).sum()
-
-    if use_gpu:
-        inner_prod = inner_prod.get()
-
-    if normalize:
-        den1 = inner_product(a, a, PSD, dt, window, fmin, fmax, freq_mask, normalize=False, use_gpu=use_gpu)
-        den2 = inner_product(b, b, PSD, dt, window, fmin, fmax, freq_mask, normalize=False, use_gpu=use_gpu)
-        return inner_prod/np.sqrt(den1*den2)
-
-    return inner_prod
-
-
-def SNRcalc(waveform, PSD, dt, window=None, fmin=None, fmax=None, freq_mask=None, use_gpu=False):
-    """
-    Give the SNR of a given waveform after SEF initialization.
-    Returns:
-        float: SNR of the source.
-    """
-
-    return np.sqrt(
-        inner_product(
-            waveform,
-            waveform,
-            PSD,
-            dt,
-            window=window,
-            fmin=fmin,
-            fmax=fmax,
-            freq_mask=freq_mask,
-            use_gpu=use_gpu,
-        )
-    )
-
-
 def padding(a, b, use_gpu=False):
     """
-    Make time series 'a' the same length as time series 'b'.
-    Both 'a' and 'b' must be cupy array of the same shape.
+    Make time series `a` the same length as time series `b`.
 
-    returns padded 'a'
+    `a` is zero-padded at the end if it is shorter than `b`, and truncated if
+    it is longer. Multi-channel arrays are treated channel by channel. Used
+    to align perturbed waveforms (which can end earlier, e.g. if the
+    perturbed system plunges sooner) with the reference waveform before
+    finite differencing.
+
+    Args:
+        a (array): time series to adjust, shape (N_a,) or (N_channels, N_a).
+        b (array): reference time series with the same number of dimensions,
+            shape (N_b,) or (N_channels, N_b).
+        use_gpu (bool): inputs are CuPy arrays. Default False.
+
+    Returns:
+        array: `a` with the length of `b`.
     """
     if use_gpu:
         xp = cp
@@ -253,7 +85,7 @@ def padding(a, b, use_gpu=False):
 
         for i in range(len(a)):
             if len(a[i]) < len(b[i]):
-                a_temp.append(xp.concatenate((a, xp.zeros(len(b[i]) - len(a[i])))))
+                a_temp.append(xp.concatenate((a[i], xp.zeros(len(b[i]) - len(a[i])))))
 
             elif len(a[i]) > len(b[i]):
                 a_temp.append(a[i][: len(b[i])])
@@ -272,37 +104,28 @@ def padding(a, b, use_gpu=False):
     return a
 
 
-def get_inspiral_overwrite_fun(interpolation_factor, spline_order=7):
-    def func(self, *args, **kwargs):
-
-        traj_output = self.get_inspiral_inner(*args, **kwargs)
-        t, p, e, x, Phi_phi, Phi_theta, Phi_r = traj_output
-        out = np.vstack((p, e, x, Phi_phi, Phi_theta, Phi_r))
-        t_new = np.interp(
-            np.arange((len(t) - 1) * interpolation_factor + 1),
-            np.arange(0, interpolation_factor * len(t), interpolation_factor),
-            t,
-        )
-
-        valid_spline_orders = [3, 5, 7]
-
-        if spline_order in valid_spline_orders:
-            spl = make_interp_spline(t, out, k=spline_order, axis=1)
-        else:
-            raise ValueError(f"spline_order should be one of {valid_spline_orders}")
-
-        upsampled = spl(t_new)
-
-        return (t_new.copy(),) + tuple(upsampled.copy())
-
-    return func
-
-
 def fishinv(M, Fisher, index_of_M=0):
     """
-    Calculate the Fisher inverse by transforming the index of M to lnM to improve conditionality of the matrix first.
-    ONLY WORKS WITH INPUTS THAT HAVE PARAM M AT INDEX "index_of_M"!
-    Helps with stability of Fisher inversion.
+    Invert a Fisher matrix after reparametrising one parameter M -> ln M.
+
+    A large parameter such as the primary mass (M ~ 1e6) makes the Fisher
+    matrix badly conditioned. Changing it to ln M rescales its row and column
+    by M, the matrix is inverted in those coordinates, and the covariance is
+    transformed back:
+
+        J = diag(1, ..., M, ..., 1)        (dM/d ln M = M at index_of_M)
+        F_lnM = J^T F J
+        C = J (F_lnM)^-1 J^T
+
+    Args:
+        M (float): value of the parameter at index `index_of_M`.
+        Fisher (np.ndarray): Fisher matrix, shape (N_params, N_params).
+        index_of_M (int): index of that parameter in the Fisher matrix.
+            Default 0.
+
+    Returns:
+        np.ndarray: the covariance matrix (inverse Fisher matrix) in the
+        original parameters.
     """
 
     # Jacobian for Fisher = partial old/partial new, going from M -> lnM
@@ -330,15 +153,37 @@ def check_if_plunging(
     p0,
     e0,
     xI0,
-    Phi_phi0,
-    Phi_theta0,
-    Phi_r0,
+    *add_args,
+    Phi_phi0=0.0,
+    Phi_theta0=0.0,
+    Phi_r0=0.0,
     chop_inspiral_time=0.0,
+    **traj_kwargs,
 ):
     """
-    This function checks whether the compact object plunges within the given time T. If it does, then we
-    remove a part of the observation window and redefine a new time.
+    Shorten the observation time if the compact object plunges before T.
 
+    Runs the trajectory for T years. If it ends earlier than T (the compact
+    object plunges), the returned time is the plunge time minus
+    `chop_inspiral_time` hours; the waveform close to the plunge is hard to
+    differentiate stably, so trimming it makes the Fisher matrix more stable.
+    Otherwise T is returned unchanged.
+
+    A trajectory ending less than 1 s before T does not count as a plunge,
+    since FEW trajectories can stop slightly short of T even without one.
+
+    Args:
+        traj: FEW trajectory module instance (e.g. `EMRIInspiral`).
+        T (float): observation time in years.
+        m1, m2, a, p0, e0, xI0: trajectory parameters.
+        *add_args: any further trajectory parameters, passed on positionally.
+        Phi_phi0, Phi_theta0, Phi_r0 (float): initial phases. Default 0.
+        chop_inspiral_time (float): hours to remove before the plunge.
+            Default 0.
+        **traj_kwargs: further kwargs for `traj`, e.g. dt.
+
+    Returns:
+        float: observation time in years.
     """
     ONE_HOUR = 60 * 60
 
@@ -349,15 +194,23 @@ def check_if_plunging(
         p0,
         e0,
         xI0,
+        *add_args,
         Phi_phi0=Phi_phi0,
         Phi_theta0=Phi_theta0,
         Phi_r0=Phi_r0,
         T=T,
+        **traj_kwargs,
     )
     t_traj = out[0]
-    if t_traj[-1] < T * YRSID_SI:
-        print("Ah, looks like things are plunging, nightmare. redefining time T")
-        end_time_seconds = t_traj[-1] / YRSID_SI
-        T = end_time_seconds - chop_inspiral_time * (ONE_HOUR) / YRSID_SI
+    if t_traj[-1] < T * YRSID_SI - 1.0:
+        T_new = (t_traj[-1] - chop_inspiral_time * ONE_HOUR) / YRSID_SI
+        logger.warning("Body is plunging! Expect instabilities.")
+        logger.warning(
+            "Removed last %s hours of inspiral. New evolution time: %s years",
+            chop_inspiral_time,
+            T_new,
+        )
+        return T_new
 
+    logger.info("Body is not plunging, Fisher should be stable.")
     return T

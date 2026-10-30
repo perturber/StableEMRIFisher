@@ -5,7 +5,7 @@ cos = np.cos
 atan2 = np.arctan2
 
 
-def fplusI_derivs(qS, phiS, qK, phiK, with_respect_to):
+def fplus1_derivs(qS, phiS, qK, phiK, with_respect_to):
     """
     Compute the partial derivatives of FplusI with respect to viewing angles.
 
@@ -102,7 +102,7 @@ def fplusI_derivs(qS, phiS, qK, phiK, with_respect_to):
         )
 
 
-def fcrossI_derivs(qS, phiS, qK, phiK, with_respect_to):
+def fcross1_derivs(qS, phiS, qK, phiK, with_respect_to):
     """
     Compute the partial derivatives of FcrossI with respect to viewing angles.
 
@@ -199,7 +199,7 @@ def fcrossI_derivs(qS, phiS, qK, phiK, with_respect_to):
         )
 
 
-def fplusII_derivs(qS, phiS, qK, phiK, with_respect_to):
+def fplus2_derivs(qS, phiS, qK, phiK, with_respect_to):
     """
     Compute the partial derivatives of FplusII with respect to viewing angles.
 
@@ -296,7 +296,7 @@ def fplusII_derivs(qS, phiS, qK, phiK, with_respect_to):
         )
 
 
-def fcrossII_derivs(qS, phiS, qK, phiK, with_respect_to):
+def fcross2_derivs(qS, phiS, qK, phiK, with_respect_to):
     """
     Compute the partial derivatives of FcrossII with respect to viewing angles.
 

@@ -19,3 +19,6 @@ __description__ = (
 
 # Package logo path (relative to package root)
 __logo__ = "docs/StableEMRIFisher_logo.png"
+
+# set up the package logger before any submodule logs
+from . import _logging  # noqa: E402,F401

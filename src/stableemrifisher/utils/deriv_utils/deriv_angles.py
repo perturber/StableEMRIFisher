@@ -1,9 +1,9 @@
 import numpy as np
 from .antenna_derivs import (
-    fplusI_derivs,
-    fcrossI_derivs,
-    fplusII_derivs,
-    fcrossII_derivs,
+    fplus1_derivs,
+    fcross1_derivs,
+    fplus2_derivs,
+    fcross2_derivs,
 )
 
 
@@ -148,10 +148,10 @@ def fplus_fcross_derivs(qS, phiS, qK, phiK, with_respect_to=None):
 
     for x in with_respect_to:
         # I-arm
-        out[f"dFplusI/d{x}"] = fplusI_derivs(qS, phiS, qK, phiK, with_respect_to=x)
-        out[f"dFcrossI/d{x}"] = fcrossI_derivs(qS, phiS, qK, phiK, with_respect_to=x)
+        out[f"dFplusI/d{x}"] = fplus1_derivs(qS, phiS, qK, phiK, with_respect_to=x)
+        out[f"dFcrossI/d{x}"] = fcross1_derivs(qS, phiS, qK, phiK, with_respect_to=x)
         # II-arm
-        out[f"dFplusII/d{x}"] = fplusII_derivs(qS, phiS, qK, phiK, with_respect_to=x)
-        out[f"dFcrossII/d{x}"] = fcrossII_derivs(qS, phiS, qK, phiK, with_respect_to=x)
+        out[f"dFplusII/d{x}"] = fplus2_derivs(qS, phiS, qK, phiK, with_respect_to=x)
+        out[f"dFcrossII/d{x}"] = fcross2_derivs(qS, phiS, qK, phiK, with_respect_to=x)
 
     return out

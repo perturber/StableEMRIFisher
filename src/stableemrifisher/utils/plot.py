@@ -45,22 +45,51 @@ def cov_ellipse(mean, cov, ax, n_std=1.0, **kwargs):
 
 
 def normal(mean, var, x):
+    """Unnormalized Gaussian exp(-(x - mean)^2 / (2 var)), peaking at 1."""
     return np.exp(-((mean - x) ** 2) / var / 2)
 
 
-def CovEllipsePlot(
+def plot_covariance_ellipses(
     covariance,
     param_names=None,
     wave_params=None,
     fig=None,
     axs=None,
     filename=None,
-    ellipse_kwargs={},
-    line_kwargs={},
+    ellipse_kwargs=None,
+    line_kwargs=None,
 ):
+    """
+    Corner plot of a covariance matrix: 1D Gaussians on the diagonal and
+    covariance ellipses for every pair of parameters below it.
+
+    Args:
+        covariance (np.ndarray): covariance matrix, shape (N_params, N_params).
+        param_names (list of str, optional): axis labels, and keys into
+            `wave_params`.
+        wave_params (dict, optional): parameter values used as the centres.
+            Default: all centred on 0.
+        fig, axs (optional): existing figure and N_params x N_params axes to
+            draw on, e.g. to overlay several confidence levels.
+        filename (str, optional): save the figure there and close it.
+            Otherwise (fig, axs) is returned.
+        ellipse_kwargs (dict, optional): kwargs for the ellipses
+            (matplotlib.patches.Ellipse), plus "n_std", the number of standard
+            deviations they enclose (default 2).
+        line_kwargs (dict, optional): kwargs for the 1D Gaussian lines.
+
+    Returns:
+        (fig, axs) if `filename` is None.
+    """
+    ellipse_kwargs = dict(ellipse_kwargs or {})
+    line_kwargs = dict(line_kwargs or {})
 
     if fig == None:
-        fig, axs = plt.subplots(len(covariance), len(covariance), figsize=(20, 20))
+        fig, axs = plt.subplots(
+            len(covariance), len(covariance), figsize=(20, 20), squeeze=False
+        )
+    # a single parameter gives a single Axes; index it as a 1x1 grid
+    axs = np.atleast_2d(axs)
 
     if "n_std" in ellipse_kwargs:
         n_std = ellipse_kwargs["n_std"]
@@ -154,7 +183,18 @@ def CovEllipsePlot(
         plt.close()
 
 
-def StabilityPlot(deltas, Gammas, stable_index=None, param_name=None, filename=None):
+def plot_stability(deltas, Gammas, stable_index=None, param_name=None, filename=None):
+    """
+    Plot a diagonal Fisher element against the trial step size (step-size search).
+
+    Args:
+        deltas (array): trial step sizes.
+        Gammas (array): diagonal Fisher element at each step size.
+        stable_index (int, optional): index of the chosen step, highlighted.
+        param_name (str, optional): parameter name, for the title.
+        filename (str, optional): save the figure there and close it.
+            Otherwise it is shown.
+    """
 
     plt.figure(figsize=(12, 5))
     plt.loglog(deltas, Gammas, "ro-")

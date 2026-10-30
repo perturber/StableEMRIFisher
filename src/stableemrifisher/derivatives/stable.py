@@ -1,16 +1,25 @@
-import numpy as np
+"""Semi-analytic ("stable") derivative of the EMRI waveform."""
+
+import logging
+
 from few.waveform import GenerateEMRIWaveform
 from few.utils.constants import Gpc, MRSUN_SI
 from tqdm import tqdm
 
 from ..utils.deriv_utils.deriv_angles import viewing_angle_partials, fplus_fcross_derivs
+from .base import DerivativeBase
+from .finite_difference import check_stencil, offsets, apply_stencil
 
-import time
+logger = logging.getLogger("stableemrifisher")
 
 
-class StableEMRIDerivative(GenerateEMRIWaveform):
+class _StableWaveformDerivative(GenerateEMRIWaveform):
     """
-    inherits from the GenerateEMRIWaveform class of FEW, adds functions for derivative calculation and a fresh __call__ method.
+    Computes the stable derivative of the waveform without the response.
+
+    Inherits from the GenerateEMRIWaveform class of FEW to reuse its trajectory,
+    amplitude and summation modules, and replaces __call__ with the derivative
+    calculation. Used internally by StableDerivative.
     """
 
     def __init__(
@@ -54,10 +63,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
         self.order = order
         self.kind = kind
 
-        if self.kind not in ["central", "forward", "backward"]:
-            raise ValueError('kind must be one of "central", "forward", or "backward".')
-        if self.order not in [2, 4, 6, 8]:
-            raise ValueError("order must be one of 2, 4, 6, or 8.")
+        check_stencil(self.order, self.kind)
 
         try:
             T = kwargs["T"]
@@ -80,7 +86,7 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             show_progress = False
 
         # construct deltas for derivative
-        self.deltas = self._deltas(self.delta, self.order, self.kind)
+        self.deltas = offsets(self.delta, self.order, self.kind)
 
         # how we proceed depends on the parameter we are differentiating with respect to
         if param_to_vary not in parameters:
@@ -236,7 +242,12 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                 if self.xp.around(t_interp[-1], 5) > self.xp.around(
                     t[-1], 5
                 ):  # check plunge. We round to five decimal places to avoid numerical precision errors (which sometimes happen otherwise).
-                    print("plunging! t_interp: ", t_interp[-1], "t_traj: ", t[-1])
+                    logger.warning(
+                        "Perturbed trajectory plunges earlier: t_interp[-1] = %s, "
+                        "t_traj[-1] = %s",
+                        t_interp[-1],
+                        t[-1],
+                    )
 
                     mask_notplunging = (
                         t_interp < t[-1]
@@ -272,8 +283,8 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
             phase_t = self.cache["phase_coefficients_t"][:max_ind]
 
             # finite differencing the phases
-            dPhi_fund_dx = self._stencil(
-                phases_steps, self.delta, self.order, self.kind
+            dPhi_fund_dx = apply_stencil(
+                phases_steps, self.delta, self.order, self.kind, xp=self.xp
             )
             # project the fundamental phases up to the full mode index space
             dPhi_dx = (
@@ -305,8 +316,8 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                 amps_steps[k] = amps_here
 
             # finite differencing the amplitudes
-            dAmp_dx = self._stencil(
-                amps_steps, self.delta, self.order, self.kind
+            dAmp_dx = apply_stencil(
+                amps_steps, self.delta, self.order, self.kind, xp=self.xp
             )  # actually d teuk_amps/dx * Ylmns
 
             # defining effective amplitudes = dAdx - i A dPhidx
@@ -794,7 +805,9 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
                 phi_source_perturb,
             )
 
-        dYlm_dtheta = self._stencil(ylm_temp, self.delta, self.order, self.kind)
+        dYlm_dtheta = apply_stencil(
+            ylm_temp, self.delta, self.order, self.kind, xp=self.xp
+        )
 
         # now calculate dtheta_dx where x is the param_to_vary
         if param_to_vary == "qS":
@@ -815,88 +828,81 @@ class StableEMRIDerivative(GenerateEMRIWaveform):
 
         return modified_amps
 
-    def _deltas(self, delta, order, kind):
-        """
-            return the np.ndarray of parameter deltas for a given delta
 
-        Args:
-            delta (float): finite-difference delta
-            order (int): order of derivative. Choose from 2, 4, 6, 8
-            kind (str): kind of derivative. Choose from "central", "forward", "backward"
-        """
+class StableDerivative(DerivativeBase):
+    """Semi-analytic derivative of the EMRI waveform.
 
-        if kind == "central":
-            # symmetric positions around 0, excluding 0
-            half = order // 2
-            positions = list(range(-half, 0)) + list(range(1, half + 1))
+    Instead of re-generating the waveform at each stencil offset, the
+    trajectory and the mode amplitudes are differentiated numerically and the
+    waveform derivative is assembled mode by mode. The derivatives with respect
+    to the distance and the initial phases are analytic.
 
-        elif kind == "forward":
-            positions = list(range(order + 1))
+    With a response, the response is applied to the derivative of h. This
+    leaves out the derivative of the response itself, which depends only on
+    the sky angles, so for qS, phiS, qK and phiK the response-wrapped waveform
+    R[h] is differentiated by finite differences instead.
+    """
 
-        elif kind == "backward":
-            positions = list(range(-order, 1))
+    supports_response = True
+    analytic_params = frozenset({"dist", "Phi_phi0", "Phi_theta0", "Phi_r0"})
+    sky_params = ("qS", "phiS", "qK", "phiK")
 
-        return np.array(positions) * delta
-        # return self.xp.asarray(positions) * delta
-
-    def _available_stencils(self):
-        """
-        Accessed from #Fornberg 1988: https://doi.org/10.1090%2FS0025-5718-1988-0935077-0
-        """
-        return {
-            "central": {
-                2: self.xp.asarray([-1 / 2, 1 / 2]),
-                4: self.xp.asarray([1 / 12, -2 / 3, 2 / 3, -1 / 12]),
-                6: self.xp.asarray([-1 / 60, 3 / 20, -3 / 4, 3 / 4, -3 / 20, 1 / 60]),
-                8: self.xp.asarray(
-                    [1 / 280, -4 / 105, 1 / 5, -4 / 5, 4 / 5, -1 / 5, 4 / 105, -1 / 280]
-                ),
-            },
-            "forward": {
-                2: self.xp.asarray([-3 / 2, 2, -1 / 2]),
-                4: self.xp.asarray([-25 / 12, 4, -3, 4 / 3, -1 / 4]),
-                6: self.xp.asarray(
-                    [-49 / 20, 6, -15 / 2, 20 / 3, -15 / 4, 6 / 5, -1 / 6]
-                ),
-                8: self.xp.asarray(
-                    [
-                        -761 / 280,
-                        8,
-                        -14,
-                        56 / 3,
-                        -35 / 2,
-                        56 / 5,
-                        -14 / 3,
-                        8 / 7,
-                        -1 / 8,
-                    ]
-                ),
-            },
-            "backward": {
-                2: self.xp.asarray([1 / 2, -2, 3 / 2]),
-                4: self.xp.asarray([1 / 4, -4 / 3, 3, -4, 25 / 12]),
-                6: self.xp.asarray(
-                    [1 / 6, -6 / 5, 15 / 4, -20 / 3, 15 / 2, -6, 49 / 20]
-                ),
-                8: self.xp.asarray(
-                    [1 / 8, -8 / 7, 14 / 3, -56 / 5, 35 / 2, -56 / 3, 14, -8, 761 / 280]
-                ),
-            },
-        }
-
-    def _stencil(self, func_steps, delta, order, kind):
-        """
-            return the stencil for finite-differences
-
-        Args:
-            func_steps (np.ndarray): array of function at different steps of the finite-difference deltas grid
-            order (int): order of finite-difference derivative. Choose from 2, 4, 6, 8
-            kind (str): kind of finite-difference derivative. Choose from "central", "forward", "backward"
-        """
-
-        return (
-            self.xp.tensordot(
-                self._available_stencils()[kind][order], func_steps, axes=(0, 0)
-            )
-            / delta
+    def __init__(
+        self,
+        waveform_class,
+        waveform_generator=GenerateEMRIWaveform,
+        waveform_generator_kwargs=None,
+        ResponseWrapper=None,
+        ResponseWrapper_kwargs=None,
+        use_gpu=False,
+    ):
+        super().__init__(
+            waveform_class,
+            waveform_generator=waveform_generator,
+            waveform_generator_kwargs=waveform_generator_kwargs,
+            ResponseWrapper=ResponseWrapper,
+            ResponseWrapper_kwargs=ResponseWrapper_kwargs,
+            use_gpu=use_gpu,
         )
+        if waveform_generator_kwargs is None:
+            waveform_generator_kwargs = {}
+        if ResponseWrapper_kwargs is None:
+            ResponseWrapper_kwargs = {}
+
+        self.engine = _StableWaveformDerivative(
+            waveform_class=waveform_class, **waveform_generator_kwargs
+        )
+        if self.has_response:
+            # applies the response to the derivative of h
+            self._engine_call = ResponseWrapper(self.engine, **ResponseWrapper_kwargs)
+        else:
+            self._engine_call = self.engine
+
+    @classmethod
+    def supports_waveform(cls, waveform_class):
+        # the semi-analytic derivative needs a mode-by-mode waveform model
+        return waveform_class.__name__ != "Pn5AAKWaveform"
+
+    @property
+    def npad(self):
+        if self.engine.cache is None:
+            return 0
+        return self.engine.cache["Npad"]
+
+    def clear_cache(self):
+        self.engine.clear_cache()
+
+    def compute(self, param_to_vary, delta, order, kind):
+        if self.has_response and param_to_vary in self.sky_params:
+            return self._finite_difference(param_to_vary, delta, order, kind)
+        # the parameters are also passed positionally, for the response wrapper
+        return self._engine_call(
+            *self.parameters.values(),
+            parameters=self.parameters,
+            param_to_vary=param_to_vary,
+            delta=delta,
+            order=order,
+            kind=kind,
+            **self.waveform_kwargs,
+        )
+

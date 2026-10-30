@@ -14,12 +14,14 @@ The pieces live elsewhere:
 
 import logging
 import os
+import sys
 import time
 from typing import Any, Callable, Dict, List, Optional, Type, Union
 
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
+from tqdm import tqdm
 
 try:
     import cupy as cp
@@ -28,7 +30,6 @@ except ImportError:
 
 from few.waveform import GenerateEMRIWaveform
 
-from stableemrifisher._logging import set_verbose
 from .defaults import (
     STENCIL_BOUNDS,
     default_delta_grid,
@@ -102,7 +103,6 @@ class StableEMRIFisher:
         noise_kwargs: Optional[Dict[str, Any]] = None,
         channels: Optional[List[str]] = None,
         deriv_type: Union[str, Type[DerivativeBase]] = "stable",
-        stats_for_nerds: bool = False,
         use_gpu: bool = False,
         dt: float = 10.0,
         T: float = 1.0,
@@ -136,7 +136,6 @@ class StableEMRIFisher:
             channels: Channel names.
             deriv_type: Derivative to use: "stable" (`StableDerivative`),
                 "direct" (`DirectDerivative`), or any `DerivativeBase` subclass.
-            stats_for_nerds: Log DEBUG messages.
             use_gpu: Use CuPy arrays.
             dt: Sampling interval in seconds (without a response).
             T: Observation time in years (without a response).
@@ -161,9 +160,6 @@ class StableEMRIFisher:
         if self.use_gpu and cp is None:
             logger.warning("CuPy not found; disabling GPU acceleration.")
             self.use_gpu = False
-
-        self.stats_for_nerds = stats_for_nerds
-        set_verbose(stats_for_nerds)
 
         # =============== setup waveform kwargs ================
         # for keys in both dicts, the generator kwargs win
@@ -275,6 +271,7 @@ class StableEMRIFisher:
         self.deltas: Optional[Dict[str, float]] = None
         self.relerr: Optional[Dict[str, float]] = None
         self.fisher_check = None
+        self.stats_for_nerds = False
         self.derivatives = None
         self.covariance = None
 
@@ -300,6 +297,7 @@ class StableEMRIFisher:
         plunge_check: Optional[bool] = None,
         filename: Optional[str] = None,
         suffix: Optional[str] = None,
+        stats_for_nerds: bool = False,
     ) -> np.ndarray:
         """Compute the Fisher matrix at the given source parameters.
 
@@ -339,14 +337,16 @@ class StableEMRIFisher:
             plunge_check: Shorten T if the object plunges.
             filename: Output directory.
             suffix: Suffix for output file names.
+            stats_for_nerds: Print the step size chosen for each parameter,
+                and its relative error, during the step-size search. For
+                full debugging output, set the "stableemrifisher" logger to
+                DEBUG: logging.getLogger("stableemrifisher").setLevel("DEBUG").
 
         Returns:
             np.ndarray: the Fisher matrix, shape (npar, npar). The covariance
             matrix (if CovEllipse) and the derivatives (if keep_derivatives)
             are stored in `self.covariance` and `self.derivatives`.
         """
-        set_verbose(self.stats_for_nerds)
-
         # per-call settings, falling back on those given at initialization
         defaults = self._defaults
         self.order = _pick(der_order, defaults["order"])
@@ -365,6 +365,7 @@ class StableEMRIFisher:
         self.save_derivatives = _pick(save_derivatives, defaults["save_derivatives"])
         self.keep_derivatives = _pick(keep_derivatives, defaults["keep_derivatives"])
         self.plunge_check = _pick(plunge_check, defaults["plunge_check"])
+        self.stats_for_nerds = stats_for_nerds
         self.filename = _pick(filename, defaults["filename"])
         self.suffix = suffix
         self.delta_range = _pick(delta_range, {})
@@ -375,7 +376,7 @@ class StableEMRIFisher:
         self.wave_params = wave_params
         if param_names is None:
             base_waveform = self.derivative.base_generator.waveform_generator
-            logger.info(
+            logger.debug(
                 "EMRI_ORBIT: %s, BACKGROUND: %s",
                 base_waveform.descriptor,
                 base_waveform.background,
@@ -458,7 +459,7 @@ class StableEMRIFisher:
         if self.deltas is None:
             start = time.time()
             self.find_stable_deltas()
-            logger.info(
+            logger.debug(
                 "Time taken to compute stable deltas is %s seconds",
                 time.time() - start,
             )
@@ -466,7 +467,7 @@ class StableEMRIFisher:
         # 4. Fisher matrix
         start = time.time()
         Fisher = self.compute_fisher()
-        logger.info("Time taken to compute FM is %s seconds", time.time() - start)
+        logger.debug("Time taken to compute FM is %s seconds", time.time() - start)
 
         # 5. Covariance matrix
         if self.CovEllipse:
@@ -519,7 +520,7 @@ class StableEMRIFisher:
             raise ValueError(f"waveform_kwargs must include {e}.") from e
 
         self.waveform = self.derivative.generate(*waveform_args, **waveform_kwargs)
-        logger.info("waveform shape: %s", self.waveform.shape)
+        logger.debug("waveform shape: %s", self.waveform.shape)
 
         self.PSD_funcs = generate_psd(
             waveform=self.waveform,
@@ -530,7 +531,7 @@ class StableEMRIFisher:
             use_gpu=self.use_gpu,
         )
 
-        logger.info("Computing SNR for parameters: %s", waveform_args)
+        logger.debug("Computing SNR for parameters: %s", waveform_args)
         return optimal_snr(
             self.waveform,
             self.PSD_funcs,
@@ -561,7 +562,12 @@ class StableEMRIFisher:
         kinds = {p: self._stencil_kind(p) for p in self.param_names}
 
         self.deltas, self.relerr, curves = stable_deltas(
-            self.derivative, grids, self._inner, self.order, kinds
+            self.derivative,
+            grids,
+            self._inner,
+            self.order,
+            kinds,
+            verbose=self.stats_for_nerds,
         )
 
         if self.stability_plot:
@@ -594,17 +600,25 @@ class StableEMRIFisher:
         Returns:
             np.ndarray: the Fisher matrix, shape (npar, npar).
         """
-        logger.info("calculating Fisher matrix...")
-        derivatives = [
-            self.derivative(
-                param_name,
-                self.deltas[param_name],
-                order=self.order,
-                kind=self._stencil_kind(param_name),
-            )
-            for param_name in self.param_names
-        ]
-        logger.info("Finished derivatives")
+        derivatives = []
+        with tqdm(
+            total=self.npar,
+            desc="Computing Fisher   ",
+            unit="deriv",
+            file=sys.stdout,
+        ) as bar:
+            for param_name in self.param_names:
+                bar.set_postfix_str(param_name)
+                derivatives.append(
+                    self.derivative(
+                        param_name,
+                        self.deltas[param_name],
+                        order=self.order,
+                        kind=self._stencil_kind(param_name),
+                    )
+                )
+                bar.update()
+            bar.set_postfix_str("")
 
         path = self._output_path("Fisher", ".h5")
         if self.save_derivatives and path is not None:

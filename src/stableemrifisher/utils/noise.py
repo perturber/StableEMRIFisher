@@ -190,7 +190,7 @@ def load_psd_from_file(psd_file, xp=np):
     values = xp.asarray(values)
 
     backend = "cpu" if xp is np else "gpu"
-    logger.info("Using %s backend for PSD interpolation", backend)
+    logger.debug("Using %s backend for PSD interpolation", backend)
 
     min_psd = np.min(
         values[:, freqs < 1e-2], axis=1

@@ -212,5 +212,5 @@ def check_if_plunging(
         )
         return T_new
 
-    logger.info("Body is not plunging, Fisher should be stable.")
+    logger.debug("Body is not plunging, Fisher should be stable.")
     return T

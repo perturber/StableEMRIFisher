@@ -168,6 +168,9 @@ def plot_covariance_ellipses(
 
     for ax in fig.get_axes():
         ax.label_outer()
+    # tilt the x tick labels of the bottom row so that they do not overlap
+    for ax in axs[-1, :]:
+        ax.tick_params(axis="x", labelrotation=45)
 
     for i in range(len(covariance)):
         for j in range(i + 1, len(covariance)):
@@ -206,7 +209,7 @@ def plot_stability(deltas, Gammas, stable_index=None, param_name=None, filename=
             marker="s",
             s=20,
             color="b",
-            label="the chosen one",
+            label="chosen step size",
             zorder=5,
         )
 

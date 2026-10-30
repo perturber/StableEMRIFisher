@@ -104,7 +104,6 @@ sef = StableEMRIFisher(
     # Set up response
     ResponseWrapper=ResponseWrapper,
     ResponseWrapper_kwargs=ResponseWrapper_kwargs,
-    stats_for_nerds=True,  # Output useful information governing stability
     use_gpu=USE_GPU,  # select whether or not to use gpu
     der_order=der_order,  # derivative order
     Ndelta=Ndelta,  # delta spacing
@@ -144,7 +143,12 @@ delta_range = dict(
 
 print("Computing FM")
 # Compute the fisher matrix
-fisher_matrix = sef(emri_params, param_names=param_names, delta_range=delta_range)
+fisher_matrix = sef(
+    emri_params,
+    param_names=param_names,
+    delta_range=delta_range,
+    stats_for_nerds=True,  # print the step size chosen for each parameter
+)
 
 # Compute paramter covariance matrix
 param_cov = np.linalg.inv(fisher_matrix)

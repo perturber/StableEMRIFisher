@@ -14,9 +14,9 @@ def stable_deltas(derivative, delta_grids, inner, order, kinds, verbose=False):
 
     For each trial step delta_k (from largest to smallest), the diagonal Fisher
     element Gamma_ii(delta_k) = (dh/dx_i | dh/dx_i) is computed. The relative
-    change between consecutive steps,
+    change between consecutive steps::
 
-        relerr_k = |Gamma_ii(delta_k) - Gamma_ii(delta_{k-1})| / Gamma_ii(delta_k),
+        relerr_k = |Gamma_ii(delta_k) - Gamma_ii(delta_{k-1})| / Gamma_ii(delta_k)
 
     is small where the derivative has converged but is not yet dominated by
     numerical noise. The step with the smallest relerr_k is chosen.
@@ -39,13 +39,14 @@ def stable_deltas(derivative, delta_grids, inner, order, kinds, verbose=False):
         verbose (bool): print a summary line per parameter.
 
     Returns:
-        tuple:
-            deltas (dict): parameter name -> chosen step size.
-            relerr (dict): parameter name -> relerr at the chosen step, an
-                estimate of the relative error of Gamma_ii (0.0 for analytic
-                derivatives; absent for single-step grids).
-            curves (dict): parameter name -> (grid, Gamma, index of the chosen
-                step), for the parameters that were searched.
+        tuple: (deltas, relerr, curves), with
+
+        - deltas (dict): parameter name -> chosen step size.
+        - relerr (dict): parameter name -> relerr at the chosen step, an
+          estimate of the relative error of Gamma_ii (0.0 for analytic
+          derivatives; absent for single-step grids).
+        - curves (dict): parameter name -> (grid, Gamma, index of the chosen
+          step), for the parameters that were searched.
     """
     grids = {p: np.asarray(g) for p, g in delta_grids.items()}
     searched = [

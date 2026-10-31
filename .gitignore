@@ -173,4 +173,17 @@ cython_debug/
 /FM_case_1.py
 /*.sh
 /examples/1D_likes/
-/examples/check_against_mcmc/
+# MCMC comparison: only the case 1 files used by docs/validation are tracked
+/examples/check_against_mcmc/*
+!/examples/check_against_mcmc/fisher_matrix_case1_kerr_eccentric.py
+!/examples/check_against_mcmc/MCMC_FM_Data/
+/examples/check_against_mcmc/MCMC_FM_Data/*
+!/examples/check_against_mcmc/MCMC_FM_Data/PE_samples/
+/examples/check_against_mcmc/MCMC_FM_Data/PE_samples/*
+!/examples/check_against_mcmc/MCMC_FM_Data/PE_samples/Case_1_EMRI_prograde/
+!/examples/check_against_mcmc/MCMC_FM_Data/fisher_matrices/
+/examples/check_against_mcmc/MCMC_FM_Data/fisher_matrices/*
+!/examples/check_against_mcmc/MCMC_FM_Data/fisher_matrices/case_1/
+# exceptions to the global *.h5 rule above: the case 1 samples and Fisher matrix
+!/examples/check_against_mcmc/MCMC_FM_Data/PE_samples/Case_1_EMRI_prograde/*.h5
+!/examples/check_against_mcmc/MCMC_FM_Data/fisher_matrices/case_1/*.h5

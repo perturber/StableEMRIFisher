@@ -17,7 +17,7 @@ StableEMRIFisher uses the [FastEMRIWaveforms](https://github.com/BlackHolePertur
 ## Key Features
 
 <!-- features-start: this section is also included in docs/index.rst -->
-- **Stable Numerical Derivatives**: Robust finite difference methods for parameter derivatives of adiabatic Kerr eccentric equatorial waveform models.
+- **Stable Numerical Derivatives**: Robust finite difference methods for parameter derivatives of EMRI waveforms.
 - **Stability Checks**: Careful validation of the numerical stability and convergence of the derivatives.
 - **GPU Acceleration**: Efficient computation on both CPU (NumPy) and GPU (CuPy) backends.
 - **EMRI Waveforms**: Integration with [FastEMRIWaveforms](https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms) for accurate EMRI modelling.
@@ -39,7 +39,7 @@ StableEMRIFisher also installs the following dependencies automatically:
 - **h5py**: HDF5 file support for data storage
 - **Cython**: C extensions for Python, needed to build the LISA response packages
 - **matplotlib**: Plots for assessing the stability of numerical derivatives
-- **corner**: Corner plots of parameter covariances
+- **corner**: Corner plots of posterior samples, used to compare Fisher matrices with MCMC results
 - **setuptools**: Building `lisa-on-gpu` and `LISAanalysistools` from source
 <!-- install-requirements-end -->
 
@@ -118,7 +118,9 @@ GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0='url.https://github.com/.insteadOf' GIT_CONF
 
 # 2. Build fastlisaresponse against that lisaanalysistools. --no-build-isolation makes it
 #    compile against the installed lisaanalysistools, so its build tools must be installed first.
-pip install scikit-build-core setuptools-scm astropy cmake ninja
+#    astropy is pinned below 8 because lisaconstants (a dependency of lisaanalysistools)
+#    warns that its constants differ from those of astropy 8.
+pip install scikit-build-core setuptools-scm "astropy<8" cmake ninja
 pip install --no-build-isolation \
     "fastlisaresponse @ git+https://github.com/mikekatz04/lisa-on-gpu.git@v1.1.17"
 

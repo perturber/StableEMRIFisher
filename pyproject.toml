@@ -54,6 +54,8 @@ cpu = ["fastemriwaveforms"]
 response = [
     "lisaanalysistools==1.2.0; sys_platform != 'darwin'",
     "fastlisaresponse==1.1.17; sys_platform != 'darwin'",
+    # lisaconstants (a lisaanalysistools dependency) warns about astropy 8 constants
+    "astropy<8; sys_platform != 'darwin'",
 ]
 
 # Specific CUDA toolkit versions (Linux x86_64 only)

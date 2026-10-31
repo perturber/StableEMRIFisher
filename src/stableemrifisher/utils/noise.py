@@ -289,7 +289,6 @@ if LISATOOLS_AVAILABLE:
         np.save(filename, np.vstack((freqs, Sn)).T)
 
     def load_psd(
-        logger,
         model="scirdv1",
         channels="AET",
         tdi2=True,

@@ -5,20 +5,10 @@ This section contains the complete API documentation for StableEMRIFisher.
 
 .. toctree::
    :maxdepth: 2
-   
+
    fisher
-   utils
+   derivatives
+   analysis
    noise
+   utils
    plot
-
-Core Modules
-------------
-
-.. autosummary::
-   :toctree: generated/
-   :template: module.rst
-   
-   stableemrifisher.fisher
-   stableemrifisher.utils.utils
-   stableemrifisher.utils.noise
-   stableemrifisher.utils.plot

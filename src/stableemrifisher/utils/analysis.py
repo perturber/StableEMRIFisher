@@ -307,15 +307,15 @@ def check_fisher(Fisher, param_names, rtol=1e-12, component_tol=0.1):
         component_tol (float): eigenvector component threshold. Default 0.1.
 
     Returns:
-        dict with keys:
-            "no_effect" (list of str): parameters with F_ii = 0.
-            "degenerate" (list of (list of str, float)): for each unconstrained
-                combination, the parameters involved and the relative
-                eigenvalue.
-            "positive_definite" (bool): True if the matrix is invertible and
-                positive definite.
-            "negative" (bool): True if the matrix has an eigenvalue below
-                -rtol (relative), i.e. is not positive semi-definite.
+        dict: with the keys
+
+        - "no_effect" (list of str): parameters with F_ii = 0.
+        - "degenerate" (list of (list of str, float)): for each unconstrained
+          combination, the parameters involved and the relative eigenvalue.
+        - "positive_definite" (bool): True if the matrix is invertible and
+          positive definite.
+        - "negative" (bool): True if the matrix has an eigenvalue below -rtol
+          (relative), i.e. is not positive semi-definite.
     """
     Fisher = np.asarray(Fisher, dtype=np.float64)
     names = np.asarray(param_names)

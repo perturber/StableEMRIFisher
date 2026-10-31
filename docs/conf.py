@@ -40,7 +40,7 @@ napoleon_include_special_with_doc = True
 napoleon_use_admonition_for_examples = False
 napoleon_use_admonition_for_notes = False
 napoleon_use_admonition_for_references = False
-napoleon_use_ivar = False
+napoleon_use_ivar = True
 napoleon_use_param = True
 napoleon_use_rtype = True
 napoleon_preprocess_types = False
@@ -79,7 +79,13 @@ intersphinx_mapping = {
 }
 
 templates_path = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = [
+    "_build",
+    "Thumbs.db",
+    ".DS_Store",
+    # the docs render the pre-executed copy of this notebook
+    "validation/check_fisher_against_mcmc.ipynb",
+]
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
@@ -99,7 +105,6 @@ html_static_path = ["_static"]
 
 html_theme_options = {
     "logo_only": False,
-    "display_version": True,
     "prev_next_buttons_location": "bottom",
     "style_external_links": False,
     "collapse_navigation": False,
@@ -116,8 +121,8 @@ html_css_files = [
 
 # The suffix(es) of source filenames.
 source_suffix = {
-    ".rst": None,
-    ".md": None,
+    ".rst": "restructuredtext",
+    ".md": "markdown",
 }
 
 # The master toctree document.

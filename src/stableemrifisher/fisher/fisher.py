@@ -65,7 +65,7 @@ class StableEMRIFisher:
     """Compute stable Fisher matrices for EMRI signals.
 
     The instance is configured once (waveform model, response, noise, derivative
-    and output settings) and then called with the source parameters:
+    and output settings) and then called with the source parameters::
 
         sef = StableEMRIFisher(waveform_class=..., T=1.0, dt=10.0)
         Fisher = sef(wave_params, param_names=[...])
@@ -73,22 +73,23 @@ class StableEMRIFisher:
     Unless step sizes are given, they are chosen by `find_stable_deltas`.
 
     Attributes set by a call:
-        Fisher-related: `deltas` (step size per parameter), `relerr` (relative
-            error of each diagonal element at the chosen step), `fisher_check`
-            (degeneracy report, see `utils.analysis.check_fisher`),
-            `covariance` (if CovEllipse), `derivatives` (if keep_derivatives).
-        Waveform-related: `waveform` (channels x N), `PSD_funcs`, `SNR2`,
-            `T` (observation time in years, shortened if the object plunges).
+
+    - `deltas` (step size per parameter), `relerr` (relative error of each
+      diagonal element at the chosen step), `fisher_check` (degeneracy
+      report, see `utils.analysis.check_fisher`), `covariance` (if
+      CovEllipse) and `derivatives` (if keep_derivatives).
+    - `waveform` (channels x N), `PSD_funcs`, `SNR2` and `T` (observation
+      time in years, shortened if the object plunges).
 
     Other attributes:
-        derivative: the `DerivativeBase` instance that builds the waveform
-            model and computes its derivatives.
-        deriv_type: its class.
-        waveform_generator: generator of the detector waveform (response
-            included, if any), owned by `derivative`.
-        noise_model, noise_kwargs, channels: noise configuration.
-        minmax: per-parameter thresholds for one-sided stencils, see
-            `defaults.STENCIL_BOUNDS`.
+
+    - `derivative`: the `DerivativeBase` instance that builds the waveform
+      model and computes its derivatives; `deriv_type`: its class.
+    - `waveform_generator`: generator of the detector waveform (response
+      included, if any), owned by `derivative`.
+    - `noise_model`, `noise_kwargs`, `channels`: noise configuration.
+    - `minmax`: per-parameter thresholds for one-sided stencils, see
+      `defaults.STENCIL_BOUNDS`.
     """
 
     def __init__(

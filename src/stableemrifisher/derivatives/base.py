@@ -31,7 +31,8 @@ class DerivativeBase(ABC):
     - implement `compute`, and list in `analytic_params` the parameters it
       differentiates without a finite-difference step.
 
-    Typical use:
+    Typical use::
+
         deriv = DirectDerivative(waveform_class=..., waveform_generator_kwargs=...)
         deriv.set_reference(parameters, **waveform_kwargs)
         dh_dm1 = deriv("m1", delta=1e-2, order=4, kind="central")

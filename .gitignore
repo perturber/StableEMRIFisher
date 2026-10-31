@@ -173,3 +173,4 @@ cython_debug/
 /FM_case_1.py
 /*.sh
 /examples/1D_likes/
+/examples/check_against_mcmc/

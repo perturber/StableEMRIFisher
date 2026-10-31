@@ -1,4 +1,15 @@
-"""Noise-weighted inner products and quantities derived from them."""
+"""Noise-weighted inner products and quantities derived from them.
+
+The inner product of two time series is computed in two stages:
+`fourier_coefficients` transforms each time series (the expensive step, one
+FFT per channel), and `inner_product_fd` combines two sets of coefficients
+(an element-wise product and a sum). `inner_product` runs both stages; when
+the same time series enters several inner products, as in a Fisher matrix,
+its coefficients are computed once and reused.
+"""
+
+from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -6,6 +17,142 @@ try:
     import cupy as cp
 except ImportError:
     cp = None
+
+
+@dataclass
+class FourierCoefficients:
+    """Fourier coefficients of a time series, as returned by `fourier_coefficients`.
+
+    Attributes:
+        values: the coefficients dt * rfft(window * a) at the kept positive
+            frequencies, shape (N_channels, n_freq). For a complex input
+            (h+ - i hx), a pair (plus, cross) of such arrays, the transforms
+            of its real and imaginary parts.
+        df (float): frequency resolution 1 / (N dt) of the time series.
+        freq_mask (np.ndarray of bool): which positive frequencies (without
+            f = 0) are kept.
+    """
+
+    values: Any
+    df: float
+    freq_mask: np.ndarray
+
+
+def _frequency_mask(N, dt, fmin, fmax, freq_mask, use_gpu):
+    """Mask over the positive frequencies (without f = 0) of a length-N series."""
+    if freq_mask is not None:
+        # assume the f = 0 component is already stripped
+        return freq_mask
+
+    xp = cp if use_gpu else np
+    freq = xp.fft.rfftfreq(N) / dt
+    if use_gpu and hasattr(freq, "get"):
+        freq = freq.get()
+
+    freq_mask = np.full(len(freq), True, dtype=bool)
+    if fmin is not None:
+        freq_mask &= freq > fmin
+    if fmax is not None:
+        freq_mask &= freq < fmax
+    return freq_mask[1:]  # skip f = 0
+
+
+def fourier_coefficients(
+    a,
+    dt,
+    window=None,
+    fmin=None,
+    fmax=None,
+    freq_mask=None,
+    use_gpu=False,
+):
+    """
+    Fourier coefficients of a time series, for use in `inner_product_fd`.
+
+    Computes a_c(f) = dt * rfft(window * a_c), the discrete approximation of
+    the continuous Fourier transform of each channel c, at the positive
+    frequencies np.fft.rfftfreq(N, dt)[1:] selected by fmin, fmax or freq_mask.
+    A complex input is read as h+ - i hx, and its real and imaginary parts are
+    transformed separately.
+
+    Args:
+        a (array): time series, shape (N_channels, N) or (N,).
+        dt, window, fmin, fmax, freq_mask, use_gpu: as in `inner_product`.
+
+    Returns:
+        FourierCoefficients: the coefficients, with the frequency resolution
+        and mask they were computed with.
+    """
+    xp = cp if use_gpu else np
+
+    a = xp.atleast_2d(a)
+    N = a.shape[1]
+    df = (N * dt) ** -1
+    freq_mask = _frequency_mask(N, dt, fmin, fmax, freq_mask, use_gpu)
+
+    if window is not None:
+        a = a * xp.atleast_2d(xp.asarray(window))
+
+    def transform(x):
+        return (dt * xp.fft.rfft(x, axis=-1)[:, 1:])[:, freq_mask]
+
+    if xp.iscomplexobj(a):
+        values = (transform(a.real), transform(a.imag))
+    else:
+        values = transform(a)
+    return FourierCoefficients(values, df, freq_mask)
+
+
+def inner_product_fd(a_f, b_f, PSD, use_gpu=False):
+    """
+    Noise-weighted inner product from two sets of Fourier coefficients.
+
+    Computes (a|b) = 4 df Re sum_c sum_f conj(a_c(f)) b_c(f) / S_c(f) from the
+    output of `fourier_coefficients`, without any FFT.
+
+    Args:
+        a_f, b_f (FourierCoefficients): coefficients of the two time series,
+            computed with the same length, dt and frequency mask.
+        PSD (array or list): one-sided PSD of each channel, as in
+            `inner_product`.
+        use_gpu (bool, optional): coefficients are CuPy arrays. Default False.
+
+    Returns:
+        float: the inner product.
+    """
+    if a_f.df != b_f.df or not np.array_equal(a_f.freq_mask, b_f.freq_mask):
+        raise ValueError(
+            "The Fourier coefficients were computed on different frequency grids."
+        )
+    if isinstance(a_f.values, tuple) != isinstance(b_f.values, tuple):
+        raise ValueError(
+            "Cannot combine the coefficients of a complex and a real time series."
+        )
+
+    xp = cp if use_gpu else np
+    PSD = xp.atleast_2d(xp.asarray(PSD))
+    df = a_f.df
+    freq_mask = a_f.freq_mask
+
+    if isinstance(a_f.values, tuple):
+        a_fft_plus, a_fft_cross = a_f.values
+        b_fft_plus, b_fft_cross = b_f.values
+        inner_prod = (
+            4
+            * df
+            * (
+                (a_fft_plus.conj() * b_fft_plus + a_fft_cross * b_fft_cross.conj()).real
+                / PSD[:, freq_mask]
+            ).sum()
+        )
+    else:
+        a_fft, b_fft = a_f.values, b_f.values
+        # Compute inner products over given channels
+        inner_prod = 4 * df * ((a_fft.conj() * b_fft).real / PSD[:, freq_mask]).sum()
+
+    if use_gpu:
+        inner_prod = inner_prod.get()
+    return inner_prod
 
 
 def inner_product(
@@ -36,6 +183,11 @@ def inner_product(
     part (-hx) are treated as two separate channels that share the PSD of
     that row.
 
+    This runs `fourier_coefficients` on both time series (once, if `b` is
+    `a`) and combines them with `inner_product_fd`. To reuse the coefficients
+    of a time series in several inner products, call those two functions
+    directly.
+
     Args:
         a (array): first time series, shape (N_channels, N) or (N,).
         b (array): second time series, same shape as `a`.
@@ -57,68 +209,53 @@ def inner_product(
         float: the inner product (or the overlap if `normalize` is True).
     """
     xp = cp if use_gpu else np
+    same = b is a
 
-    a = xp.atleast_2d(a)
-    b = xp.atleast_2d(b)
-    PSD = xp.atleast_2d(xp.asarray(PSD))
-    N = a.shape[1]
-    df = (N * dt) ** -1
+    # a complex `a` makes the inner product split both inputs into h+ and hx
+    if xp.iscomplexobj(a) and not xp.iscomplexobj(b):
+        b = xp.asarray(b).astype(complex)
 
-    # 1. Frequency masking
-    if freq_mask is None:
-        freq = xp.fft.rfftfreq(N) / dt
-        if use_gpu and hasattr(freq, "get"):
-            freq = freq.get()
+    a_f = fourier_coefficients(a, dt, window, fmin, fmax, freq_mask, use_gpu)
+    b_f = a_f if same else fourier_coefficients(b, dt, window, fmin, fmax, freq_mask, use_gpu)
 
-        freq_mask = np.full(len(freq), True, dtype=bool)
-        if fmin is not None:
-            freq_mask &= freq > fmin
-        if fmax is not None:
-            freq_mask &= freq < fmax
-        freq_mask = freq_mask[1:]  # skip f = 0
-    # else: assume the f = 0 component is already stripped.
-
-    # 2. Windowing & Template FFT
-    if window is not None:
-        window = xp.atleast_2d(xp.asarray(window))
-        a_in = a * window
-        b_in = b * window
-    else:
-        a_in = a
-        b_in = b
-
-    if xp.iscomplexobj(a_in):
-        a_fft_plus = (dt * xp.fft.rfft(a_in.real, axis=-1)[:, 1:])[:, freq_mask]
-        a_fft_cross = (dt * xp.fft.rfft(a_in.imag, axis=-1)[:, 1:])[:, freq_mask]
-
-        b_fft_plus = (dt * xp.fft.rfft(b_in.real, axis=-1)[:, 1:])[:, freq_mask]
-        b_fft_cross = (dt * xp.fft.rfft(b_in.imag, axis=-1)[:, 1:])[:, freq_mask]
-
-        inner_prod = (
-            4
-            * df
-            * (
-                (a_fft_plus.conj() * b_fft_plus + a_fft_cross * b_fft_cross.conj()).real
-                / PSD[:, freq_mask]
-            ).sum()
-        )
-
-    else:
-        a_fft = (dt * xp.fft.rfft(a_in, axis=-1)[:, 1:])[:, freq_mask]
-        b_fft = (dt * xp.fft.rfft(b_in, axis=-1)[:, 1:])[:, freq_mask]
-
-        # Compute inner products over given channels
-        inner_prod = 4 * df * ((a_fft.conj() * b_fft).real / PSD[:, freq_mask]).sum()
-
-    if use_gpu:
-        inner_prod = inner_prod.get()
+    inner_prod = inner_product_fd(a_f, b_f, PSD, use_gpu)
 
     if normalize:
-        den1 = inner_product(a, a, PSD, dt, window, fmin, fmax, freq_mask, normalize=False, use_gpu=use_gpu)
-        den2 = inner_product(b, b, PSD, dt, window, fmin, fmax, freq_mask, normalize=False, use_gpu=use_gpu)
+        den1 = inner_product_fd(a_f, a_f, PSD, use_gpu)
+        den2 = inner_product_fd(b_f, b_f, PSD, use_gpu)
         return inner_prod / np.sqrt(den1 * den2)
 
     return inner_prod
+
+
+def fisher_matrix_from_coefficients(coefficients, PSD, use_gpu=False):
+    """
+    Fisher matrix F_ij = (dh/dx_i | dh/dx_j) from the Fourier coefficients of
+    the waveform derivatives.
+
+    Each derivative is transformed only once (by `fourier_coefficients`), and
+    the n(n+1)/2 elements are computed with `inner_product_fd`.
+
+    Args:
+        coefficients (sequence of FourierCoefficients): coefficients of the
+            derivative with respect to each parameter.
+        PSD, use_gpu: as in `inner_product_fd`.
+
+    Returns:
+        np.ndarray: the symmetric Fisher matrix, shape (N_params, N_params).
+    """
+    xp = cp if use_gpu else np
+    PSD = xp.atleast_2d(xp.asarray(PSD))
+
+    npar = len(coefficients)
+    Fisher = np.zeros((npar, npar), dtype=np.float64)
+    for i in range(npar):
+        for j in range(i, npar):
+            Fisher[i, j] = np.float64(
+                np.real(inner_product_fd(coefficients[i], coefficients[j], PSD, use_gpu))
+            )
+            Fisher[j, i] = Fisher[i, j]
+    return Fisher
 
 
 def fisher_matrix(
@@ -134,6 +271,9 @@ def fisher_matrix(
     """
     Fisher matrix from waveform derivatives, F_ij = (dh/dx_i | dh/dx_j).
 
+    Each derivative is Fourier transformed once, see
+    `fisher_matrix_from_coefficients`.
+
     Args:
         derivatives (sequence of arrays): derivative of the waveform with
             respect to each parameter, each of shape (N_channels, N).
@@ -142,27 +282,11 @@ def fisher_matrix(
     Returns:
         np.ndarray: the symmetric Fisher matrix, shape (N_params, N_params).
     """
-    npar = len(derivatives)
-    Fisher = np.zeros((npar, npar), dtype=np.float64)
-    for i in range(npar):
-        for j in range(i, npar):
-            Fisher[i, j] = np.float64(
-                np.real(
-                    inner_product(
-                        derivatives[i],
-                        derivatives[j],
-                        PSD,
-                        dt,
-                        window=window,
-                        fmin=fmin,
-                        fmax=fmax,
-                        freq_mask=freq_mask,
-                        use_gpu=use_gpu,
-                    )
-                )
-            )
-            Fisher[j, i] = Fisher[i, j]
-    return Fisher
+    coefficients = [
+        fourier_coefficients(d, dt, window, fmin, fmax, freq_mask, use_gpu)
+        for d in derivatives
+    ]
+    return fisher_matrix_from_coefficients(coefficients, PSD, use_gpu)
 
 
 def check_fisher(Fisher, param_names, rtol=1e-12, component_tol=0.1):

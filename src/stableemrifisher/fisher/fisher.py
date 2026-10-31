@@ -45,7 +45,8 @@ from .stepsize import stable_deltas
 from stableemrifisher.utils.analysis import (
     optimal_snr,
     check_fisher,
-    fisher_matrix,
+    fisher_matrix_from_coefficients,
+    fourier_coefficients,
     inner_product,
 )
 from stableemrifisher.utils.noise import generate_psd, resolve_noise_model
@@ -592,14 +593,22 @@ class StableEMRIFisher:
     def compute_fisher(self):
         """Compute the derivatives and the Fisher matrix, and check it.
 
-        Uses the step sizes in `self.deltas`. Degeneracies are reported (see
-        `utils.analysis.check_fisher`) but the matrix is not modified. The
-        derivatives and the Fisher matrix are written to Fisher[_suffix].h5 if
-        an output directory is set.
+        Uses the step sizes in `self.deltas`. Each derivative is Fourier
+        transformed once, as soon as it is computed, and the Fisher matrix is
+        assembled from the Fourier coefficients (see
+        `utils.analysis.fisher_matrix_from_coefficients`); the derivatives
+        themselves are only kept if `keep_derivatives` or `save_derivatives`.
+        Degeneracies are reported (see `utils.analysis.check_fisher`) but the
+        matrix is not modified. The derivatives and the Fisher matrix are
+        written to Fisher[_suffix].h5 if an output directory is set.
 
         Returns:
             np.ndarray: the Fisher matrix, shape (npar, npar).
         """
+        path = self._output_path("Fisher", ".h5")
+        keep = self.keep_derivatives or (self.save_derivatives and path is not None)
+
+        coefficients = []
         derivatives = []
         with tqdm(
             total=self.npar,
@@ -609,18 +618,28 @@ class StableEMRIFisher:
         ) as bar:
             for param_name in self.param_names:
                 bar.set_postfix_str(param_name)
-                derivatives.append(
-                    self.derivative(
-                        param_name,
-                        self.deltas[param_name],
-                        order=self.order,
-                        kind=self._stencil_kind(param_name),
+                derivative = self.derivative(
+                    param_name,
+                    self.deltas[param_name],
+                    order=self.order,
+                    kind=self._stencil_kind(param_name),
+                )
+                coefficients.append(
+                    fourier_coefficients(
+                        derivative,
+                        self.dt,
+                        window=self.window,
+                        fmin=self.fmin,
+                        fmax=self.fmax,
+                        freq_mask=self.freq_mask,
+                        use_gpu=self.use_gpu,
                     )
                 )
+                if keep:
+                    derivatives.append(derivative)
                 bar.update()
             bar.set_postfix_str("")
 
-        path = self._output_path("Fisher", ".h5")
         if self.save_derivatives and path is not None:
             derivatives_save = (cp if self.use_gpu else np).asarray(derivatives)
             if self.use_gpu:
@@ -628,15 +647,8 @@ class StableEMRIFisher:
             with h5py.File(path, "w") as f:
                 f.create_dataset("derivatives", data=derivatives_save)
 
-        Fisher = fisher_matrix(
-            derivatives,
-            self.PSD_funcs,
-            self.dt,
-            window=self.window,
-            fmin=self.fmin,
-            fmax=self.fmax,
-            freq_mask=self.freq_mask,
-            use_gpu=self.use_gpu,
+        Fisher = fisher_matrix_from_coefficients(
+            coefficients, self.PSD_funcs, use_gpu=self.use_gpu
         )
         if self.keep_derivatives:
             self.derivatives = derivatives

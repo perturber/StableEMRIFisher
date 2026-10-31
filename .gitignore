@@ -187,3 +187,6 @@ cython_debug/
 # exceptions to the global *.h5 rule above: the case 1 samples and Fisher matrix
 !/examples/check_against_mcmc/MCMC_FM_Data/PE_samples/Case_1_EMRI_prograde/*.h5
 !/examples/check_against_mcmc/MCMC_FM_Data/fisher_matrices/case_1/*.h5
+
+# macOS Finder metadata
+.DS_Store

@@ -317,5 +317,5 @@ StableEMRIFisher development has been supported by:
 
 Special thanks to the FastEMRIWaveforms development team and the LISA Consortium.
 
-Claude (Anthropic) was used as an AI assistant in the development, testing and debugging of StableEMRIFisher.
+Claude (Anthropic) was used as an AI assistant in the development, testing and debugging of StableEMRIFisher. All changes were reviewed by the developers.
 <!-- acknowledgments-end -->

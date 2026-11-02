@@ -316,4 +316,6 @@ StableEMRIFisher development has been supported by:
 - **Max Planck Institute for Gravitational Physics (Albert Einstein Institute), Potsdam**
 
 Special thanks to the FastEMRIWaveforms development team and the LISA Consortium.
+
+Claude (Anthropic) was used as an AI assistant in the development, testing and debugging of StableEMRIFisher.
 <!-- acknowledgments-end -->

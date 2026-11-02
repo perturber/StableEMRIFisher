@@ -1,12 +1,39 @@
 """Direct finite-difference derivative of the detector waveform."""
 
+import contextlib
 import logging
 
+from few import get_logger as get_few_logger
 from few.waveform import GenerateEMRIWaveform
 
 from .base import DerivativeBase
 
 logger = logging.getLogger("stableemrifisher")
+
+
+class _LargeModeListFilter(logging.Filter):
+    """Drops FEW's advice to give a long mode list at initialization."""
+
+    def filter(self, record):
+        return "Mode selection is large" not in record.getMessage()
+
+
+@contextlib.contextmanager
+def _without_large_mode_list_warning():
+    """Silence FEW's warning for call-time mode lists of more than 50 modes.
+
+    The fixed modes are known only once the reference waveform is generated,
+    long after FEW's mode selector is built, so they can only be given at call
+    time, and the warning cannot help the user. The extra checks FEW does on a
+    call-time list are negligible next to generating the waveform.
+    """
+    few_logger = get_few_logger()
+    log_filter = _LargeModeListFilter()
+    few_logger.addFilter(log_filter)
+    try:
+        yield
+    finally:
+        few_logger.removeFilter(log_filter)
 
 
 class DirectDerivative(DerivativeBase):
@@ -61,7 +88,12 @@ class DirectDerivative(DerivativeBase):
         self._last_generated = None
 
     def generate(self, *parameter_values, **waveform_kwargs):
-        h = super().generate(*parameter_values, **waveform_kwargs)
+        if self.modes is not None and waveform_kwargs.get("mode_selection") is self.modes:
+            # the fixed modes of the reference waveform, not a list from the user
+            with _without_large_mode_list_warning():
+                h = super().generate(*parameter_values, **waveform_kwargs)
+        else:
+            h = super().generate(*parameter_values, **waveform_kwargs)
         # FEW keeps the modes of its latest waveform; remember which one that is
         self._last_generated = h
         return h
@@ -69,9 +101,7 @@ class DirectDerivative(DerivativeBase):
     def set_reference(self, parameters, waveform=None, **waveform_kwargs):
         """Set the reference point, and with `fix_modes` fix its modes.
 
-        Args:
-            parameters, waveform, **waveform_kwargs: as in
-                `DerivativeBase.set_reference`.
+        The arguments are those of `DerivativeBase.set_reference`.
         """
         self.modes = None
         if waveform is not None and waveform is not self._last_generated:

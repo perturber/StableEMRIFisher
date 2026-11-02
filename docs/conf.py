@@ -3,15 +3,28 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import glob
 import os
+import shutil
 import sys
 import tomllib
 
-sys.path.insert(0, os.path.abspath("../src"))
+_docs = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(_docs, "..", "src"))
 
 # read the version from pyproject.toml so it is defined in one place
-with open(os.path.join(os.path.dirname(__file__), "..", "pyproject.toml"), "rb") as f:
+with open(os.path.join(_docs, "..", "pyproject.toml"), "rb") as f:
     _pyproject = tomllib.load(f)
+
+# Render the example notebooks of examples/ (with their stored outputs) in the
+# docs. Sphinx only reads files inside docs/, so they are copied to
+# docs/examples/ at every build; that folder is a build product, ignored by git.
+# Edit the notebooks in examples/, never the copies.
+_examples = os.path.join(_docs, "examples")
+shutil.rmtree(_examples, ignore_errors=True)
+os.makedirs(_examples)
+for _notebook in glob.glob(os.path.join(_docs, "..", "examples", "*.ipynb")):
+    shutil.copy2(_notebook, _examples)
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information

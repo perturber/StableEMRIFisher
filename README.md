@@ -136,23 +136,16 @@ LISAanalysistools is optional. Without it, StableEMRIFisher still imports and ru
 ### Verifying the Installation
 
 <!-- install-verify-start: this section is also included in docs/installation.rst -->
-Test your installation by running:
+Before trying the examples, run the test suite from the root of the repository:
 
-```python
-import stableemrifisher
-from stableemrifisher.fisher import StableEMRIFisher
-from stableemrifisher.utils.noise import LISATOOLS_AVAILABLE
-
-print(f"StableEMRIFisher {stableemrifisher.__version__}")
-print(f"LISAanalysistools available: {LISATOOLS_AVAILABLE}")
-
-# Check if GPU support is available
-try:
-    import cupy as cp
-    print(f"GPU support available: {cp.cuda.is_available()}")
-except ImportError:
-    print("GPU support not available (CuPy not installed)")
+```bash
+pytest            # fast tests: about a minute on a laptop CPU
+pytest -m slow    # fast and slow tests: adds the step-size search, plots and the LISA response
 ```
+
+The run starts with a report of your installation: the StableEMRIFisher and FEW versions, whether a GPU is available, and whether the LISA response packages are installed. It ends with a list of what could not be tested on your machine, with the command to install what is missing. The first run also downloads FEW's data files, which needs an internet connection.
+
+The tests compare the results with values known exactly in theory wherever possible. See the [tests README](https://github.com/perturber/StableEMRIFisher/blob/main/tests/README.md) for what each test checks.
 <!-- install-verify-end -->
 
 ## Documentation
@@ -160,10 +153,11 @@ except ImportError:
 **Full documentation is available at [stableemrifisher.readthedocs.io](https://stableemrifisher.readthedocs.io)**
 
 - [Installation Guide](https://stableemrifisher.readthedocs.io/en/latest/installation.html)
-- [Quick Start Tutorial](https://stableemrifisher.readthedocs.io/en/latest/quickstart.html)
+- [Quick Start Tutorial](https://stableemrifisher.readthedocs.io/en/latest/examples/quick_start_tutorial.html)
+- [Examples](https://stableemrifisher.readthedocs.io/en/latest/examples.html) (the example notebooks, with their outputs)
 - [API Reference](https://stableemrifisher.readthedocs.io/en/latest/api/index.html)
 - [Validation Studies](https://stableemrifisher.readthedocs.io/en/latest/validation/validation.html)
-- [Example notebooks and scripts](https://github.com/perturber/StableEMRIFisher/tree/main/examples)
+- [Example notebooks and scripts](https://github.com/perturber/StableEMRIFisher/tree/main/examples) on GitHub
 
 ### Building Documentation Locally
 
@@ -304,7 +298,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 <!-- support-start: this section is also included in docs/index.rst -->
-- **Getting started**: Follow the [Quick Start guide](https://stableemrifisher.readthedocs.io/en/latest/quickstart.html) for a detailed walkthrough, and see the [example notebooks and scripts](https://github.com/perturber/StableEMRIFisher/tree/main/examples)
+- **Getting started**: Follow the [Quick Start guide](https://stableemrifisher.readthedocs.io/en/latest/examples/quick_start_tutorial.html) for a detailed walkthrough, and see the [example notebooks and scripts](https://github.com/perturber/StableEMRIFisher/tree/main/examples)
 - **API**: See the [API Reference](https://stableemrifisher.readthedocs.io/en/latest/api/index.html) for complete documentation of every function and class
 - **Questions**: Open a [GitHub Discussion](https://github.com/perturber/StableEMRIFisher/discussions)
 - **Bug Reports**: Submit a [GitHub Issue](https://github.com/perturber/StableEMRIFisher/issues)

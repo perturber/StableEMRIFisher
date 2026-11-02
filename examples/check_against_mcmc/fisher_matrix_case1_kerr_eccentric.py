@@ -49,7 +49,6 @@ emri_params = dict(
 waveform_class_kwargs = dict(
     inspiral_kwargs=dict(err=1e-11),  # trajectory integrator tolerance
     sum_kwargs=dict(pad_output=True),  # zero-pad to the full observation time if the inspiral plunges
-    mode_selector_kwargs=dict(mode_selection_threshold=1e-5),
 )
 waveform_generator_kwargs = dict(return_list=False, frame="detector")
 
@@ -88,6 +87,7 @@ sef = StableEMRIFisher(
     waveform_class_kwargs=waveform_class_kwargs,
     waveform_generator=GenerateEMRIWaveform,
     waveform_generator_kwargs=waveform_generator_kwargs,
+    waveform_kwargs=dict(mode_selection_threshold=1e-5),  # drop modes below this fraction of the total power
     ResponseWrapper=ResponseWrapper,
     ResponseWrapper_kwargs=ResponseWrapper_kwargs,
     noise_model=noise_model,

@@ -10,6 +10,8 @@
   with fix_modes (its default).
 """
 
+import logging
+
 import pytest
 
 from cases import RELATIVE_STEPS
@@ -120,6 +122,38 @@ def test_deriv_kwargs_reach_the_derivative(make_sef, model, backend, waveform_kw
     unfixed.derivative.set_reference(model.wave_params, **waveform_kwargs)
     assert unfixed.derivative.modes is None
     assert "mode_selection" not in unfixed.derivative.waveform_kwargs
+
+
+class _Messages(logging.Handler):
+    def __init__(self):
+        super().__init__()
+        self.messages = []
+
+    def emit(self, record):
+        self.messages.append(record.getMessage())
+
+
+def test_no_mode_list_warning_for_fixed_modes(direct, model, waveform_kwargs):
+    """FEW warns about call-time mode lists of more than 50 modes; only a
+    list given by the user should get that advice."""
+    import few
+
+    params = model.wave_params
+    delta = model.case.deltas(["p0"])["p0"]
+    handler = _Messages()
+    few.get_logger().addHandler(handler)
+    try:
+        direct.set_reference(params, **waveform_kwargs)
+        if len(direct.modes) <= 50:
+            pytest.skip(f"the reference waveform has only {len(direct.modes)} modes")
+        direct("p0", delta, order=2)
+        assert not any("Mode selection is large" in m for m in handler.messages)
+
+        direct.set_reference(params, **waveform_kwargs, mode_selection=list(direct.modes))
+        direct("p0", delta, order=2)
+        assert any("Mode selection is large" in m for m in handler.messages)
+    finally:
+        few.get_logger().removeHandler(handler)
 
 
 def test_fixed_modes_across_a_mode_change(sef, direct, model, backend, waveform_kwargs):

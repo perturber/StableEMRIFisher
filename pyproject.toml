@@ -41,6 +41,7 @@ dependencies = [
     "fastemriwaveforms>=2.0.0",
     "setuptools >= 61.0",
 	"corner >= 2.2.3",
+    "tqdm>=4.0.0",
     # the installation test suite (pytest), which users run before anything else
     "pytest>=6.0.0",
 ]

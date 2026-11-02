@@ -190,3 +190,6 @@ cython_debug/
 
 # macOS Finder metadata
 .DS_Store
+
+# example notebooks copied into the docs at build time (see docs/conf.py)
+docs/examples/

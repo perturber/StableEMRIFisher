@@ -10,11 +10,10 @@ import h5py
 import numpy as np
 import pytest
 
-from stableemrifisher.fisher.defaults import default_param_names
 from stableemrifisher.utils.analysis import check_fisher, fisher_matrix
 from stableemrifisher.utils.utils import check_if_plunging, fishinv
 
-from cases import DT
+from cases import DT, TEST_PARAMS
 from conftest import assert_only_sky_degenerate
 
 pytestmark = pytest.mark.fast
@@ -22,8 +21,8 @@ pytestmark = pytest.mark.fast
 
 @pytest.fixture(scope="module")
 def fisher_run(sef, model):
-    """Fisher matrix over the model's default parameters, at fixed step sizes."""
-    param_names = default_param_names(sef.derivative.base_generator.waveform_generator)
+    """Fisher matrix over TEST_PARAMS and dist, at fixed step sizes."""
+    param_names = TEST_PARAMS + ["dist"]
     deltas = model.case.deltas(param_names)
     F = sef(model.wave_params, param_names=param_names, deltas=deltas, keep_derivatives=True)
     return dict(
@@ -50,7 +49,7 @@ def test_fisher_is_symmetric(fisher_run):
     assert np.array_equal(F, F.T)
 
 
-def test_only_sky_angles_are_degenerate(fisher_run):
+def test_fisher_is_not_degenerate(fisher_run):
     assert_only_sky_degenerate(
         fisher_run["F"], fisher_run["param_names"], fisher_run["fisher_check"]
     )

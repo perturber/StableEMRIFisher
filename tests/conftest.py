@@ -13,6 +13,7 @@ with the reason, when no GPU is available. The report at the top of the run
 says which backends and optional packages were found.
 """
 
+import copy
 import functools
 import importlib.metadata
 import platform
@@ -272,6 +273,29 @@ class Model:
         return kwargs
 
 
+_WAVEFORMS = {}
+
+
+def shared_waveform_class(waveform_class):
+    """Stand-in for a FEW waveform class that builds each waveform once per session.
+
+    FEW reads all of a model's amplitude data (5 GB for the Kerr models) every
+    time a waveform is built, so the tests share one waveform per class and
+    set of kwargs, e.g. one per backend.
+    """
+
+    def build(*args, **kwargs):
+        key = (waveform_class, repr(args), repr(sorted(kwargs.items())))
+        if key not in _WAVEFORMS:
+            # FEW writes into the kwargs it gets (e.g. inspiral_kwargs["func"]),
+            # which would change the key of the next call
+            _WAVEFORMS[key] = waveform_class(*copy.deepcopy(args), **copy.deepcopy(kwargs))
+        return _WAVEFORMS[key]
+
+    build.__name__ = waveform_class.__name__
+    return build
+
+
 @pytest.fixture(scope="session", params=WAVEFORM_CASES, ids=lambda c: c.id)
 def model(request):
     """Runs a test once per waveform model in cases.WAVEFORM_CASES."""
@@ -284,7 +308,7 @@ def model(request):
             f"{case.waveform_class_name} needs FEW >= {case.min_few_version} "
             f"(installed: {_version('fastemriwaveforms')})"
         )
-    return Model(case, waveform_class)
+    return Model(case, shared_waveform_class(waveform_class))
 
 
 @pytest.fixture(scope="session")

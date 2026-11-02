@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
+from cases import TEST_PARAMS
 from conftest import CPU
-from stableemrifisher.fisher.defaults import default_param_names
 from stableemrifisher.utils.analysis import inner_product
 
 pytestmark = [pytest.mark.fast, pytest.mark.gpu]
@@ -24,11 +24,10 @@ def test_inner_product(gpu):
 def test_waveform_and_fisher(make_sef, model, gpu):
     cpu_sef = make_sef(CPU)
     gpu_sef = make_sef(gpu)
-    param_names = default_param_names(cpu_sef.derivative.base_generator.waveform_generator)
-    deltas = model.case.deltas(param_names)
+    deltas = model.case.deltas(TEST_PARAMS)
 
-    F_cpu = cpu_sef(model.wave_params, param_names=param_names, deltas=deltas)
-    F_gpu = gpu_sef(model.wave_params, param_names=param_names, deltas=deltas)
+    F_cpu = cpu_sef(model.wave_params, param_names=TEST_PARAMS, deltas=deltas)
+    F_gpu = gpu_sef(model.wave_params, param_names=TEST_PARAMS, deltas=deltas)
 
     waveform_gpu = gpu.to_numpy(gpu_sef.waveform)
     assert np.abs(waveform_gpu - cpu_sef.waveform).max() < 1e-8 * np.abs(cpu_sef.waveform).max()

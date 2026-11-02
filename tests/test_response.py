@@ -3,13 +3,15 @@
 import numpy as np
 import pytest
 
-from cases import DT, T_OBS
+from cases import DT, T_OBS, TEST_PARAMS
 from conftest import RESPONSE_INSTALL_HINT, response_status
 from stableemrifisher.utils.analysis import inner_product
 
 pytestmark = pytest.mark.slow
 
-PARAM_NAMES = ["m1", "p0", "dist", "qS", "phiK", "Phi_phi0"]
+# qS: with a response, the stable derivative differentiates the sky angles by
+# finite differences of the response-wrapped waveform
+PARAM_NAMES = TEST_PARAMS + ["dist", "qS"]
 
 
 @pytest.fixture(scope="module")
@@ -38,7 +40,8 @@ def make_response_sef(model, backend):
                 remove_garbage="zero",
                 flip_hx=True,
                 is_ecliptic_latitude=False,
-                orbits=EqualArmlengthOrbits(),
+                # on the same backend as the response (by default, a GPU if there is one)
+                orbits=EqualArmlengthOrbits(force_backend=backend.few_backend),
                 order=20,
                 tdi="1st generation",
                 tdi_chan="AE",

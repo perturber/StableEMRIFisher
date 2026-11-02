@@ -4,8 +4,8 @@
   amplitudes and mode selection. Its distance derivative is exactly -h / dist,
   so -dist * (dh/d dist) must reproduce FEW's waveform to machine precision,
   whichever way the modes are chosen.
-- For every other parameter, the stable derivative must agree with the
-  direct finite difference of FEW's waveform. Both use the modes FEW selects
+- For the parameters in cases.TEST_PARAMS, the stable derivative must agree
+  with the direct finite difference of FEW's waveform. Both use the modes FEW selects
   for the reference waveform: the stable derivative always, the direct one
   with fix_modes (its default).
 """
@@ -14,9 +14,8 @@ import logging
 
 import pytest
 
-from cases import RELATIVE_STEPS
+from cases import TEST_PARAMS
 from stableemrifisher.derivatives import StableDerivative
-from stableemrifisher.fisher.defaults import default_param_names
 from stableemrifisher.utils.analysis import inner_product
 from stableemrifisher.utils.noise import generate_psd, sensitivity_lwa
 
@@ -105,11 +104,8 @@ def assert_stable_matches_direct(sef, direct, params, backend, waveform_kwargs, 
     )
 
 
-@pytest.mark.parametrize("param", list(RELATIVE_STEPS))
+@pytest.mark.parametrize("param", TEST_PARAMS)
 def test_stable_matches_direct(sef, direct, model, backend, waveform_kwargs, param):
-    few_waveform = sef.derivative.base_generator.waveform_generator
-    if param not in default_param_names(few_waveform):
-        pytest.skip(f"{param} is not a parameter of {model.case.id}")
     delta = model.case.deltas([param])[param]
     assert_stable_matches_direct(
         sef, direct, model.wave_params, backend, waveform_kwargs, param, delta

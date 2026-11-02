@@ -895,8 +895,15 @@ class StableDerivative(DerivativeBase):
         if ResponseWrapper_kwargs is None:
             ResponseWrapper_kwargs = {}
 
+        # FEW loads all of a model's amplitude data (gigabytes for the Kerr
+        # models) when the waveform is built, so the engine reuses the waveform
+        # of the base generator instead of building a second one
+        waveform = getattr(self.base_generator, "waveform_generator", None)
         self.engine = _StableWaveformDerivative(
-            waveform_class=waveform_class, **waveform_generator_kwargs
+            waveform_class=(
+                waveform_class if waveform is None else lambda *args, **kwargs: waveform
+            ),
+            **waveform_generator_kwargs,
         )
         if self.has_response:
             # applies the response to the derivative of h

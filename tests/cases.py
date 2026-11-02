@@ -53,6 +53,11 @@ RELATIVE_STEPS = dict(
     dist=1e-4,
 )
 
+# Parameters the derivative and Fisher tests differentiate: intrinsic ones,
+# whose derivatives need finite-difference steps. Every derivative takes
+# several waveforms, so the tests do not run over all parameters.
+TEST_PARAMS = ["m1", "p0", "e0"]
+
 
 @dataclass(frozen=True)
 class WaveformCase:

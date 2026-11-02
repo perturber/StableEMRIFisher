@@ -156,7 +156,6 @@ The LISA response from ``fastlisaresponse`` is given as the ``ResponseWrapper`` 
         ResponseWrapper_kwargs=ResponseWrapper_kwargs,
         noise_model=get_sensitivity,
         noise_kwargs=[{"sens_fn": channel} for channel in channels],  # one dict per channel
-        channels=channels,
         der_order=4,
         use_gpu=False,
     )

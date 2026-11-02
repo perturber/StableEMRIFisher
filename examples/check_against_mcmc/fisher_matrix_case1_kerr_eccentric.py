@@ -92,7 +92,6 @@ sef = StableEMRIFisher(
     ResponseWrapper_kwargs=ResponseWrapper_kwargs,
     noise_model=noise_model,
     noise_kwargs={},  # the interpolant takes no kwargs
-    channels=["A", "E"],
     der_order=4,
     deriv_type="stable",
     use_gpu=USE_GPU,

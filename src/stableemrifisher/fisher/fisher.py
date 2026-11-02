@@ -87,7 +87,7 @@ class StableEMRIFisher:
       model and computes its derivatives; `deriv_type`: its class.
     - `waveform_generator`: generator of the detector waveform (response
       included, if any), owned by `derivative`.
-    - `noise_model`, `noise_kwargs`, `channels`: noise configuration.
+    - `noise_model`, `noise_kwargs`: noise configuration.
     - `minmax`: per-parameter thresholds for one-sided stencils, see
       `defaults.STENCIL_BOUNDS`.
     """
@@ -103,8 +103,8 @@ class StableEMRIFisher:
         ResponseWrapper_kwargs: Optional[Dict[str, Any]] = None,
         noise_model: Optional[Callable] = None,
         noise_kwargs: Optional[Dict[str, Any]] = None,
-        channels: Optional[List[str]] = None,
         deriv_type: Union[str, Type[DerivativeBase]] = "stable",
+        deriv_kwargs: Optional[Dict[str, Any]] = None,
         use_gpu: bool = False,
         dt: float = 10.0,
         T: float = 1.0,
@@ -134,10 +134,13 @@ class StableEMRIFisher:
                 "Tobs" and "dt" override `T` and `dt`.
             noise_model: Noise PSD function. See
                 `utils.noise.resolve_noise_model` for the defaults.
-            noise_kwargs: Noise model kwargs.
-            channels: Channel names.
+            noise_kwargs: Noise model kwargs: a dict, or a list of dicts
+                with one call of `noise_model` each, giving the PSDs of the
+                waveform's channels in order (see `utils.noise.generate_psd`).
             deriv_type: Derivative to use: "stable" (`StableDerivative`),
                 "direct" (`DirectDerivative`), or any `DerivativeBase` subclass.
+            deriv_kwargs: Options of the derivative class, passed to its
+                constructor, e.g. {"fix_modes": False} for `DirectDerivative`.
             use_gpu: Use CuPy arrays.
             dt: Sampling interval in seconds (without a response).
             T: Observation time in years (without a response).
@@ -199,6 +202,7 @@ class StableEMRIFisher:
             ResponseWrapper=ResponseWrapper,
             ResponseWrapper_kwargs=ResponseWrapper_kwargs,
             use_gpu=self.use_gpu,
+            **(deriv_kwargs or {}),
         )
         self.waveform_generator = self.derivative.waveform_generator
         self.has_ResponseWrapper = self.derivative.has_response
@@ -218,10 +222,9 @@ class StableEMRIFisher:
         self._T_requested = self.T
 
         # ================ Noise model =======================
-        self.noise_model, self.noise_kwargs, self.channels = resolve_noise_model(
+        self.noise_model, self.noise_kwargs = resolve_noise_model(
             noise_model,
             noise_kwargs,
-            channels,
             ResponseWrapper_kwargs=(
                 ResponseWrapper_kwargs if self.has_ResponseWrapper else None
             ),
@@ -528,7 +531,6 @@ class StableEMRIFisher:
             waveform=self.waveform,
             dt=dt,
             noise_PSD=self.noise_model,
-            channels=self.channels,
             noise_kwargs=self.noise_kwargs,
             use_gpu=self.use_gpu,
         )

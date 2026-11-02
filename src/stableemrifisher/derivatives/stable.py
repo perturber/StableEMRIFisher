@@ -1,5 +1,6 @@
 """Semi-analytic ("stable") derivative of the EMRI waveform."""
 
+import inspect
 import logging
 
 from few.waveform import GenerateEMRIWaveform
@@ -11,6 +12,9 @@ from .base import DerivativeBase
 from .finite_difference import check_stencil, offsets, apply_stencil
 
 logger = logging.getLogger("stableemrifisher")
+
+# call kwargs of a FEW waveform that it passes to its mode selector
+MODE_SELECTION_KWARGS = ("mode_selection", "include_minus_mkn", "mode_selection_threshold")
 
 
 class _StableWaveformDerivative(GenerateEMRIWaveform):
@@ -99,7 +103,12 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
             parameters["qS"], parameters["phiS"], parameters["qK"], parameters["phiK"]
         )
 
-        keys_exclude = ["T", "dt", "batch_size", "show_progress"]
+        # mode-selection kwargs are consumed here, as in FEW, and not passed on
+        selector_kwargs = self._mode_selector_kwargs(
+            parameters, theta_source, phi_source, T, kwargs
+        )
+
+        keys_exclude = ["T", "dt", "batch_size", "show_progress", *MODE_SELECTION_KWARGS]
         kwargs_remaining = {
             key: value for key, value in kwargs.items() if key not in keys_exclude
         }
@@ -127,7 +136,7 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
                 theta_source=float(theta_source),
                 phi_source=phi_source,
                 cache=True,
-                **kwargs_remaining,
+                selector_kwargs=selector_kwargs,
             )
 
             # create waveform at injection
@@ -311,7 +320,6 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
                     theta_source=float(theta_source),
                     phi_source=phi_source,
                     cache=False,
-                    **kwargs_remaining,
                 )  # remember, this function multiplies by Ylmns!
                 amps_steps[k] = amps_here
 
@@ -321,37 +329,12 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
             )  # actually d teuk_amps/dx * Ylmns
 
             # defining effective amplitudes = dAdx - i A dPhidx
+            # In the detector frame the amplitudes scale as 1 / dist_dimensionless,
+            # which depends on m1 and m2 through mu. The amplitudes at each stencil
+            # step are divided by the dist_dimensionless of that step, so dAmp_dx
+            # already includes this dependence.
             wave_amps = self.cache["teuk_modes_with_ylms"][:max_ind]
             effective_amps = dAmp_dx - 1j * wave_amps * dPhi_dx
-
-            if param_to_vary in [
-                "m1",
-                "m2",
-            ]:  # additional term due to chain rule of dist_dimensionless
-
-                if (
-                    self.frame == "detector"
-                ):  # assuming waveform_generator is always in source frame.
-
-                    # wave_amps = A * Y / dist_dimless when final output is in detector frame
-                    # => partial wave_amps / partial m = partial A / partial m * (Y / dist_dimless) - A * Y / (dist_dimless ** 2) * partial dist_dimless / partial m
-                    # partial dist_dimless / partial m = - d_in * Gpc / (mu**2 * M_odot) partial mu / partial m = -dist_dimless/mu * (m **2 / (M ** 2))
-                    # => partial wave_amps / partial m = dAmp_dx + wave_amps / mu * (m ** 2 / (M ** 2))
-
-                    mu = (
-                        parameters["m1"]
-                        * parameters["m2"]
-                        / (parameters["m1"] + parameters["m2"])
-                    )
-                    dist_dimensionless = (parameters["dist"] * Gpc) / (mu * MRSUN_SI)
-                    M = parameters["m1"] + parameters["m2"]
-
-                    if param_to_vary == "m1":
-                        dmu_dm = parameters["m2"] ** 2 / (M**2)
-                    else:
-                        dmu_dm = parameters["m1"] ** 2 / (M**2)
-
-                    effective_amps += wave_amps / mu * dmu_dm
 
             # create derivative
             waveform_derivative_source = self._create_waveform_in_batches(
@@ -462,6 +445,49 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
     def clear_cache(self):
         self.cache = None  # reset cache
 
+    def _mode_selector_kwargs(self, parameters, theta_source, phi_source, T, kwargs):
+        """
+        kwargs for the mode selector, resolved as FEW's waveform resolves them.
+
+        The mode-selection options are call kwargs of the FEW waveform, with
+        the defaults of its `_generate_waveform`; they override any set through
+        `mode_selector_kwargs` at initialization. A predictive mode selector
+        chooses the modes from the initial parameters instead.
+
+        Args:
+            parameters (dict): waveform parameters.
+            theta_source, phi_source (float): viewing angles in the source frame.
+            T (float): observation time in years.
+            kwargs (dict): kwargs of the waveform call.
+
+        Returns:
+            dict: kwargs for `self.mode_selector`, besides fund_freq_args.
+        """
+        defaults = inspect.signature(self.waveform_generator._generate_waveform).parameters
+        selector_kwargs = {
+            name: kwargs.get(name, defaults[name].default)
+            for name in MODE_SELECTION_KWARGS
+        }
+        if self.mode_selector.is_predictive:
+            if selector_kwargs["mode_selection"] is not None:
+                logger.warning(
+                    "Mode selector is predictive. Overwriting mode_selection."
+                )
+            selector_kwargs["mode_selection"] = self.mode_selector(
+                parameters["m1"],
+                parameters["m2"],
+                parameters["a"] * parameters["xI0"],
+                parameters["p0"],
+                parameters["e0"],
+                1.0,
+                theta_source,
+                phi_source,
+                T,
+                selector_kwargs["mode_selection_threshold"],
+            )
+        selector_kwargs["modeinds_map"] = self.special_index_map_arr
+        return selector_kwargs
+
     def _trajectory_from_parameters(self, parameters, T):
         """
         calculate the inspiral trajectory over time T (years) for a given set of parameters.
@@ -519,7 +545,7 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
         return t, y
 
     def _amplitudes_from_trajectory(
-        self, parameters, t, y, theta_source, phi_source, cache=False, **kwargs
+        self, parameters, t, y, theta_source, phi_source, cache=False, selector_kwargs=None
     ):
         """
         calculate the amplitudes (and ylms) from the trajectory.
@@ -531,6 +557,8 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
             theta_source (np.float): polar angle in source frame
             phi_source (np.float): azimuthal angle in source frame
             cache (bool): whether to cache info (True) or not (False)
+            selector_kwargs (dict): mode selector kwargs from
+                `_mode_selector_kwargs`, used if cache is True
         Returns:
             Teukolsky amplitudes times Ylms
         """
@@ -560,7 +588,6 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
 
         if cache:
             # perform mode selection in the first call (with cache=True))
-            mode_selection = None
             # get teuk amplitudes, ylms, ls, ms, ks, and ns from the mode_selector module.
 
             fund_freq_args = (
@@ -586,8 +613,7 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
                 ylms,
                 modeinds,
                 fund_freq_args=fund_freq_args,
-                mode_selection=mode_selection,  # None
-                **kwargs,
+                **selector_kwargs,
             )
 
             # we don't use mode symmetry
@@ -891,6 +917,11 @@ class StableDerivative(DerivativeBase):
 
     def clear_cache(self):
         self.engine.clear_cache()
+
+    def set_reference(self, parameters, waveform=None, **waveform_kwargs):
+        # the cached trajectory and modes belong to the previous reference point
+        self.clear_cache()
+        super().set_reference(parameters, waveform, **waveform_kwargs)
 
     def compute(self, param_to_vary, delta, order, kind):
         if self.has_response and param_to_vary in self.sky_params:

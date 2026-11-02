@@ -19,7 +19,19 @@ logger = logging.getLogger(LOGGER_NAME)
 
 
 class _TqdmStreamHandler(logging.StreamHandler):
-    """Stream handler that writes through tqdm.write."""
+    """Stream handler that writes to the current sys.stdout through tqdm.write.
+
+    sys.stdout is looked up at each message, not at import, so that output
+    redirected later (e.g. captured by pytest) also catches these messages.
+    """
+
+    @property
+    def stream(self):
+        return sys.stdout
+
+    @stream.setter
+    def stream(self, value):
+        pass  # always the current sys.stdout
 
     def emit(self, record):
         try:
@@ -30,7 +42,7 @@ class _TqdmStreamHandler(logging.StreamHandler):
 
 # attach the handler only once, even if this module is reloaded
 if not any(getattr(h, "_stableemrifisher", False) for h in logger.handlers):
-    _handler = _TqdmStreamHandler(sys.stdout)
+    _handler = _TqdmStreamHandler()
     _handler._stableemrifisher = True
     logger.addHandler(_handler)
     logger.setLevel(logging.INFO)

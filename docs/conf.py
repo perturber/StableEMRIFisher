@@ -5,8 +5,13 @@
 
 import os
 import sys
+import tomllib
 
 sys.path.insert(0, os.path.abspath("../src"))
+
+# read the version from pyproject.toml so it is defined in one place
+with open(os.path.join(os.path.dirname(__file__), "..", "pyproject.toml"), "rb") as f:
+    _pyproject = tomllib.load(f)
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -14,7 +19,8 @@ sys.path.insert(0, os.path.abspath("../src"))
 project = "StableEMRIFisher"
 copyright = "2024, Shubham Kejriwal, Ollie Burke, Christian Chapman-Bird and Alvin Chua"  # pylint: disable=redefined-builtin
 author = "Shubham Kejriwal, Ollie Burke, Christian Chapman-Bird and Alvin Chua"
-release = "1.0.0"
+release = _pyproject["project"]["version"]
+version = ".".join(release.split(".")[:2])
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

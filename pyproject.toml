@@ -7,7 +7,7 @@ where = ["src"]
 
 [project]
 name = "stableemrifisher"
-version = "1.0.0"
+version = "1.1.0"
 requires-python = ">=3.12"
 authors = [
   {name = "Shubham Kejriwal", email = "shubhamkejriwal@u.nus.edu"},
@@ -40,7 +40,9 @@ dependencies = [
     "matplotlib>=3.10.5",
     "fastemriwaveforms>=2.0.0",
     "setuptools >= 61.0",
-	"corner >= 2.2.3"
+	"corner >= 2.2.3",
+    # the installation test suite (pytest), which users run before anything else
+    "pytest>=6.0.0",
 ]
 
 [project.optional-dependencies]
@@ -84,7 +86,6 @@ docs = [
 
 # Development dependencies
 dev = [
-    "pytest>=6.0.0",
     "pytest-cov>=2.10.0",
     "pytest-xdist>=2.0.0",
     "black>=21.0.0",
@@ -107,12 +108,13 @@ stableemrifisher = ["py.typed"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q --strict-markers"
+# plain `pytest` runs the fast tests; `pytest -m slow` runs the fast and the slow tests
+addopts = "-rfE --strict-markers -m fast"
 testpaths = ["tests"]
 markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "gpu: marks tests as requiring GPU (deselect with '-m \"not gpu\"')",
-    "integration: marks tests as integration tests",
+    "fast: part of the default test run (a few minutes on a CPU)",
+    "slow: extensive tests, e.g. the step-size search and the LISA response; -m slow also runs the fast tests",
+    "gpu: runs on a GPU; skipped when none is available",
 ]
 filterwarnings = [
     "ignore::UserWarning",

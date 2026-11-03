@@ -212,20 +212,20 @@ import stableemrifisher
 print(stableemrifisher.__version__)
 ```
 
-For the correct citation of any release, including the latest one, see the [StableEMRIFisher Zenodo page](https://doi.org/10.5281/zenodo.23449876). The "Versions" panel there lists every release, and the "Citation" box gives the citation in many styles (APA, BibTeX, and others). For v1.0.0, an APA-style citation reads:
+The DOI below, [10.5281/zenodo.23449875](https://doi.org/10.5281/zenodo.23449875), stands for StableEMRIFisher as a whole: it always leads to the latest release on Zenodo, whose "Versions" panel lists every release and whose "Citation" box gives the citation in many styles. Cite it together with the version you used. For the current release, **v1.1.0**, an APA-style citation reads as follows; **if you used a different version, change the version number**:
 
-> Kejriwal, S., Burke, O., Chapman-Bird, C., & J. K. Chua, A. (2026). StableEMRIFisher (Version v1.0.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.23449876
+> Kejriwal, S., Burke, O., Chapman-Bird, C., & J. K. Chua, A. (2026). StableEMRIFisher (Version v1.1.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.23449875
 
 and the corresponding BibTeX entry is:
 ```bibtex
 @software{Kejriwal_StableEMRIFisher_2026,
   author       = {Kejriwal, Shubham and Burke, Ollie and Chapman-Bird, Christian and J. K. Chua, Alvin},
   title        = {StableEMRIFisher},
-  version      = {v1.0.0},
+  version      = {v1.1.0},
   year         = {2026},
   publisher    = {Zenodo},
-  doi          = {10.5281/zenodo.23449876},
-  url          = {https://doi.org/10.5281/zenodo.23449876}
+  doi          = {10.5281/zenodo.23449875},
+  url          = {https://doi.org/10.5281/zenodo.23449875}
 }
 ```
 

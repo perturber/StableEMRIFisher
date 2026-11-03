@@ -35,6 +35,7 @@ The waveform tests use FEW's `FastKerrEccentricEquatorialFlux` model, with a sho
 ### Installation (`test_environment.py`)
 
 - The installed version matches `pyproject.toml`. After changing the version, reinstall with `pip install -e .`.
+- The citation example in the README and `CITATION.cff` name the version in `pyproject.toml`. After changing the version, update the version there too (the DOI stays the same).
 - The public modules import.
 - A GPU that CuPy can use also has a FEW CUDA backend.
 - The LISA response packages load together in one process. The macOS wheels from PyPI crash when loaded together; see the README.

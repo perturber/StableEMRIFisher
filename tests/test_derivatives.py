@@ -39,8 +39,8 @@ def max_relative_difference(a, b, backend):
 
 
 def selected_modes(stable):
-    """The (l, m, n) modes chosen by the stable derivative at its reference point."""
-    return [(int(l), int(m), int(n)) for l, m, n in stable.engine.cache["mode_selection"]]
+    """The (l, m, k, n) modes chosen by the stable derivative at its reference point."""
+    return list(stable.engine.cache["mode_selection"])
 
 
 def internal_waveform(stable, dist):
@@ -53,7 +53,7 @@ def internal_waveform(stable, dist):
     [
         {},
         dict(mode_selection_threshold=1e-3),
-        dict(mode_selection=[(2, 2, 0), (2, 2, 1), (3, 3, 0)]),
+        dict(mode_selection=[(2, 2, 0, 0), (2, 2, 0, 1), (3, 3, 0, 0)]),
     ],
     ids=["few-default", "call-threshold", "mode-list"],
 )

@@ -8,8 +8,6 @@ from few.waveform import GenerateEMRIWaveform
 
 from .base import DerivativeBase
 
-logger = logging.getLogger("stableemrifisher")
-
 
 class _LargeModeListFilter(logging.Filter):
     """Drops FEW's advice to give a long mode list at initialization."""
@@ -44,8 +42,8 @@ class DirectDerivative(DerivativeBase):
     model. The distance derivative is analytic, since h is proportional to
     1/dist.
 
-    With `fix_modes` (the default), the modes FEW selects for the reference
-    waveform are passed to FEW (as `mode_selection`) for every perturbed
+    With `fix_modes` (the default), the (l, m, k, n) modes FEW selects for the
+    reference waveform are passed to FEW (as `mode_selection`) for every perturbed
     waveform. FEW otherwise selects the modes again for each one, and a mode
     gained or lost between stencil points spoils the finite difference. The
     reference waveform itself is unchanged.
@@ -71,8 +69,7 @@ class DirectDerivative(DerivativeBase):
                 `DerivativeBase`.
             fix_modes (bool): use the modes of the reference waveform for all
                 perturbed waveforms. Default True. Has no effect for models
-                without mode selection (e.g. the AAK) or with a predictive
-                mode selector (FEW chooses the modes itself), nor when
+                without mode selection (e.g. the AAK), nor when
                 `mode_selection` is given in the waveform kwargs.
         """
         super().__init__(
@@ -115,20 +112,15 @@ class DirectDerivative(DerivativeBase):
                 self.waveform_kwargs["mode_selection"] = self.modes
 
     def _reference_modes(self):
-        """The (l, m, n) modes of FEW's latest waveform, or None if not available."""
+        """The (l, m, k, n) modes of FEW's latest waveform, or None if not available."""
         few_waveform = getattr(self.base_generator, "waveform_generator", None)
         if few_waveform is None or not hasattr(few_waveform, "ls"):
             return None  # no mode selection, e.g. the AAK
-        selector = getattr(few_waveform, "mode_selector", None)
-        if selector is not None and selector.is_predictive:
-            logger.warning(
-                "fix_modes has no effect with a predictive mode selector, "
-                "which FEW uses to choose the modes of every waveform."
-            )
-            return None
         return [
-            (int(l), int(m), int(n))
-            for l, m, n in zip(few_waveform.ls, few_waveform.ms, few_waveform.ns)
+            (int(l), int(m), int(k), int(n))
+            for l, m, k, n in zip(
+                few_waveform.ls, few_waveform.ms, few_waveform.ks, few_waveform.ns
+            )
         ]
 
     def compute(self, param_to_vary, delta, order, kind):

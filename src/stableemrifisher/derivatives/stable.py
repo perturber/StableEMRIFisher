@@ -3,7 +3,9 @@
 import inspect
 import logging
 
+import numpy as np
 from few.waveform import GenerateEMRIWaveform
+from few.trajectory.ode.circ1pat1r import TrajectoryCirc1PAT1R
 from few.utils.constants import Gpc, MRSUN_SI
 from tqdm import tqdm
 
@@ -104,9 +106,7 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
         )
 
         # mode-selection kwargs are consumed here, as in FEW, and not passed on
-        selector_kwargs = self._mode_selector_kwargs(
-            parameters, theta_source, phi_source, T, kwargs
-        )
+        selector_kwargs = self._mode_selector_kwargs(kwargs)
 
         keys_exclude = ["T", "dt", "batch_size", "show_progress", *MODE_SELECTION_KWARGS]
         kwargs_remaining = {
@@ -117,15 +117,17 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
         if self.cache is None or parameters != self.cache["parameters"]:
 
             t, y = self._trajectory_from_parameters(parameters, T)
+            fixed_amp_args = self._fixed_amplitude_args()
 
             self.cache = {
                 "t": t,
                 "y": y,
                 "parameters": parameters,
                 "coefficients": self.inspiral_generator.integrator_spline_coeff,
+                # Phi_phi, Phi_theta, Phi_r: the summation sums m, k and n phases
                 "phase_coefficients": self.xp.asarray(
                     self.inspiral_generator.integrator_spline_phase_coeff
-                )[:, [0, 2], :],
+                ),
                 "phase_coefficients_t": self.inspiral_generator.integrator_spline_t,
             }
 
@@ -133,6 +135,7 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
                 parameters,
                 t=t,
                 y=y,
+                fixed_amp_args=fixed_amp_args,
                 theta_source=float(theta_source),
                 phi_source=phi_source,
                 cache=True,
@@ -149,7 +152,7 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
                 self.cache["phase_coefficients"],
                 self.cache["ls_all"],
                 self.cache["ms_all"],
-                # self.cache['ks_all'], #no inclination in FEW 2.0 :(
+                self.cache["ks_all"],
                 self.cache["ns_all"],
                 dt=dt,
                 T=T,
@@ -186,7 +189,7 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
                 self.cache["phase_coefficients"],
                 self.cache["ls_all"],
                 self.cache["ms_all"],
-                # self.cache['ks_all'],
+                self.cache["ks_all"],
                 self.cache["ns_all"],
                 dt=dt,
                 T=T,
@@ -194,7 +197,6 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
                 show_progress=show_progress,
                 **kwargs_remaining,
             )
-            # breakpoint()
 
         # sky angles (SSB)
         elif param_to_vary in ["qS", "phiS", "qK", "phiK"]:
@@ -214,7 +216,7 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
                 self.cache["phase_coefficients"],
                 self.cache["ls_all"],
                 self.cache["ms_all"],
-                # self.cache['ks_all'],
+                self.cache["ks_all"],
                 self.cache["ns_all"],
                 dt=dt,
                 T=T,
@@ -241,10 +243,12 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
             else:
                 t_interp_np = t_interp
 
+            fixed_amp_args_steps = []  # amplitude args stored by each trajectory
             for k, delt in enumerate(self.deltas):
                 parameters_in = parameters.copy()
                 parameters_in[param_to_vary] += delt  # perturb by finite-difference
                 t, y = self._trajectory_from_parameters(parameters_in, T)
+                fixed_amp_args_steps.append(self._fixed_amplitude_args())
                 # re-interpolate onto the time-step grid for the injection trajectory
                 # t_interp_np = np.asarray(t_interp) # Changed!
 
@@ -298,9 +302,8 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
             # project the fundamental phases up to the full mode index space
             dPhi_dx = (
                 dPhi_fund_dx[:, 0, None] * self.cache["ms_all"][None, :]
-                +
-                # dPhi_fund_dx[:,1,None] * self.cache['ks_all'][None,:] + #no inclination in FEW 2.0
-                dPhi_fund_dx[:, 2, None] * self.cache["ns_all"][None, :]
+                + dPhi_fund_dx[:, 1, None] * self.cache["ks_all"][None, :]
+                + dPhi_fund_dx[:, 2, None] * self.cache["ns_all"][None, :]
             )
 
             # get amplitude derivative
@@ -317,6 +320,7 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
                     parameters_in,
                     t_interp,
                     y_interps[k].T,
+                    fixed_amp_args=fixed_amp_args_steps[k],
                     theta_source=float(theta_source),
                     phi_source=phi_source,
                     cache=False,
@@ -345,7 +349,7 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
                 phase_coefficients,
                 self.cache["ls_all"],
                 self.cache["ms_all"],
-                # self.cache['ks_all'],
+                self.cache["ks_all"],
                 self.cache["ns_all"],
                 dt=dt,
                 T=T,
@@ -445,48 +449,81 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
     def clear_cache(self):
         self.cache = None  # reset cache
 
-    def _mode_selector_kwargs(self, parameters, theta_source, phi_source, T, kwargs):
+    def _mode_selector_kwargs(self, kwargs):
         """
         kwargs for the mode selector, resolved as FEW's waveform resolves them.
 
         The mode-selection options are call kwargs of the FEW waveform, with
-        the defaults of its `_generate_waveform`; they override any set through
-        `mode_selector_kwargs` at initialization. A predictive mode selector
-        chooses the modes from the initial parameters instead.
+        the defaults of its `_generate_waveform`. The mode selector falls back
+        on the options set at initialization (through `mode_selector_kwargs`)
+        only for those that are None.
 
         Args:
-            parameters (dict): waveform parameters.
-            theta_source, phi_source (float): viewing angles in the source frame.
-            T (float): observation time in years.
             kwargs (dict): kwargs of the waveform call.
 
         Returns:
-            dict: kwargs for `self.mode_selector`, besides fund_freq_args.
+            dict: mode-selection kwargs for `self.mode_selector`.
         """
         defaults = inspect.signature(self.waveform_generator._generate_waveform).parameters
-        selector_kwargs = {
+        return {
             name: kwargs.get(name, defaults[name].default)
             for name in MODE_SELECTION_KWARGS
         }
-        if self.mode_selector.is_predictive:
-            if selector_kwargs["mode_selection"] is not None:
-                logger.warning(
-                    "Mode selector is predictive. Overwriting mode_selection."
-                )
-            selector_kwargs["mode_selection"] = self.mode_selector(
-                parameters["m1"],
-                parameters["m2"],
-                parameters["a"] * parameters["xI0"],
-                parameters["p0"],
-                parameters["e0"],
-                1.0,
-                theta_source,
-                phi_source,
-                T,
-                selector_kwargs["mode_selection_threshold"],
-            )
-        selector_kwargs["modeinds_map"] = self.special_index_map_arr
-        return selector_kwargs
+
+    def _fixed_amplitude_args(self):
+        """
+        Scalar amplitude arguments stored by the trajectory module when it runs.
+
+        FEW's waveform reads them from the trajectory module right after the
+        trajectory, so this must also be called right after
+        `_trajectory_from_parameters`. Only Circ1PAT1R has any (nu, chi2).
+
+        Returns:
+            tuple: the scalar amplitude arguments.
+        """
+        func = self.inspiral_generator.func
+        if isinstance(func, TrajectoryCirc1PAT1R):
+            return (func.args["nu"], func.args["chi2"])
+        return ()
+
+    def _amplitude_args(self, fixed_amp_args, y):
+        """
+        Extra arguments of the amplitude module, after (a, p, e, xI), as FEW's
+        waveform builds them.
+
+        Args:
+            fixed_amp_args (tuple): from `_fixed_amplitude_args`.
+            y (array): trajectory without time; rows beyond the first six
+                (p, e, xI and the three phases) are extra evolved quantities.
+
+        Returns:
+            list: the extra amplitude arguments.
+        """
+        add_inspiral_args = list(y[6:])
+        if isinstance(self.inspiral_generator.func, TrajectoryCirc1PAT1R):
+            deltaM, delta_chit1 = add_inspiral_args
+            nu, chi2 = fixed_amp_args
+            return [nu, chi2, delta_chit1, deltaM]
+        return add_inspiral_args
+
+    def _online_mode_selection_args(self, t):
+        """
+        Fundamental frequencies along the trajectory for the mode selector, as
+        FEW's waveform computes them. Uses the trajectory computed last.
+
+        Args:
+            t (array): time steps of the trajectory.
+
+        Returns:
+            dict or None: the frequencies f_phi, f_theta and f_r (None if the
+            mode selector keeps all modes).
+        """
+        if self.mode_selector.mode_selection == "all":
+            return None
+        freqs = self.inspiral_generator.inspiral_generator.eval_integrator_derivative_spline(
+            self.xp.asnumpy(t) if hasattr(self.xp, "asnumpy") else t, order=1
+        )[:, 3:6] / 2 / np.pi
+        return dict(f_phi=freqs[:, 0], f_theta=freqs[:, 1], f_r=freqs[:, 2])
 
     def _trajectory_from_parameters(self, parameters, T):
         """
@@ -545,22 +582,38 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
         return t, y
 
     def _amplitudes_from_trajectory(
-        self, parameters, t, y, theta_source, phi_source, cache=False, selector_kwargs=None
+        self,
+        parameters,
+        t,
+        y,
+        fixed_amp_args,
+        theta_source,
+        phi_source,
+        cache=False,
+        selector_kwargs=None,
     ):
         """
-        calculate the amplitudes (and ylms) from the trajectory.
+        calculate the amplitudes (times the ylms) of the modes along the trajectory.
+
+        With cache=True (at the reference point), the modes are selected as
+        FEW's waveform selects them: the mode selector computes the amplitudes
+        and ylms from the trajectory, and the selected (l, m, k, n) modes are
+        cached. With cache=False (at a stencil step), only the amplitudes of
+        the cached modes are computed, as FEW's mode selector does for a mode
+        list, and multiplied by the cached ylms.
 
         Args:
             parameters (dict): dictionary of trajectory parameters
             t (np.ndarray): array of time steps for trajectory
             y (np.ndarray): array of evolving parameters in the trajectory at time steps
+            fixed_amp_args (tuple): from `_fixed_amplitude_args`, for these parameters
             theta_source (np.float): polar angle in source frame
             phi_source (np.float): azimuthal angle in source frame
-            cache (bool): whether to cache info (True) or not (False)
+            cache (bool): whether to select and cache the modes (True) or not (False)
             selector_kwargs (dict): mode selector kwargs from
                 `_mode_selector_kwargs`, used if cache is True
         Returns:
-            Teukolsky amplitudes times Ylms
+            Teukolsky amplitudes times Ylms, for m >= 0 and then m < 0
         """
 
         # if detector frame, scale by distance in the amplitude module as well.
@@ -576,98 +629,58 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
         else:
             dist_dimensionless = 1.0
 
-        # amplitudes
-        teuk_modes = self.xp.asarray(
-            self.amplitude_generator(parameters["a"], *y[:3])
-        )  # these are all the Teukolsky amplitudes for the trajectory
-
-        # ylms
-        ylms = self.ylm_gen(self.unique_l, self.unique_m, theta_source, phi_source).copy()[
-            self.inverse_lm
-        ]
+        amp_args = self._amplitude_args(fixed_amp_args, y)
 
         if cache:
-            # perform mode selection in the first call (with cache=True))
-            # get teuk amplitudes, ylms, ls, ms, ks, and ns from the mode_selector module.
-
-            fund_freq_args = (
-                parameters["m1"],
-                parameters["m2"],
+            # select the modes as FEW's waveform does: the mode selector computes
+            # the amplitudes and ylms and returns those of the selected modes
+            teuk_modes_in, ylms_in, ls, ms, ks, ns = self.mode_selector(
+                t,
                 parameters["a"],
                 y[0],
                 y[1],
                 y[2],
-                t,
-            )
-
-            modeinds = [self.l_arr, self.m_arr, self.n_arr]
-
-            (
-                teuk_modes_in,
-                ylms_in,
-                self.ls,
-                self.ms,
-                self.ns,
-            ) = self.mode_selector(
-                teuk_modes,
-                ylms,
-                modeinds,
-                fund_freq_args=fund_freq_args,
+                theta_source,
+                phi_source,
+                *amp_args,
+                online_mode_selection_args=self._online_mode_selection_args(t),
                 **selector_kwargs,
             )
+            teuk_modes_in = self.xp.asarray(teuk_modes_in)
 
-            # we don't use mode symmetry
-            m0mask = self.ms != 0
+            # we don't use mode symmetry: the m < 0 modes are added explicitly,
+            # A_{l,-m,-k,-n} = (-1)^(l+k) conj(A_{lmkn})
+            m0mask = ms != 0
+            conj_sign = 1 - 2 * ((ls + ks) % 2)
             teuk_modes_in = self.xp.concatenate(
                 (
                     teuk_modes_in,
-                    (-1) ** (self.ls[m0mask]) * self.xp.conj(teuk_modes_in[:, m0mask]),
+                    conj_sign[m0mask] * self.xp.conj(teuk_modes_in[:, m0mask]),
                 ),
                 axis=1,
             )
 
             ylms_in = self.xp.concatenate(
-                (ylms_in[: self.ls.size], ylms_in[self.ls.size :][m0mask]), axis=0
+                (ylms_in[: ls.size], ylms_in[ls.size :][m0mask]), axis=0
             )
 
-            self.cache["ls_all"] = self.xp.concatenate(
-                (self.ls, self.ls[m0mask]), axis=0
-            )
-            self.cache["ms_all"] = self.xp.concatenate(
-                (self.ms, -self.ms[m0mask]), axis=0
-            )
+            self.cache["ls_all"] = self.xp.concatenate((ls, ls[m0mask]), axis=0)
+            self.cache["ms_all"] = self.xp.concatenate((ms, -ms[m0mask]), axis=0)
+            self.cache["ks_all"] = self.xp.concatenate((ks, -ks[m0mask]), axis=0)
+            self.cache["ns_all"] = self.xp.concatenate((ns, -ns[m0mask]), axis=0)
 
-            ######### NO INCLINATION IN FEW 2.0 :( ################
-            # self.cache['ks_all'] = self.xp.concatenate(
-            #    (self.ks, -self.ks[m0mask]),
-            #    axis=0
-            # )
-            #######################################################
-
-            self.cache["ns_all"] = self.xp.concatenate(
-                (self.ns, -self.ns[m0mask]), axis=0
-            )
-
-            self.cache["ls"] = self.ls.copy()
-            self.cache["ms"] = self.ms.copy()
-            # self.cache['ks'] = self.ks.copy()
-            self.cache["ns"] = self.ns.copy()
+            self.cache["ls"] = ls.copy()
+            self.cache["ms"] = ms.copy()
+            self.cache["ks"] = ks.copy()
+            self.cache["ns"] = ns.copy()
 
             self.cache["mode_selection"] = [
-                (l, m, n)
-                for l, m, n in zip(self.cache["ls"], self.cache["ms"], self.cache["ns"])
+                (int(l), int(m), int(k), int(n)) for l, m, k, n in zip(ls, ms, ks, ns)
             ]
 
-            mode_map = {
-                (int(l), int(m), int(n)): idx
-                for idx, (l, m, n) in enumerate(zip(self.l_arr, self.m_arr, self.n_arr))
-            }
-
-            # recover the indices for the cached (ls,ms,ns) for subsequent calls.
-            self.cache["keep_inds"] = [
-                mode_map[(int(l), int(m), int(n))]
-                for l, m, n in zip(self.ls, self.ms, self.ns)
-            ]
+            # indices of the selected modes in the amplitude module, as FEW's
+            # mode selector finds them for a mode list
+            self.cache["keep_inds"] = self.mode_selector.modeinds_map[ls, ms, ks, ns]
 
             self.cache["teuk_modes"] = teuk_modes_in / dist_dimensionless
             self.cache["teuk_modes_with_ylms"] = self.cache["teuk_modes"] * ylms_in
@@ -677,20 +690,29 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
             )
             self.cache["dummy_ylms"][teuk_modes_in.shape[1] :] = 0.0
             self.cache["m0mask"] = m0mask
+            self.cache["conj_sign"] = conj_sign
 
             return self.cache["teuk_modes_with_ylms"]
 
         else:
+            # same modes as at the reference point, only their amplitudes change
+            teuk_modes_in = self.xp.asarray(
+                self.amplitude_generator(
+                    parameters["a"],
+                    y[0],
+                    y[1],
+                    y[2],
+                    *amp_args,
+                    specific_modes=self.cache["keep_inds"],
+                )
+            )
 
-            teuk_modes_in = teuk_modes[
-                :, self.cache["keep_inds"]
-            ]  # same modes as in the first run, the amplitudes are just different
-
+            m0mask = self.cache["m0mask"]
             teuk_modes_in = self.xp.concatenate(
                 (
                     teuk_modes_in,
-                    (-1) ** (self.ls[self.cache["m0mask"]])
-                    * self.xp.conj(teuk_modes_in[:, self.cache["m0mask"]]),
+                    self.cache["conj_sign"][m0mask]
+                    * self.xp.conj(teuk_modes_in[:, m0mask]),
                 ),
                 axis=1,
             )  # get the negative m modes as well
@@ -710,6 +732,7 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
         phase_coeffs,
         ls,
         ms,
+        ks,
         ns,
         dt,
         T,
@@ -764,6 +787,7 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
                 phase_coeffs,
                 l_arr=ls,
                 m_arr=ms,
+                k_arr=ks,
                 n_arr=ns,
                 dt=dt,
                 T=T,
@@ -790,7 +814,7 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
         if param_to_vary == "Phi_phi0":
             factor = -1j * self.cache["ms_all"]
         elif param_to_vary == "Phi_theta0":
-            raise NotImplementedError  # no inclination in FEW 2.0
+            factor = -1j * self.cache["ks_all"]
         elif param_to_vary == "Phi_r0":
             factor = -1j * self.cache["ns_all"]
 

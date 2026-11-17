@@ -18,6 +18,10 @@ logger = logging.getLogger("stableemrifisher")
 # call kwargs of a FEW waveform that it passes to its mode selector
 MODE_SELECTION_KWARGS = ("mode_selection", "include_minus_mkn", "mode_selection_threshold")
 
+# parameters that change sign (up to a constant) when GenerateEMRIWaveform
+# brings a retrograde orbit to its internal convention xI0 > 0
+RETROGRADE_SIGN_FLIP = ("a", "xI0", "qK")
+
 
 class _StableWaveformDerivative(GenerateEMRIWaveform):
     """
@@ -63,6 +67,36 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
     ):
         """
         generate the waveform derivative for the given parameter
+
+        Retrograde orbits (xI0 < 0) are first brought to FEW's internal
+        convention xI0 > 0, as GenerateEMRIWaveform does: a -> -a, xI0 -> -xI0,
+        qK -> pi - qK, phiK -> phiK + pi, Phi_phi0 -> Phi_phi0 + pi. The
+        derivatives with respect to a, xI0 and qK change sign, and their
+        stencils change direction, so that the waveforms are evaluated at the
+        same points as in the original parameters.
+        """
+        if parameters["xI0"] >= 0.0:
+            return self._derivative(parameters, param_to_vary, delta, order, kind, **kwargs)
+
+        parameters = dict(parameters)
+        parameters["a"] = -parameters["a"]
+        parameters["xI0"] = -parameters["xI0"]
+        parameters["qK"] = np.pi - parameters["qK"]
+        parameters["phiK"] = parameters["phiK"] + np.pi
+        parameters["Phi_phi0"] = parameters["Phi_phi0"] + np.pi
+
+        if param_to_vary not in RETROGRADE_SIGN_FLIP:
+            return self._derivative(parameters, param_to_vary, delta, order, kind, **kwargs)
+
+        kind = {"forward": "backward", "backward": "forward"}.get(kind, kind)
+        derivative = self._derivative(parameters, param_to_vary, delta, order, kind, **kwargs)
+        if isinstance(derivative, list):
+            return [-d for d in derivative]
+        return -derivative
+
+    def _derivative(self, parameters, param_to_vary, delta, order, kind, **kwargs):
+        """
+        waveform derivative for parameters in FEW's internal convention xI0 > 0
         """
 
         self.delta = delta
@@ -91,6 +125,12 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
         except KeyError:
             show_progress = False
 
+        # as in FEW's waveform, call-time inspiral_kwargs update the trajectory
+        # kwargs of the waveform (and are also passed on to the summation,
+        # with the other remaining kwargs)
+        self.inspiral_kwargs.update(kwargs.get("inspiral_kwargs", {}))
+        self.inspiral_kwargs.setdefault("err", 1e-11)
+
         # construct deltas for derivative
         self.deltas = offsets(self.delta, self.order, self.kind)
 
@@ -116,7 +156,7 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
         # get waveform
         if self.cache is None or parameters != self.cache["parameters"]:
 
-            t, y = self._trajectory_from_parameters(parameters, T)
+            t, y = self._trajectory_from_parameters(parameters, T, dt)
             fixed_amp_args = self._fixed_amplitude_args()
 
             self.cache = {
@@ -247,7 +287,7 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
             for k, delt in enumerate(self.deltas):
                 parameters_in = parameters.copy()
                 parameters_in[param_to_vary] += delt  # perturb by finite-difference
-                t, y = self._trajectory_from_parameters(parameters_in, T)
+                t, y = self._trajectory_from_parameters(parameters_in, T, dt)
                 fixed_amp_args_steps.append(self._fixed_amplitude_args())
                 # re-interpolate onto the time-step grid for the injection trajectory
                 # t_interp_np = np.asarray(t_interp) # Changed!
@@ -525,13 +565,15 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
         )[:, 3:6] / 2 / np.pi
         return dict(f_phi=freqs[:, 0], f_theta=freqs[:, 1], f_r=freqs[:, 2])
 
-    def _trajectory_from_parameters(self, parameters, T):
+    def _trajectory_from_parameters(self, parameters, T, dt):
         """
         calculate the inspiral trajectory over time T (years) for a given set of parameters.
 
         Args:
             parameters (dict): dictionary of parameters with the param name as key and its value as value.
             T (float): time (in years) for the inspiral trajectory
+            dt (float): sampling interval (seconds), passed to the trajectory
+                as in FEW's waveform (used with DENSE_STEPPING)
         Returns:
             t (np.ndarray): time steps (in seconds) of the trajectory
             y (np.ndarray): evolving parameters of the trajectory along the time grid
@@ -570,6 +612,7 @@ class _StableWaveformDerivative(GenerateEMRIWaveform):
             Phi_theta0=parameters["Phi_theta0"],
             Phi_r0=parameters["Phi_r0"],
             T=T,
+            dt=dt,
             **self.inspiral_kwargs,
         )  # generate the trajectory
 

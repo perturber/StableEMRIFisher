@@ -30,7 +30,7 @@ StableEMRIFisher uses the [FastEMRIWaveforms](https://github.com/BlackHolePertur
 ## Installation
 
 <!-- install-requirements-start: this section is also included in docs/installation.rst -->
-StableEMRIFisher requires **Python 3.12 or later**. Its main dependency is **FastEMRIWaveforms (FEW) v2.0.0 or later**, the state-of-the-art framework for generating computationally efficient and accurate EMRI waveform models for LISA data analysis. FEW is installed automatically with StableEMRIFisher (for both CPU and GPU).
+StableEMRIFisher requires **Python 3.12 or later**. Its main dependency is **FastEMRIWaveforms (FEW) v2.2.1 or later**, the state-of-the-art framework for generating computationally efficient and accurate EMRI waveform models for LISA data analysis. FEW is installed automatically with StableEMRIFisher (for both CPU and GPU).
 
 StableEMRIFisher also installs the following dependencies automatically:
 
@@ -74,9 +74,6 @@ pip install -e .
 For GPU acceleration, install with CUDA support. **Note**: GPU support requires Linux x86_64 systems with NVIDIA GPUs and appropriate CUDA drivers.
 
 ```bash
-# For CUDA 11.x (Linux x86_64 only)
-pip install -e ".[cuda11x]"
-
 # For CUDA 12.x (Linux x86_64 only)
 pip install -e ".[cuda12x]"
 ```

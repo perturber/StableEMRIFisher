@@ -38,7 +38,7 @@ dependencies = [
     "h5py>=3.0.0",
     "cython>=3.1.3",
     "matplotlib>=3.10.5",
-    "fastemriwaveforms==2.0.0",
+    "fastemriwaveforms==2.2.1.post1",
     "setuptools >= 61.0",
 	"corner >= 2.2.3",
     "tqdm>=4.0.0",
@@ -48,7 +48,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # CPU-only installation (default, works on all platforms)
-cpu = ["fastemriwaveforms==2.0.0"]
+cpu = ["fastemriwaveforms==2.2.1.post1"]
 
 # LISA response and LISA noise PSDs (CPU builds). Pinned because the examples use the
 # lisatools.detector API, which newer lisaanalysistools releases have restructured.
@@ -63,13 +63,10 @@ response = [
 
 # Specific CUDA toolkit versions (Linux x86_64 only)
 # Note: These will install CUDA-specific versions of FastEMRIWaveforms
-cuda11x = [
-    "cupy-cuda11x>=12.0.0; platform_system=='Linux' and platform_machine=='x86_64'",
-    "fastemriwaveforms-cuda11x==2.0.0; platform_system=='Linux' and platform_machine=='x86_64'",
-]
+# (FEW dropped CUDA 11.x support in v2.1)
 cuda12x = [
     "cupy-cuda12x>=12.0.0; platform_system=='Linux' and platform_machine=='x86_64'",
-    "fastemriwaveforms-cuda12x==2.0.0; platform_system=='Linux' and platform_machine=='x86_64'",
+    "fastemriwaveforms-cuda12x==2.2.1.post1; platform_system=='Linux' and platform_machine=='x86_64'",
 ]
 
 # Documentation dependencies

@@ -56,7 +56,7 @@ effective amplitudes :math:`A^{\prime}_{lmnk}` and the original phases :math:`\P
 resulting in more stable numerical derivatives. 
 
 .. note::
-   This package requires FastEMRIWaveforms (FEW) v2.0.0 or later.
+   This package requires FastEMRIWaveforms (FEW) v2.2.1 or later.
    Installing StableEMRIFisher will install FastEMRIWaveforms by default (for both CPU and GPU).
    See the :doc:`installation` guide for details.
 

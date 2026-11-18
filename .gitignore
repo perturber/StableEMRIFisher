@@ -5,7 +5,6 @@ Testrun/
 *.npy
 *.h5
 *.pdf
-# *.png
 
 # Byte-compiled / optimized / DLL files
 **/__pycache__
@@ -193,3 +192,6 @@ cython_debug/
 
 # example notebooks copied into the docs at build time (see docs/conf.py)
 docs/examples/
+
+#vscode
+.vscode

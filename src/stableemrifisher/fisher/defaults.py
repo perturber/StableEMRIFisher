@@ -33,7 +33,7 @@ DEFAULT_PARAM_NAMES = {
 # differentiated with forward (backward) stencils, so that no finite-difference
 # step leaves the allowed range of the parameter.
 STENCIL_BOUNDS = {
-    "a": [0.05, 0.95],
+    "a": [-0.95, 0.95],
     "e0": [0.01, 0.7],
     "Phi_phi0": [0.1, 2 * np.pi * 0.9],
     "Phi_r0": [0.1, 2 * np.pi * 0.9],

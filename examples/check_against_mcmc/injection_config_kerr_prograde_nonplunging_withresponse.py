@@ -6,7 +6,7 @@ save_dir = "kerr_prograde_nonplunging_withresponse"  # results folder, relative 
 
 waveform_class = FastKerrEccentricEquatorialFlux
 use_response = True  # LISA response (1st-gen TDI, A and E) on/off
-use_gpu = False
+use_gpu = True
 
 deriv_type = "stable"  # "stable" (StableDerivative) or "direct" (DirectDerivative)
 der_order = 4  # finite-difference order

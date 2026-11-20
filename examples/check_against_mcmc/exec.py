@@ -47,12 +47,12 @@ if cfg.use_response:
             Tobs=T, dt=dt, index_lambda=8, index_beta=7, t0=20000.0,
             remove_garbage="zero", flip_hx=True, is_ecliptic_latitude=False,
             force_backend=backend, orbits=EqualArmlengthOrbits(force_backend=backend),
-            order=25, tdi="2nd generation", tdi_chan="AE",
+            order=25, tdi="1st generation", tdi_chan="AE",
         ),
         noise_model=load_psd(
-            model="scirdv1", channels="AE", tdi2=True, include_foreground=True,
+            model="scirdv1", channels="AE", tdi2=False, include_foreground=True,
             stochastic_params=[T * YRSID_SI],
-            filename=os.path.join(here, f"psd_scirdv1_AE_tdi2_foreground_{T}yr.npy"), xp=xp,
+            filename=os.path.join(here, f"psd_scirdv1_AE_tdi1_foreground_{T}yr.npy"), xp=xp,
         ),
         noise_kwargs={},
     )
@@ -99,7 +99,7 @@ start = rng.multivariate_normal(inj, cov, size=100 * nwalkers)
 start = start[np.all((start > lo) & (start < hi), axis=1)][:nwalkers]
 
 tag = "_".join(
-    [cfg.waveform_class.__name__, "AE-TDI2" if cfg.use_response else "noresponse", f"T={T:g}yr", f"dt={dt:g}s",
+    [cfg.waveform_class.__name__, "AE-TDI1" if cfg.use_response else "noresponse", f"T={T:g}yr", f"dt={dt:g}s",
      f"DeltaT={cfg.DeltaT:g}yr", f"SNR={cfg.desired_snr:g}"]
     + [f"{k}={v:.8g}" for k, v in params.items() if k not in ("p0", "dist")]
 )

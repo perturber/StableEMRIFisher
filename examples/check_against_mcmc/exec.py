@@ -2,6 +2,7 @@
 
 import importlib.util
 import os
+import shutil
 import sys
 
 import corner
@@ -26,6 +27,9 @@ cfg = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(cfg)
 opt = lambda name, default=None: getattr(cfg, name, default)
 here = os.path.dirname(os.path.abspath(__file__))
+save_dir = os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), cfg.save_dir)
+os.makedirs(save_dir, exist_ok=True)
+shutil.copy(sys.argv[1], save_dir)
 T, dt = cfg.T, cfg.dt
 
 use_gpu = opt("use_gpu", False)
@@ -61,7 +65,7 @@ sef = StableEMRIFisher(
     waveform_class=cfg.waveform_class,
     waveform_class_kwargs=opt("waveform_class_kwargs"),
     waveform_kwargs=opt("waveform_kwargs"),
-    T=T, dt=dt, der_order=4, use_gpu=use_gpu, **response,
+    deriv_type=cfg.deriv_type, der_order=cfg.der_order, T=T, dt=dt, use_gpu=use_gpu, **response,
 )
 
 # p0: plunge at T + DeltaT; dist: desired_snr, from the SNR at 1 Gpc
@@ -76,7 +80,7 @@ T_obs = check_if_plunging(sef.traj_module, T, *list(params.values())[:6], *add.v
 snr_1gpc = sef.compute_snr(*params.values(), *add.values(), dt=dt, T=T_obs, use_gpu=sef.use_gpu, **(opt("waveform_kwargs") or {}))
 params["dist"] = 1.0 * snr_1gpc / cfg.desired_snr
 
-fisher = sef(params, add_param_args=add or None, param_names=opt("param_names"))
+fisher = sef(params, add_param_args=add or None, param_names=opt("param_names"), filename=save_dir)
 names, params, wkw = sef.param_names, dict(sef.wave_params), sef.current_waveform_kwargs
 cov = np.linalg.inv(fisher)
 inj = np.array([params[p] for p in names])
@@ -89,30 +93,31 @@ def log_like(x):
     return -0.5 * float(inner_product(r, r, sef.PSD_funcs, sef.dt, use_gpu=sef.use_gpu))
 
 
-factor = opt("prior_factor", 10.0)
+factor = cfg.prior_factor
 lo, hi = inj - factor * sigma, inj + factor * sigma
 priors = {"model_0": ProbDistContainer({i: uniform_dist(lo[i], hi[i]) for i in range(ndim)})}
 
-rng = np.random.default_rng(opt("seed"))
-nwalkers = opt("nwalkers", 4 * ndim)
-start = rng.multivariate_normal(inj, cov, size=100 * nwalkers)
-start = start[np.all((start > lo) & (start < hi), axis=1)][:nwalkers]
+rng = np.random.default_rng(cfg.seed)
+nwalkers, ntemps = cfg.nwalkers, cfg.ntemps
+start = rng.multivariate_normal(inj, cov, size=100 * ntemps * nwalkers)
+start = start[np.all((start > lo) & (start < hi), axis=1)][: ntemps * nwalkers]
 
 tag = "_".join(
-    [cfg.waveform_class.__name__, "AE-TDI1" if cfg.use_response else "noresponse", f"T={T:g}yr", f"dt={dt:g}s",
+    [cfg.waveform_class.__name__, "AE-TDI1" if cfg.use_response else "noresponse",
+     f"{sef.deriv_type.__name__}-order{cfg.der_order}", f"T={T:g}yr", f"dt={dt:g}s",
      f"DeltaT={cfg.DeltaT:g}yr", f"SNR={cfg.desired_snr:g}"]
     + [f"{k}={v:.8g}" for k, v in params.items() if k not in ("p0", "dist")]
 )
-out = os.path.join(here, tag)
+out = os.path.join(save_dir, tag)
 if os.path.exists(out + ".h5"):
     os.remove(out + ".h5")
 
 sampler = EnsembleSampler(
-    nwalkers, ndim, log_like, priors,
-    moves=[(StretchMove(), 0.5), (GaussianMove({"model_0": cov}), 0.5)],
+    nwalkers, ndim, log_like, priors, tempering_kwargs=dict(ntemps=ntemps),
+    moves=[(StretchMove(), cfg.stretch_weight), (GaussianMove({"model_0": cov}), 1.0 - cfg.stretch_weight)],
     backend=HDFBackend(out + ".h5"),
 )
-sampler.run_mcmc(start[None, :, None, :], opt("nsteps", 5000), burn=opt("burn", 1000), progress=True)
+sampler.run_mcmc(start.reshape(ntemps, nwalkers, 1, ndim), cfg.nsteps, burn=cfg.burn, progress=True)
 
 with h5py.File(out + ".h5", "a") as f:
     g = f.create_group("fisher")

@@ -10,7 +10,7 @@ authors:
   - family-names: "J. K. Chua"
     given-names: "Alvin"
 title: "StableEMRIFisher"
-version: 1.1.0
+version: 2.0.0
 identifiers:
   - type: doi
     value: 10.5281/zenodo.23449875

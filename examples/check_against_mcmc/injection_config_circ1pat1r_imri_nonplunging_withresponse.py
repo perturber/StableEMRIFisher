@@ -48,9 +48,9 @@ param_names = ["m2", "a", "p0", "dist", "qS", "phiS", "qK", "phiK", "Phi_phi0", 
 # Eryn sampler
 prior_factor = 10.0  # uniform prior: injection +/- prior_factor * Fisher sigma
 prior_bounds = dict(a=(-1.0, 1.0), chi2=(-1.0, 1.0))  # absolute (lower, upper) prior limits per parameter: Circ1PAT1R's valid ranges
-ntemps = 8  # parallel-tempering temperatures; the cold chain (beta = 1) is the posterior
+ntemps = 5  # parallel-tempering temperatures; the cold chain (beta = 1) is the posterior
 nwalkers = 24  # per temperature; even, and at least 2 * len(param_names)
-nsteps = 2000  # stored iterations, after burn-in
-burn = 500  # discarded iterations
+nsteps = 1000  # stored iterations, after burn-in
+burn = 0  # discarded iterations
 stretch_weight = 0.5  # StretchMove weight; the Gaussian move (Fisher covariance) gets 1 - stretch_weight
 seed = 42  # walker start and Fisher samples in the plot; None for a random seed

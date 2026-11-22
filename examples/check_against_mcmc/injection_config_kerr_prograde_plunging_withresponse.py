@@ -46,8 +46,8 @@ prior_factor = 10.0  # uniform prior: injection +/- prior_factor * Fisher sigma
 prior_bounds = {}  # absolute (lower, upper) prior limits per parameter, e.g. dict(a=(-0.99, 0.99))
 ntemps = 8  # parallel-tempering temperatures; the cold chain (beta = 1) is the posterior
 nwalkers = 24  # per temperature; even, and at least 2 * len(param_names)
-nsteps = 5000  # stored iterations, after burn-in
-burn = 1000  # discarded iterations
+nsteps = 2000  # stored iterations, after burn-in
+burn = 500  # discarded iterations
 stretch_weight = 0.5  # StretchMove weight; the Gaussian move (Fisher covariance) gets 1 - stretch_weight
 seed = 42  # walker start and Fisher samples in the plot; None for a random seed
 

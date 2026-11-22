@@ -14,7 +14,7 @@ der_order = 4  # finite-difference order
 T = 0.25  # observation time, years
 dt = 10.0  # sampling interval, seconds
 
-DeltaT = 0.01  # years; the source plunges at T + DeltaT (negative: within the observation window)
+DeltaT = 0.001  # years; the source plunges at T + DeltaT (negative: within the observation window)
 desired_snr = 50.0  # dist is set to 1 Gpc * snr_1gpc / desired_snr
 
 # p0 and dist are computed by exec.py

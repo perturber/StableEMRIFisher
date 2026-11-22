@@ -1,7 +1,30 @@
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 from matplotlib import transforms
+from matplotlib.ticker import MaxNLocator
 import numpy as np
+
+
+def _with_defaults(kwargs, defaults):
+    """`kwargs` plus each default whose name (or a matplotlib alias of it) is not set.
+
+    `defaults` maps a tuple of equivalent names, e.g. ("linewidth", "lw"), to a value.
+    """
+    kwargs = dict(kwargs)
+    for names, value in defaults.items():
+        if not any(name in kwargs for name in names):
+            kwargs[names[0]] = value
+    return kwargs
+
+
+def _set_limits(set_lim, current, lo, hi, widen):
+    """Set axis limits (lo, hi); if `widen`, only ever extend the `current` ones.
+
+    Overlaid calls on the same panels then keep every curve in view.
+    """
+    if widen:
+        lo, hi = min(lo, current[0]), max(hi, current[1])
+    set_lim(lo, hi)
 
 
 def cov_ellipse(mean, cov, ax, n_std=1.0, **kwargs):
@@ -49,6 +72,32 @@ def normal(mean, var, x):
     return np.exp(-((mean - x) ** 2) / var / 2)
 
 
+def _format_number(x, sig_figs):
+    """LaTeX string of x to `sig_figs` significant figures, e.g. 13.8 or 3.6\\times 10^{-3}.
+
+    Numbers of 1000 or more, or below 0.01, are written in scientific notation.
+    """
+    if x == 0:
+        return "0"
+    mantissa, exponent = f"{x:.{sig_figs - 1}e}".split("e")
+    exponent = int(exponent)
+    if -2 <= exponent <= 2:
+        decimals = max(0, sig_figs - 1 - exponent)
+        return f"{float(mantissa) * 10.0**exponent:.{decimals}f}"
+    return rf"{mantissa}\times 10^{{{exponent}}}"
+
+
+def format_sigma(value, sigma):
+    """LaTeX string "value \\pm sigma": value to 3 and sigma to 2 significant figures.
+
+    Numbers of 1000 or more, or below 0.01, are written in scientific notation,
+    e.g. 1.00\\times 10^{6} \\pm 3.6\\times 10^{3}.
+    """
+    if not (np.isfinite(value) and np.isfinite(sigma) and sigma > 0):
+        return _format_number(value, 3)
+    return rf"{_format_number(value, 3)} \pm {_format_number(sigma, 2)}"
+
+
 def plot_covariance_ellipses(
     covariance,
     param_names=None,
@@ -58,6 +107,7 @@ def plot_covariance_ellipses(
     filename=None,
     ellipse_kwargs=None,
     line_kwargs=None,
+    show_titles=True,
 ):
     """
     Corner plot of a covariance matrix: 1D Gaussians on the diagonal and
@@ -70,23 +120,43 @@ def plot_covariance_ellipses(
         wave_params (dict, optional): parameter values used as the centres.
             Default: all centred on 0.
         fig, axs (optional): existing figure and N_params x N_params axes to
-            draw on, e.g. to overlay several confidence levels.
+            draw on, e.g. to overlay several confidence levels: pass the
+            (fig, axs) returned by a first call. A new figure is sized to the
+            number of parameters, with little space between the panels.
         filename (str, optional): save the figure there and close it.
             Otherwise (fig, axs) is returned.
         ellipse_kwargs (dict, optional): kwargs for the ellipses
             (matplotlib.patches.Ellipse), plus "n_std", the number of standard
-            deviations they enclose (default 2).
+            deviations they enclose (default 2). Default: unfilled, edge
+            color "C0", line width 2.
         line_kwargs (dict, optional): kwargs for the 1D Gaussian lines.
+            Default: color "C0", line width 2.
+        show_titles (bool, optional): title each 1D panel with the value and
+            its 1-sigma uncertainty (see `format_sigma`). Default True.
 
     Returns:
         (fig, axs) if `filename` is None.
     """
-    ellipse_kwargs = dict(ellipse_kwargs or {})
-    line_kwargs = dict(line_kwargs or {})
+    ellipse_kwargs = _with_defaults(
+        ellipse_kwargs or {},
+        {
+            ("facecolor", "fc"): "none",
+            ("edgecolor", "ec"): "C0",
+            ("linewidth", "lw"): 2.0,
+        },
+    )
+    line_kwargs = _with_defaults(
+        line_kwargs or {}, {("color", "c"): "C0", ("linewidth", "lw"): 2.0}
+    )
 
-    if fig == None:
-        fig, axs = plt.subplots(
-            len(covariance), len(covariance), figsize=(20, 20), squeeze=False
+    n_params = len(covariance)
+    if fig is None:
+        size = max(3.0, 2.2 * n_params)
+        fig, axs = plt.subplots(n_params, n_params, figsize=(size, size), squeeze=False)
+        # margins in inches: the top panel's title, and the tick labels and axis labels
+        top = 1.0 - (0.45 if show_titles else 0.1) / size
+        fig.subplots_adjust(
+            left=1.0 / size, bottom=1.0 / size, top=top, right=0.98, wspace=0.06, hspace=0.06
         )
     # a single parameter gives a single Axes; index it as a 1x1 grid
     axs = np.atleast_2d(axs)
@@ -96,6 +166,8 @@ def plot_covariance_ellipses(
     else:
         n_std = 2.0
         ellipse_kwargs["n_std"] = n_std
+    # half-width of each panel, in standard deviations: a margin around the ellipses
+    half_width = 1.25 * n_std
 
     # first param index
     for i in range(len(covariance)):
@@ -111,66 +183,83 @@ def plot_covariance_ellipses(
                 )
                 # print(cov)
 
-                if not wave_params == None:
+                if wave_params is not None:
                     mean = np.array(
                         (wave_params[param_names[i]], wave_params[param_names[j]])
                     )
                 else:
                     mean = np.zeros(2)
 
+                had_data = axs[j, i].has_data()
                 cov_ellipse(mean, cov, axs[j, i], **ellipse_kwargs)
 
-                # custom setting the x-y lim for each plot
-
-                axs[j, i].set_xlim(
-                    [
-                        mean[0] - n_std * np.sqrt(covariance[i][i]),
-                        mean[0] + n_std * np.sqrt(covariance[i][i]),
-                    ]
+                _set_limits(
+                    axs[j, i].set_xlim,
+                    axs[j, i].get_xlim(),
+                    mean[0] - half_width * np.sqrt(covariance[i][i]),
+                    mean[0] + half_width * np.sqrt(covariance[i][i]),
+                    had_data,
                 )
-                axs[j, i].set_ylim(
-                    [
-                        mean[1] - n_std * np.sqrt(covariance[j][j]),
-                        mean[1] + n_std * np.sqrt(covariance[j][j]),
-                    ]
+                _set_limits(
+                    axs[j, i].set_ylim,
+                    axs[j, i].get_ylim(),
+                    mean[1] - half_width * np.sqrt(covariance[j][j]),
+                    mean[1] + half_width * np.sqrt(covariance[j][j]),
+                    had_data,
                 )
 
-                if not param_names == None:
-                    axs[j, i].set_xlabel(param_names[i], labelpad=20, fontsize=16)
-                    axs[j, i].set_ylabel(param_names[j], labelpad=20, fontsize=16)
+                if param_names is not None:
+                    axs[j, i].set_xlabel(param_names[i], fontsize=14)
+                    axs[j, i].set_ylabel(param_names[j], fontsize=14)
 
             else:
 
-                if not wave_params == None:
+                if wave_params is not None:
                     mean = wave_params[param_names[i]]
                 else:
                     mean = 0.0
 
                 var = covariance[i][i]
 
-                x = np.linspace(mean - n_std * np.sqrt(var), mean + n_std * np.sqrt(var))
-
-                axs[j, i].plot(x, normal(mean, var, x), **line_kwargs)
-
-                axs[j, i].set_xlim(
-                    [
-                        mean - n_std * np.sqrt(covariance[i][i]),
-                        mean + n_std * np.sqrt(covariance[i][i]),
-                    ]
+                x = np.linspace(
+                    mean - half_width * np.sqrt(var), mean + half_width * np.sqrt(var), 200
                 )
 
-                if not param_names == None:
+                had_data = axs[j, i].has_data()
+                axs[j, i].plot(x, normal(mean, var, x), **line_kwargs)
 
-                    axs[j, i].set_xlabel(param_names[i], labelpad=20, fontsize=16)
+                _set_limits(axs[j, i].set_xlim, axs[j, i].get_xlim(), x[0], x[-1], had_data)
 
-                    # if i == j and j == 0:
-                    #    axs[j,i].set_ylabel(param_names[i],labelpad=20,fontsize=16)
+                # the 1D Gaussians peak at 1: their y axis carries no information
+                axs[j, i].set_ylim(0.0, 1.1)
+                axs[j, i].set_yticks([])
 
-    for ax in fig.get_axes():
+                if param_names is not None:
+                    axs[j, i].set_xlabel(param_names[i], fontsize=14)
+
+                if show_titles:
+                    label = f"{param_names[i]} = " if param_names is not None else ""
+                    axs[j, i].set_title(
+                        label + f"${format_sigma(mean, np.sqrt(var))}$", fontsize=11
+                    )
+
+    # a few widely spaced ticks, inside the panels, without an offset (e.g. "+1.38e1")
+    for row, col in zip(*np.tril_indices(n_params)):
+        ax = axs[row, col]
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=3))
+        if row != col:
+            ax.yaxis.set_major_locator(MaxNLocator(nbins=3))
+        try:
+            ax.ticklabel_format(useOffset=False)
+        except AttributeError:  # an axis without a ScalarFormatter, e.g. a log axis
+            pass
+        ax.tick_params(direction="in", length=5, width=1, labelsize=10, top=True, right=True)
         ax.label_outer()
-    # tilt the x tick labels of the bottom row so that they do not overlap
+    # tilt the tick labels of the outer panels so that they do not overlap
     for ax in axs[-1, :]:
         ax.tick_params(axis="x", labelrotation=45)
+    for ax in axs[1:, 0]:
+        ax.tick_params(axis="y", labelrotation=45)
 
     for i in range(len(covariance)):
         for j in range(i + 1, len(covariance)):

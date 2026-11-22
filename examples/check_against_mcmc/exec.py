@@ -30,23 +30,18 @@ spec = importlib.util.spec_from_file_location("cfg", sys.argv[1])
 cfg = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(cfg)
 opt = lambda name, default=None: getattr(cfg, name, default)
-here = os.path.dirname(os.path.abspath(__file__))
 save_dir = os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), cfg.save_dir)
 os.makedirs(save_dir, exist_ok=True)
 shutil.copy(sys.argv[1], save_dir)
 T, dt = cfg.T, cfg.dt
 
 use_gpu = opt("use_gpu", False)
-if use_gpu:
-    import cupy as xp
-else:
-    xp = np
 
 response = {}
 if cfg.use_response:
     from fastlisaresponse import ResponseWrapper
     from lisatools.detector import EqualArmlengthOrbits
-    from stableemrifisher.utils.noise import load_psd
+    from lisatools.sensitivity import A1TDISens, E1TDISens, get_sensitivity
 
     backend = "gpu" if use_gpu else "cpu"
     response = dict(
@@ -57,12 +52,12 @@ if cfg.use_response:
             force_backend=backend, orbits=EqualArmlengthOrbits(force_backend=backend),
             order=25, tdi="1st generation", tdi_chan="AE",
         ),
-        noise_model=load_psd(
-            model="scirdv1", channels="AE", tdi2=False, include_foreground=True,
-            stochastic_params=[T * YRSID_SI],
-            filename=os.path.join(here, f"psd_scirdv1_AE_tdi1_foreground_{T}yr.npy"), xp=xp,
-        ),
-        noise_kwargs={},
+        # SciRDv1 noise of the A and E channels, with the galactic foreground for T
+        noise_model=get_sensitivity,
+        noise_kwargs=[
+            dict(sens_fn=channel, model="scirdv1", stochastic_params=[T * YRSID_SI])
+            for channel in (A1TDISens, E1TDISens)
+        ],
     )
 
 sef = StableEMRIFisher(

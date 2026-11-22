@@ -43,6 +43,7 @@ param_names = ["m1", "m2", "a", "p0", "e0", "dist", "qS", "phiS", "qK", "phiK", 
 
 # Eryn sampler
 prior_factor = 10.0  # uniform prior: injection +/- prior_factor * Fisher sigma
+prior_bounds = {}  # absolute (lower, upper) prior limits per parameter, e.g. dict(a=(-0.99, 0.99))
 ntemps = 8  # parallel-tempering temperatures; the cold chain (beta = 1) is the posterior
 nwalkers = 24  # per temperature; even, and at least 2 * len(param_names)
 nsteps = 5000  # stored iterations, after burn-in

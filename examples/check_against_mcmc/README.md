@@ -18,7 +18,7 @@ Each `injection_config_*.py` file describes one run:
 - **`DeltaT`:** p0 is chosen so that the source plunges at `T + DeltaT` (negative: during the observation).
 - **`desired_snr`:** the distance is set to give this SNR.
 - **Fisher matrix:** the derivative type and order, and the parameters to measure.
-- **Sampler:** prior width, temperatures, walkers, steps, burn-in, move weights and seed. The prior is uniform, ±`prior_factor` Fisher standard deviations around the injection. Half the moves (by default) are Eryn's stretch move, the rest a Gaussian move with the Fisher covariance.
+- **Sampler:** prior width, temperatures, walkers, steps, burn-in, move weights and seed. The prior is uniform, ±`prior_factor` Fisher standard deviations around the injection, clipped to the absolute limits in `prior_bounds` (e.g. the model's valid range of a spin). Half the moves (by default) are Eryn's stretch move, the rest a Gaussian move with the Fisher covariance.
 - **`save_dir`:** the results folder, created next to the config file.
 
 To add a run, copy a config, change it, and give it its own `save_dir`.

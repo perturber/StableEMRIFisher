@@ -92,14 +92,19 @@ def log_like(x):
     return -0.5 * float(inner_product(r, r, sef.PSD_funcs, sef.dt, use_gpu=sef.use_gpu))
 
 
+# uniform priors: injection +/- prior_factor * sigma, clipped to the absolute prior_bounds
 factor = cfg.prior_factor
-lo, hi = inj - factor * sigma, inj + factor * sigma
+bounds = np.array([cfg.prior_bounds.get(p, (-np.inf, np.inf)) for p in names], dtype=float)
+lo = np.maximum(inj - factor * sigma, bounds[:, 0])
+hi = np.minimum(inj + factor * sigma, bounds[:, 1])
 priors = {"model_0": ProbDistContainer({i: uniform_dist(lo[i], hi[i]) for i in range(ndim)})}
 
+# walkers start from the Fisher Gaussian; coordinates outside the priors are redrawn uniformly
 rng = np.random.default_rng(cfg.seed)
 nwalkers, ntemps = cfg.nwalkers, cfg.ntemps
-start = rng.multivariate_normal(inj, cov, size=100 * ntemps * nwalkers)
-start = start[np.all((start > lo) & (start < hi), axis=1)][: ntemps * nwalkers]
+start = rng.multivariate_normal(inj, cov, size=ntemps * nwalkers)
+outside = (start <= lo) | (start >= hi)
+start[outside] = rng.uniform(np.broadcast_to(lo, start.shape)[outside], np.broadcast_to(hi, start.shape)[outside])
 
 tag = "_".join(
     [cfg.waveform_class.__name__, "AE-TDI1" if cfg.use_response else "noresponse",
@@ -122,6 +127,7 @@ with h5py.File(out + ".h5", "a") as f:
     g = f.create_group("fisher")
     g["fisher"], g["covariance"], g["injection"] = fisher, cov, inj
     g["param_names"] = np.array(names, dtype="S")
+    g["prior_lower"], g["prior_upper"] = lo, hi
     g.attrs.update(params, SNR=np.sqrt(sef.SNR2), snr_1gpc=snr_1gpc, DeltaT=cfg.DeltaT, prior_factor=factor,
                    **{"T": sef.T, "dt": sef.dt})
 

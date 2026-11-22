@@ -15,7 +15,7 @@ T = 0.25  # observation time, years
 dt = 10.0  # sampling interval, seconds
 
 DeltaT = 0.001  # years; the source plunges at T + DeltaT (negative: within the observation window)
-desired_snr = 50.0  # dist is set to 1 Gpc * snr_1gpc / desired_snr
+desired_snr = 200.0  # dist is set to 1 Gpc * snr_1gpc / desired_snr
 
 # p0 and dist are computed by exec.py
 emri_params = dict(
@@ -47,6 +47,7 @@ param_names = ["m1", "m2", "a", "p0", "dist", "qS", "phiS", "qK", "phiK", "Phi_p
 
 # Eryn sampler
 prior_factor = 10.0  # uniform prior: injection +/- prior_factor * Fisher sigma
+prior_bounds = dict(a=(-1.0, 1.0), chi2=(-1.0, 1.0))  # absolute (lower, upper) prior limits per parameter: Circ1PAT1R's valid ranges
 ntemps = 8  # parallel-tempering temperatures; the cold chain (beta = 1) is the posterior
 nwalkers = 24  # per temperature; even, and at least 2 * len(param_names)
 nsteps = 5000  # stored iterations, after burn-in

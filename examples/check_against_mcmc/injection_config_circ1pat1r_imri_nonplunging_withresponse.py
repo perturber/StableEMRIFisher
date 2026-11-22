@@ -43,7 +43,7 @@ waveform_class_kwargs = dict(
 )
 waveform_kwargs = dict(mode_selection_threshold=1e-5)
 # without the response, drop qS, phiS, qK, phiK: they are degenerate for equatorial orbits
-param_names = ["m1", "m2", "a", "p0", "dist", "qS", "phiS", "qK", "phiK", "Phi_phi0", "chi2"]
+param_names = ["m2", "a", "p0", "dist", "qS", "phiS", "qK", "phiK", "Phi_phi0", "chi2"]
 
 # Eryn sampler
 prior_factor = 10.0  # uniform prior: injection +/- prior_factor * Fisher sigma

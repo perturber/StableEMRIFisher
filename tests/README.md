@@ -16,8 +16,8 @@ The first run also downloads FEW's data files, which needs an internet connectio
 The run starts with a report of your environment:
 
 ```
-StableEMRIFisher 2.0.0 | FEW 2.0.0 | numpy 2.5.4 | Python 3.12.16 | Darwin arm64
-GPU:      CuPy not installed. Linux x86_64 with an NVIDIA GPU: pip install -e ".[cuda12x]"
+StableEMRIFisher 2.0.0 | FEW 2.2.1.post1 | numpy 2.5.5 | Python 3.12.16 | Linux x86_64
+GPU:      NVIDIA H200 (FEW backend cuda12x)
 Response: lisaanalysistools 1.2.0, fastlisaresponse 1.1.17
 ```
 

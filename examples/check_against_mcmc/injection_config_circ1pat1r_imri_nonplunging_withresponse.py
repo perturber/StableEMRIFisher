@@ -11,7 +11,7 @@ use_gpu = True
 deriv_type = "stable"  # "stable" (StableDerivative) or "direct" (DirectDerivative)
 der_order = 4  # finite-difference order
 
-T = 0.25  # observation time, years
+T = 0.1  # observation time, years
 dt = 10.0  # sampling interval, seconds
 
 DeltaT = 0.001  # years; the source plunges at T + DeltaT (negative: within the observation window)

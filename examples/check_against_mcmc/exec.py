@@ -3,7 +3,11 @@
 import importlib.util
 import os
 import shutil
+import subprocess
 import sys
+
+if importlib.util.find_spec("eryn") is None:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "eryn==1.2.6"])
 
 import corner
 import h5py

@@ -36,7 +36,10 @@ RESPONSE_INSTALL_HINT = (
     'Linux: pip install -e ".[response]"; macOS: build both packages from '
     "source first (see the README section on the LISA response)"
 )
-GPU_INSTALL_HINT = 'Linux x86_64 with an NVIDIA GPU: pip install -e ".[cuda12x]"'
+GPU_INSTALL_HINT = (
+    'Linux x86_64 with an NVIDIA GPU: pip install -e ".[cuda12x]", or, with FEW '
+    "built from source, see the README's GPU section"
+)
 
 # versions the examples (and the response tests) are written against
 RESPONSE_PINS = {"lisaanalysistools": "1.2.0", "fastlisaresponse": "1.1.17"}
@@ -72,7 +75,8 @@ def gpu_status():
         return backend, f"{name} (FEW backend {backend})"
     return None, (
         f"{name} found, but FEW has no CUDA backend; install "
-        "fastemriwaveforms-cuda12x"
+        "fastemriwaveforms-cuda12x, or build FEW from source with "
+        "FEW_WITH_GPU=ON (see the README's GPU section)"
     )
 
 

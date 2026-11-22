@@ -8,6 +8,16 @@
   </picture>
 </p>
 
+<p align="center">
+  <a href="https://doi.org/10.5281/zenodo.23449875"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.23449875.svg" alt="DOI"></a>
+  <a href="https://stableemrifisher.readthedocs.io"><img src="https://readthedocs.org/projects/stableemrifisher/badge/?version=latest" alt="Documentation"></a>
+  <a href="https://github.com/perturber/StableEMRIFisher/releases"><img src="https://img.shields.io/github/v/release/perturber/StableEMRIFisher" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/python-3.12%2B-blue" alt="Python 3.12+">
+  <a href="https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms"><img src="https://img.shields.io/badge/FEW-2.2.1.post1-blueviolet" alt="FastEMRIWaveforms 2.2.1.post1"></a>
+  <img src="https://img.shields.io/badge/GPU-CUDA%2012-76B900" alt="GPU: CUDA 12">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT"></a>
+</p>
+
 <!-- overview-start: this section is also included in docs/index.rst -->
 **StableEMRIFisher** (SEF) is a Python package for computing stable Fisher information matrices for Extreme Mass Ratio Inspiral (EMRI) gravitational wave sources, on both CPUs and GPUs. It computes robust numerical derivatives of EMRI waveforms using finite differencing, and returns Fisher matrices that can be used for accelerated parameter estimation analyses or population inference.
 <!-- overview-end -->
@@ -71,18 +81,44 @@ pip install -e .
 ### GPU-Accelerated Installation
 
 <!-- install-gpu-start: this section is also included in docs/installation.rst -->
-For GPU acceleration, install with CUDA support. **Note**: GPU support requires Linux x86_64 systems with NVIDIA GPUs and appropriate CUDA drivers.
+GPU support requires Linux x86_64 with an NVIDIA GPU and CUDA 12 drivers. Start from a fresh environment and install every GPU package, CuPy included, with pip.
+
+> **Do not install CuPy with conda** (`conda install cupy`) in this environment. The GPU builds of FEW, LISAanalysistools and lisa-on-gpu all require pip's `cupy-cuda12x`. pip does not recognise conda's `cupy` as that package and installs a second copy over it, which breaks CuPy.
+
+**With FEW from PyPI** (simplest): the `cuda12x` extra installs FEW's CUDA 12 build and `cupy-cuda12x`.
 
 ```bash
-# For CUDA 12.x (Linux x86_64 only)
-pip install -e ".[cuda12x]"
+conda create -n sef_env python=3.12
+conda activate sef_env
+git clone https://github.com/perturber/StableEMRIFisher.git
+cd StableEMRIFisher
+pip install -e ".[cuda12x]"    # add dev,docs for development: ".[dev,docs,cuda12x]"
 ```
 
-For full development, documentation and GPU support, install all of the optional dependencies. For example, on a CUDA 12.x system:
+**With FEW built from source**: build FEW v2.2.1.post1 with GPU support, add CuPy and the CUDA runtime with pip (as in FEW's own installation guide), then install StableEMRIFisher *without* the `cuda12x` extra, which would add FEW's packaged CUDA build next to yours.
 
 ```bash
-pip install -e ".[dev,docs,cuda12x]"
+conda create -n sef_env -c conda-forge --override-channels cxx-compiler python=3.12 pkgconfig
+conda activate sef_env
+
+# 1. FEW from source, with GPU support
+git clone https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms.git
+cd FastEMRIWaveforms
+git checkout v2.2.1.post1
+pip install -e . --config-settings=cmake.define.FEW_WITH_GPU=ON
+
+# 2. CuPy and the CUDA runtime (replace 12.4 with the CUDA version that nvidia-smi reports)
+pip install cupy-cuda12x 'nvidia-cuda-runtime-cu12==12.4.*'
+python -c "import few; print(few.get_backend('cuda12x'))"   # checks FEW's GPU backend
+
+# 3. StableEMRIFisher
+cd ..
+git clone https://github.com/perturber/StableEMRIFisher.git
+cd StableEMRIFisher
+pip install -e .
 ```
+
+For the LISA response on a GPU, add its CUDA 12 builds as shown in the next section; they use the same `cupy-cuda12x`.
 <!-- install-gpu-end -->
 
 ### StableEMRIFisher with the LISA Response
@@ -99,7 +135,7 @@ The examples need specific versions of both packages (`lisaanalysistools` 1.2.0 
 # CPU (Linux)
 pip install -e ".[response]"
 
-# GPU (CUDA 12.x)
+# GPU (CUDA 12.x), after the GPU installation above
 pip install lisaanalysistools-cuda12x==1.2.0 fastlisaresponse-cuda12x==1.1.17
 ```
 

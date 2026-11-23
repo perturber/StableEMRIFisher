@@ -17,7 +17,7 @@ StableEMRIFisher uses the [FastEMRIWaveforms](https://github.com/BlackHolePertur
 ## Key Features
 
 <!-- features-start: this section is also included in docs/index.rst -->
-- **Stable Numerical Derivatives**: Robust finite difference methods for parameter derivatives of adiabatic Kerr eccentric equatorial waveform models.
+- **Stable Numerical Derivatives**: Robust finite difference methods for parameter derivatives of EMRI waveforms.
 - **Stability Checks**: Careful validation of the numerical stability and convergence of the derivatives.
 - **GPU Acceleration**: Efficient computation on both CPU (NumPy) and GPU (CuPy) backends.
 - **EMRI Waveforms**: Integration with [FastEMRIWaveforms](https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms) for accurate EMRI modelling.
@@ -39,7 +39,7 @@ StableEMRIFisher also installs the following dependencies automatically:
 - **h5py**: HDF5 file support for data storage
 - **Cython**: C extensions for Python, needed to build the LISA response packages
 - **matplotlib**: Plots for assessing the stability of numerical derivatives
-- **corner**: Corner plots of parameter covariances
+- **corner**: Corner plots of posterior samples, used to compare Fisher matrices with MCMC results
 - **setuptools**: Building `lisa-on-gpu` and `LISAanalysistools` from source
 <!-- install-requirements-end -->
 
@@ -118,7 +118,9 @@ GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0='url.https://github.com/.insteadOf' GIT_CONF
 
 # 2. Build fastlisaresponse against that lisaanalysistools. --no-build-isolation makes it
 #    compile against the installed lisaanalysistools, so its build tools must be installed first.
-pip install scikit-build-core setuptools-scm astropy cmake ninja
+#    astropy is pinned below 8 because lisaconstants (a dependency of lisaanalysistools)
+#    warns that its constants differ from those of astropy 8.
+pip install scikit-build-core setuptools-scm "astropy<8" cmake ninja
 pip install --no-build-isolation \
     "fastlisaresponse @ git+https://github.com/mikekatz04/lisa-on-gpu.git@v1.1.17"
 
@@ -134,23 +136,16 @@ LISAanalysistools is optional. Without it, StableEMRIFisher still imports and ru
 ### Verifying the Installation
 
 <!-- install-verify-start: this section is also included in docs/installation.rst -->
-Test your installation by running:
+Before trying the examples, run the test suite from the root of the repository:
 
-```python
-import stableemrifisher
-from stableemrifisher.fisher import StableEMRIFisher
-from stableemrifisher.noise import LISATOOLS_AVAILABLE
-
-print(f"StableEMRIFisher {stableemrifisher.__version__}")
-print(f"LISAanalysistools available: {LISATOOLS_AVAILABLE}")
-
-# Check if GPU support is available
-try:
-    import cupy as cp
-    print(f"GPU support available: {cp.cuda.is_available()}")
-except ImportError:
-    print("GPU support not available (CuPy not installed)")
+```bash
+pytest            # fast tests: about a minute on a laptop CPU
+pytest -m slow    # fast and slow tests: adds the step-size search, plots and the LISA response
 ```
+
+The run starts with a report of your installation: the StableEMRIFisher and FEW versions, whether a GPU is available, and whether the LISA response packages are installed. It ends with a list of what could not be tested on your machine, with the command to install what is missing. The first run also downloads FEW's data files, which needs an internet connection.
+
+The tests compare the results with values known exactly in theory wherever possible. See the [tests README](https://github.com/perturber/StableEMRIFisher/blob/main/tests/README.md) for what each test checks.
 <!-- install-verify-end -->
 
 ## Documentation
@@ -158,10 +153,11 @@ except ImportError:
 **Full documentation is available at [stableemrifisher.readthedocs.io](https://stableemrifisher.readthedocs.io)**
 
 - [Installation Guide](https://stableemrifisher.readthedocs.io/en/latest/installation.html)
-- [Quick Start Tutorial](https://stableemrifisher.readthedocs.io/en/latest/quickstart.html)
+- [Quick Start Tutorial](https://stableemrifisher.readthedocs.io/en/latest/examples/quick_start_tutorial.html)
+- [Examples](https://stableemrifisher.readthedocs.io/en/latest/examples.html) (the example notebooks, with their outputs)
 - [API Reference](https://stableemrifisher.readthedocs.io/en/latest/api/index.html)
 - [Validation Studies](https://stableemrifisher.readthedocs.io/en/latest/validation/validation.html)
-- [Example notebooks and scripts](https://github.com/perturber/StableEMRIFisher/tree/main/examples)
+- [Example notebooks and scripts](https://github.com/perturber/StableEMRIFisher/tree/main/examples) on GitHub
 
 ### Building Documentation Locally
 
@@ -216,20 +212,20 @@ import stableemrifisher
 print(stableemrifisher.__version__)
 ```
 
-For the correct citation of any release, including the latest one, see the [StableEMRIFisher Zenodo page](https://doi.org/10.5281/zenodo.23449876). The "Versions" panel there lists every release, and the "Citation" box gives the citation in many styles (APA, BibTeX, and others). For v1.0.0, an APA-style citation reads:
+The DOI below, [10.5281/zenodo.23449875](https://doi.org/10.5281/zenodo.23449875), stands for StableEMRIFisher as a whole: it always leads to the latest release on Zenodo, whose "Versions" panel lists every release and whose "Citation" box gives the citation in many styles. Cite it together with the version you used. For the current release, **v1.1.0**, an APA-style citation reads as follows; **if you used a different version, change the version number**:
 
-> Kejriwal, S., Burke, O., Chapman-Bird, C., & J. K. Chua, A. (2026). StableEMRIFisher (Version v1.0.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.23449876
+> Kejriwal, S., Burke, O., Chapman-Bird, C., & J. K. Chua, A. (2026). StableEMRIFisher (Version v1.1.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.23449875
 
 and the corresponding BibTeX entry is:
 ```bibtex
 @software{Kejriwal_StableEMRIFisher_2026,
   author       = {Kejriwal, Shubham and Burke, Ollie and Chapman-Bird, Christian and J. K. Chua, Alvin},
   title        = {StableEMRIFisher},
-  version      = {v1.0.0},
+  version      = {v1.1.0},
   year         = {2026},
   publisher    = {Zenodo},
-  doi          = {10.5281/zenodo.23449876},
-  url          = {https://doi.org/10.5281/zenodo.23449876}
+  doi          = {10.5281/zenodo.23449875},
+  url          = {https://doi.org/10.5281/zenodo.23449875}
 }
 ```
 
@@ -302,7 +298,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 <!-- support-start: this section is also included in docs/index.rst -->
-- **Getting started**: Follow the [Quick Start guide](https://stableemrifisher.readthedocs.io/en/latest/quickstart.html) for a detailed walkthrough, and see the [example notebooks and scripts](https://github.com/perturber/StableEMRIFisher/tree/main/examples)
+- **Getting started**: Follow the [Quick Start guide](https://stableemrifisher.readthedocs.io/en/latest/examples/quick_start_tutorial.html) for a detailed walkthrough, and see the [example notebooks and scripts](https://github.com/perturber/StableEMRIFisher/tree/main/examples)
 - **API**: See the [API Reference](https://stableemrifisher.readthedocs.io/en/latest/api/index.html) for complete documentation of every function and class
 - **Questions**: Open a [GitHub Discussion](https://github.com/perturber/StableEMRIFisher/discussions)
 - **Bug Reports**: Submit a [GitHub Issue](https://github.com/perturber/StableEMRIFisher/issues)
@@ -320,4 +316,6 @@ StableEMRIFisher development has been supported by:
 - **Max Planck Institute for Gravitational Physics (Albert Einstein Institute), Potsdam**
 
 Special thanks to the FastEMRIWaveforms development team and the LISA Consortium.
+
+Claude (Anthropic) was used as an AI assistant in the development, testing and debugging of StableEMRIFisher. All changes were reviewed by the developers.
 <!-- acknowledgments-end -->

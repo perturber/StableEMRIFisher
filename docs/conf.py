@@ -3,10 +3,28 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import glob
 import os
+import shutil
 import sys
+import tomllib
 
-sys.path.insert(0, os.path.abspath(".."))
+_docs = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(_docs, "..", "src"))
+
+# read the version from pyproject.toml so it is defined in one place
+with open(os.path.join(_docs, "..", "pyproject.toml"), "rb") as f:
+    _pyproject = tomllib.load(f)
+
+# Render the example notebooks of examples/ (with their stored outputs) in the
+# docs. Sphinx only reads files inside docs/, so they are copied to
+# docs/examples/ at every build; that folder is a build product, ignored by git.
+# Edit the notebooks in examples/, never the copies.
+_examples = os.path.join(_docs, "examples")
+shutil.rmtree(_examples, ignore_errors=True)
+os.makedirs(_examples)
+for _notebook in glob.glob(os.path.join(_docs, "..", "examples", "*.ipynb")):
+    shutil.copy2(_notebook, _examples)
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -14,7 +32,8 @@ sys.path.insert(0, os.path.abspath(".."))
 project = "StableEMRIFisher"
 copyright = "2024, Shubham Kejriwal, Ollie Burke, Christian Chapman-Bird and Alvin Chua"  # pylint: disable=redefined-builtin
 author = "Shubham Kejriwal, Ollie Burke, Christian Chapman-Bird and Alvin Chua"
-release = "1.0.0"
+release = _pyproject["project"]["version"]
+version = ".".join(release.split(".")[:2])
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -40,7 +59,7 @@ napoleon_include_special_with_doc = True
 napoleon_use_admonition_for_examples = False
 napoleon_use_admonition_for_notes = False
 napoleon_use_admonition_for_references = False
-napoleon_use_ivar = False
+napoleon_use_ivar = True
 napoleon_use_param = True
 napoleon_use_rtype = True
 napoleon_preprocess_types = False
@@ -79,7 +98,13 @@ intersphinx_mapping = {
 }
 
 templates_path = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = [
+    "_build",
+    "Thumbs.db",
+    ".DS_Store",
+    # the docs render the pre-executed copy of this notebook
+    "validation/check_fisher_against_mcmc.ipynb",
+]
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
@@ -99,7 +124,6 @@ html_static_path = ["_static"]
 
 html_theme_options = {
     "logo_only": False,
-    "display_version": True,
     "prev_next_buttons_location": "bottom",
     "style_external_links": False,
     "collapse_navigation": False,
@@ -116,8 +140,8 @@ html_css_files = [
 
 # The suffix(es) of source filenames.
 source_suffix = {
-    ".rst": None,
-    ".md": None,
+    ".rst": "restructuredtext",
+    ".md": "markdown",
 }
 
 # The master toctree document.

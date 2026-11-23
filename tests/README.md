@@ -79,6 +79,7 @@ The GPU gives the same inner products, waveform and Fisher matrix as the CPU. Th
 
 - **Step-size search** (`test_stepsize.py`): the search over all parameters converges (relative error below 1%), the Fisher matrix with the chosen steps satisfies the checks above, the steps reproduce it, and the stability and covariance plots are written.
 - **LISA response** (`test_response.py`): with the A and E TDI channels, Γ_dist,dist = SNR² / dist² still holds exactly, and the stable and direct derivatives agree through the response.
+- **Reference Fisher matrix** (`test_reference_fisher.py`, GPU only): the full 1-year Fisher matrix of the prograde, non-plunging Kerr EMRI of `examples/check_against_mcmc`, with the LISA response and the run's step sizes, matches the stored reference (`tests/data/`): the KL divergence between the two Fisher Gaussians is below 10⁻⁶.
 
 ## For contributors
 

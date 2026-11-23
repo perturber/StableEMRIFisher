@@ -1,0 +1,37 @@
+{
+  "source": "examples/check_against_mcmc/injection_config_kerr_prograde_nonplunging_withresponse.py",
+  "wave_params": {
+    "m1": 1000000.0,
+    "m2": 10.0,
+    "a": 0.9,
+    "p0": 7.179903437285012,
+    "e0": 0.1,
+    "xI0": 1.0,
+    "dist": 1.8587629563505754,
+    "qS": 0.8,
+    "phiS": 2.2,
+    "qK": 1.6,
+    "phiK": 1.2,
+    "Phi_phi0": 0.0,
+    "Phi_theta0": 0.0,
+    "Phi_r0": 0.0
+  },
+  "param_names": [
+    "m1",
+    "m2",
+    "a",
+    "p0",
+    "e0",
+    "dist",
+    "qS",
+    "phiS",
+    "qK",
+    "phiK",
+    "Phi_phi0",
+    "Phi_r0"
+  ],
+  "T": 1.0,
+  "T_window": 1.0,
+  "dt": 10.0,
+  "SNR": 49.99999999999999
+}

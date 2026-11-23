@@ -61,7 +61,8 @@ def plot_fisher_prior(path, n_sigma=4.0):
         hist_kwargs=dict(histtype="stepfilled", density=True, alpha=0.45, edgecolor="none"), **common,
     )
     corner.corner(
-        fp, fig=fig, color=FISHER_COLOR, fill_contours=False, contour_kwargs=dict(linewidths=1.5),
+        fp, fig=fig, color=FISHER_COLOR, fill_contours=False, no_fill_contours=True,  # keep the MCMC fill visible
+        contour_kwargs=dict(linewidths=1.5),
         hist_kwargs=dict(histtype="step", density=True, linewidth=1.8), **common,
     )
 

@@ -4,6 +4,7 @@ Testrun/
 # Data and output files
 *.npy
 *.h5
+!/tests/data/*/Fisher.h5
 *.pdf
 
 # Byte-compiled / optimized / DLL files

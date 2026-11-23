@@ -1,0 +1,25 @@
+kerr_prograde_plunging_withresponse
+
+Units: the Fisher Gaussian, centred on the injection, is a standard normal (offsets in Fisher sigma).
+Effective samples: 2206
+
+                           value  noise floor (mean)  noise floor (95%)
+------------------------  ------  ------------------  -----------------
+joint KL(MCMC || Fisher)  0.1665              0.0208             0.0261
+joint W2                   0.488               0.153              0.176
+marginal W1 (largest)      0.307               0.027              0.043
+
+parameter  sigma_MCMC/sigma_F  bias/sigma_F     W1  KL (1D)
+---------  ------------------  ------------  -----  -------
+m1                      1.074        +0.060  0.073   0.0072
+m2                      1.088        +0.060  0.080   0.0094
+a                       1.065        +0.050  0.059   0.0053
+p0                      1.057        -0.051  0.063   0.0045
+e0                      1.102        -0.071  0.097   0.0126
+dist                    1.011        +0.307  0.307   0.0473
+qS                      1.098        -0.047  0.093   0.0104
+phiS                    1.093        -0.085  0.101   0.0120
+qK                      1.074        -0.191  0.191   0.0236
+phiK                    0.995        +0.105  0.105   0.0055
+Phi_phi0                1.074        -0.057  0.080   0.0070
+Phi_r0                  1.042        -0.012  0.034   0.0018

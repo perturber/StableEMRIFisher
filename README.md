@@ -8,6 +8,16 @@
   </picture>
 </p>
 
+<p align="center">
+  <a href="https://doi.org/10.5281/zenodo.23449875"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.23449875.svg" alt="DOI"></a>
+  <a href="https://stableemrifisher.readthedocs.io"><img src="https://readthedocs.org/projects/stableemrifisher/badge/?version=latest" alt="Documentation"></a>
+  <a href="https://github.com/perturber/StableEMRIFisher/releases"><img src="https://img.shields.io/github/v/release/perturber/StableEMRIFisher" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/python-3.12%2B-blue" alt="Python 3.12+">
+  <a href="https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms"><img src="https://img.shields.io/badge/FEW-2.2.1.post1-blueviolet" alt="FastEMRIWaveforms 2.2.1.post1"></a>
+  <img src="https://img.shields.io/badge/GPU-CUDA%2012-76B900" alt="GPU: CUDA 12">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT"></a>
+</p>
+
 <!-- overview-start: this section is also included in docs/index.rst -->
 **StableEMRIFisher** (SEF) is a Python package for computing stable Fisher information matrices for Extreme Mass Ratio Inspiral (EMRI) gravitational wave sources, on both CPUs and GPUs. It computes robust numerical derivatives of EMRI waveforms using finite differencing, and returns Fisher matrices that can be used for accelerated parameter estimation analyses or population inference.
 <!-- overview-end -->
@@ -17,7 +27,7 @@ StableEMRIFisher uses the [FastEMRIWaveforms](https://github.com/BlackHolePertur
 ## Key Features
 
 <!-- features-start: this section is also included in docs/index.rst -->
-- **Stable Numerical Derivatives**: Robust finite difference methods for parameter derivatives of adiabatic Kerr eccentric equatorial waveform models.
+- **Stable Numerical Derivatives**: Robust finite difference methods for parameter derivatives of EMRI waveforms.
 - **Stability Checks**: Careful validation of the numerical stability and convergence of the derivatives.
 - **GPU Acceleration**: Efficient computation on both CPU (NumPy) and GPU (CuPy) backends.
 - **EMRI Waveforms**: Integration with [FastEMRIWaveforms](https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms) for accurate EMRI modelling.
@@ -30,7 +40,7 @@ StableEMRIFisher uses the [FastEMRIWaveforms](https://github.com/BlackHolePertur
 ## Installation
 
 <!-- install-requirements-start: this section is also included in docs/installation.rst -->
-StableEMRIFisher requires **Python 3.12 or later**. Its main dependency is **FastEMRIWaveforms (FEW) v2.0.0 or later**, the state-of-the-art framework for generating computationally efficient and accurate EMRI waveform models for LISA data analysis. FEW is installed automatically with StableEMRIFisher (for both CPU and GPU).
+StableEMRIFisher requires **Python 3.12 or later**. Its main dependency is **FastEMRIWaveforms (FEW) v2.2.1 or later**, the state-of-the-art framework for generating computationally efficient and accurate EMRI waveform models for LISA data analysis. FEW is installed automatically with StableEMRIFisher (for both CPU and GPU).
 
 StableEMRIFisher also installs the following dependencies automatically:
 
@@ -39,7 +49,7 @@ StableEMRIFisher also installs the following dependencies automatically:
 - **h5py**: HDF5 file support for data storage
 - **Cython**: C extensions for Python, needed to build the LISA response packages
 - **matplotlib**: Plots for assessing the stability of numerical derivatives
-- **corner**: Corner plots of parameter covariances
+- **corner**: Corner plots of posterior samples, used to compare Fisher matrices with MCMC results
 - **setuptools**: Building `lisa-on-gpu` and `LISAanalysistools` from source
 <!-- install-requirements-end -->
 
@@ -71,21 +81,44 @@ pip install -e .
 ### GPU-Accelerated Installation
 
 <!-- install-gpu-start: this section is also included in docs/installation.rst -->
-For GPU acceleration, install with CUDA support. **Note**: GPU support requires Linux x86_64 systems with NVIDIA GPUs and appropriate CUDA drivers.
+GPU support requires Linux x86_64 with an NVIDIA GPU and CUDA 12 drivers. Start from a fresh environment and install every GPU package, CuPy included, with pip.
+
+> **Do not install CuPy with conda** (`conda install cupy`) in this environment. The GPU builds of FEW, LISAanalysistools and lisa-on-gpu all require pip's `cupy-cuda12x`. pip does not recognise conda's `cupy` as that package and installs a second copy over it, which breaks CuPy.
+
+**With FEW from PyPI** (simplest): the `cuda12x` extra installs FEW's CUDA 12 build and `cupy-cuda12x`.
 
 ```bash
-# For CUDA 11.x (Linux x86_64 only)
-pip install -e ".[cuda11x]"
-
-# For CUDA 12.x (Linux x86_64 only)
-pip install -e ".[cuda12x]"
+conda create -n sef_env python=3.12
+conda activate sef_env
+git clone https://github.com/perturber/StableEMRIFisher.git
+cd StableEMRIFisher
+pip install -e ".[cuda12x]"    # add dev,docs for development: ".[dev,docs,cuda12x]"
 ```
 
-For full development, documentation and GPU support, install all of the optional dependencies. For example, on a CUDA 12.x system:
+**With FEW built from source**: build FEW v2.2.1.post1 with GPU support, add CuPy and the CUDA runtime with pip (as in FEW's own installation guide), then install StableEMRIFisher *without* the `cuda12x` extra, which would add FEW's packaged CUDA build next to yours.
 
 ```bash
-pip install -e ".[dev,docs,cuda12x]"
+conda create -n sef_env -c conda-forge --override-channels cxx-compiler python=3.12 pkgconfig
+conda activate sef_env
+
+# 1. FEW from source, with GPU support
+git clone https://github.com/BlackHolePerturbationToolkit/FastEMRIWaveforms.git
+cd FastEMRIWaveforms
+git checkout v2.2.1.post1
+pip install -e . --config-settings=cmake.define.FEW_WITH_GPU=ON
+
+# 2. CuPy and the CUDA runtime (replace 12.4 with the CUDA version that nvidia-smi reports)
+pip install cupy-cuda12x 'nvidia-cuda-runtime-cu12==12.4.*'
+python -c "import few; print(few.get_backend('cuda12x'))"   # checks FEW's GPU backend
+
+# 3. StableEMRIFisher
+cd ..
+git clone https://github.com/perturber/StableEMRIFisher.git
+cd StableEMRIFisher
+pip install -e .
 ```
+
+For the LISA response on a GPU, add its CUDA 12 builds as shown in the next section; they use the same `cupy-cuda12x`.
 <!-- install-gpu-end -->
 
 ### StableEMRIFisher with the LISA Response
@@ -102,7 +135,7 @@ The examples need specific versions of both packages (`lisaanalysistools` 1.2.0 
 # CPU (Linux)
 pip install -e ".[response]"
 
-# GPU (CUDA 12.x)
+# GPU (CUDA 12.x), after the GPU installation above
 pip install lisaanalysistools-cuda12x==1.2.0 fastlisaresponse-cuda12x==1.1.17
 ```
 
@@ -118,7 +151,9 @@ GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0='url.https://github.com/.insteadOf' GIT_CONF
 
 # 2. Build fastlisaresponse against that lisaanalysistools. --no-build-isolation makes it
 #    compile against the installed lisaanalysistools, so its build tools must be installed first.
-pip install scikit-build-core setuptools-scm astropy cmake ninja
+#    astropy is pinned below 8 because lisaconstants (a dependency of lisaanalysistools)
+#    warns that its constants differ from those of astropy 8.
+pip install scikit-build-core setuptools-scm "astropy<8" cmake ninja
 pip install --no-build-isolation \
     "fastlisaresponse @ git+https://github.com/mikekatz04/lisa-on-gpu.git@v1.1.17"
 
@@ -134,23 +169,16 @@ LISAanalysistools is optional. Without it, StableEMRIFisher still imports and ru
 ### Verifying the Installation
 
 <!-- install-verify-start: this section is also included in docs/installation.rst -->
-Test your installation by running:
+Before trying the examples, run the test suite from the root of the repository:
 
-```python
-import stableemrifisher
-from stableemrifisher.fisher import StableEMRIFisher
-from stableemrifisher.noise import LISATOOLS_AVAILABLE
-
-print(f"StableEMRIFisher {stableemrifisher.__version__}")
-print(f"LISAanalysistools available: {LISATOOLS_AVAILABLE}")
-
-# Check if GPU support is available
-try:
-    import cupy as cp
-    print(f"GPU support available: {cp.cuda.is_available()}")
-except ImportError:
-    print("GPU support not available (CuPy not installed)")
+```bash
+pytest            # fast tests: about a minute on a laptop CPU
+pytest -m slow    # fast and slow tests: adds the step-size search, plots and the LISA response
 ```
+
+The run starts with a report of your installation: the StableEMRIFisher and FEW versions, whether a GPU is available, and whether the LISA response packages are installed. It ends with a list of what could not be tested on your machine, with the command to install what is missing. The first run also downloads FEW's data files, which needs an internet connection.
+
+The tests compare the results with values known exactly in theory wherever possible. See the [tests README](https://github.com/perturber/StableEMRIFisher/blob/main/tests/README.md) for what each test checks.
 <!-- install-verify-end -->
 
 ## Documentation
@@ -158,19 +186,21 @@ except ImportError:
 **Full documentation is available at [stableemrifisher.readthedocs.io](https://stableemrifisher.readthedocs.io)**
 
 - [Installation Guide](https://stableemrifisher.readthedocs.io/en/latest/installation.html)
-- [Quick Start Tutorial](https://stableemrifisher.readthedocs.io/en/latest/quickstart.html)
+- [Quick Start Tutorial](https://stableemrifisher.readthedocs.io/en/latest/examples/quick_start_tutorial.html)
+- [Examples](https://stableemrifisher.readthedocs.io/en/latest/examples.html) (the example notebooks, with their outputs)
 - [API Reference](https://stableemrifisher.readthedocs.io/en/latest/api/index.html)
 - [Validation Studies](https://stableemrifisher.readthedocs.io/en/latest/validation/validation.html)
-- [Example notebooks and scripts](https://github.com/perturber/StableEMRIFisher/tree/main/examples)
+- [Example notebooks and scripts](https://github.com/perturber/StableEMRIFisher/tree/main/examples) on GitHub
 
 ### Building Documentation Locally
 
 <!-- build-docs-start: this section is also included in docs/installation.rst -->
-Install the documentation dependencies, then build the docs with Sphinx:
+Install the documentation dependencies, then build the docs with Sphinx. The example notebooks are rendered with `nbsphinx`, which also needs [pandoc](https://pandoc.org/installing.html), a program that `pip` does not install:
 
 ```bash
 # Install documentation dependencies
 pip install -e ".[docs]"
+conda install -c conda-forge pandoc  # or see pandoc.org/installing.html
 
 # Build documentation
 cd docs
@@ -216,20 +246,20 @@ import stableemrifisher
 print(stableemrifisher.__version__)
 ```
 
-For the correct citation of any release, including the latest one, see the [StableEMRIFisher Zenodo page](https://doi.org/10.5281/zenodo.23449876). The "Versions" panel there lists every release, and the "Citation" box gives the citation in many styles (APA, BibTeX, and others). For v1.0.0, an APA-style citation reads:
+The DOI below, [10.5281/zenodo.23449875](https://doi.org/10.5281/zenodo.23449875), stands for StableEMRIFisher as a whole: it always leads to the latest release on Zenodo, whose "Versions" panel lists every release and whose "Citation" box gives the citation in many styles. Cite it together with the version you used. For the current release, **v2.0.0**, an APA-style citation reads as follows; **if you used a different version, change the version number**:
 
-> Kejriwal, S., Burke, O., Chapman-Bird, C., & J. K. Chua, A. (2026). StableEMRIFisher (Version v1.0.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.23449876
+> Kejriwal, S., Burke, O., Chapman-Bird, C., & J. K. Chua, A. (2026). StableEMRIFisher (Version v2.0.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.23449875
 
 and the corresponding BibTeX entry is:
 ```bibtex
 @software{Kejriwal_StableEMRIFisher_2026,
   author       = {Kejriwal, Shubham and Burke, Ollie and Chapman-Bird, Christian and J. K. Chua, Alvin},
   title        = {StableEMRIFisher},
-  version      = {v1.0.0},
+  version      = {v2.0.0},
   year         = {2026},
   publisher    = {Zenodo},
-  doi          = {10.5281/zenodo.23449876},
-  url          = {https://doi.org/10.5281/zenodo.23449876}
+  doi          = {10.5281/zenodo.23449875},
+  url          = {https://doi.org/10.5281/zenodo.23449875}
 }
 ```
 
@@ -302,7 +332,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 <!-- support-start: this section is also included in docs/index.rst -->
-- **Getting started**: Follow the [Quick Start guide](https://stableemrifisher.readthedocs.io/en/latest/quickstart.html) for a detailed walkthrough, and see the [example notebooks and scripts](https://github.com/perturber/StableEMRIFisher/tree/main/examples)
+- **Getting started**: Follow the [Quick Start guide](https://stableemrifisher.readthedocs.io/en/latest/examples/quick_start_tutorial.html) for a detailed walkthrough, and see the [example notebooks and scripts](https://github.com/perturber/StableEMRIFisher/tree/main/examples)
 - **API**: See the [API Reference](https://stableemrifisher.readthedocs.io/en/latest/api/index.html) for complete documentation of every function and class
 - **Questions**: Open a [GitHub Discussion](https://github.com/perturber/StableEMRIFisher/discussions)
 - **Bug Reports**: Submit a [GitHub Issue](https://github.com/perturber/StableEMRIFisher/issues)
@@ -320,4 +350,6 @@ StableEMRIFisher development has been supported by:
 - **Max Planck Institute for Gravitational Physics (Albert Einstein Institute), Potsdam**
 
 Special thanks to the FastEMRIWaveforms development team and the LISA Consortium.
+
+Claude (Anthropic) was used as an AI assistant in the development, testing and debugging of StableEMRIFisher. All changes were reviewed by the developers.
 <!-- acknowledgments-end -->

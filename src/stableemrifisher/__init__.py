@@ -1,0 +1,29 @@
+"""
+StableEMRIFisher: Stable Fisher Matrix Calculator for EMRI Systems
+
+A Python package for computing stable Fisher information matrices
+for Extreme Mass Ratio Inspiral (EMRI) gravitational wave sources.
+
+Authors: Shubham Kejriwal, Ollie Burke, Christian Chapman-Bird, Alvin Chua
+License: MIT
+"""
+
+from importlib.metadata import PackageNotFoundError, version
+
+# the version is defined once, in pyproject.toml
+try:
+    __version__ = version("stableemrifisher")
+except PackageNotFoundError:  # running from a source tree without installing
+    __version__ = "unknown"
+__author__ = "Shubham Kejriwal, Ollie Burke, Christian Chapman-Bird, Alvin Chua"
+__email__ = "shubhamkejriwal@u.nus.edu"
+__license__ = "MIT"
+__description__ = (
+    "Stable Fisher matrix computation for EMRI gravitational wave parameter estimation"
+)
+
+# Package logo path (relative to package root)
+__logo__ = "docs/StableEMRIFisher_logo.png"
+
+# set up the package logger before any submodule logs
+from . import _logging  # noqa: E402,F401

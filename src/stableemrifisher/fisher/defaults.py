@@ -101,8 +101,6 @@ def default_delta_grid(param, value, Ndelta):
     """
     if value == 0.0:
         return np.geomspace(1e-2, 1e-7, Ndelta)
-    if param in {"m1", "m2", "a", "p0", "e0", "xI0"}:
-        return np.geomspace(1e-2 * value, 1e-7 * value, Ndelta)
-    if param == "chi2":
+    if param in {"m1", "m2", "a", "p0", "e0", "xI0", "chi2"}:
         return np.geomspace(1e-2 * value, 1e-7 * value, Ndelta)
     return np.geomspace(1e-1 * value, 1e-6 * value, Ndelta)

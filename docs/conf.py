@@ -102,8 +102,6 @@ exclude_patterns = [
     "_build",
     "Thumbs.db",
     ".DS_Store",
-    # the docs render the pre-executed copy of this notebook
-    "validation/check_fisher_against_mcmc.ipynb",
 ]
 
 # -- Options for HTML output -------------------------------------------------

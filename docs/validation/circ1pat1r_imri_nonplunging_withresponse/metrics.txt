@@ -1,0 +1,23 @@
+circ1pat1r_imri_nonplunging_withresponse
+
+Units: the Fisher Gaussian, centred on the injection, is a standard normal (offsets in Fisher sigma).
+Effective samples: 1928
+
+                           value  noise floor (mean)  noise floor (95%)
+------------------------  ------  ------------------  -----------------
+joint KL(MCMC || Fisher)  0.8909              0.0169             0.0228
+joint W2                   1.008               0.139              0.162
+marginal W1 (largest)      0.668               0.028              0.045
+
+parameter  sigma_MCMC/sigma_F  bias/sigma_F     W1  KL (1D)
+---------  ------------------  ------------  -----  -------
+m2                      0.483        -0.614  0.660   0.5324
+a                       0.460        +0.616  0.667   0.5720
+p0                      0.710        -0.522  0.527   0.2309
+dist                    1.029        -0.011  0.041   0.0009
+qS                      0.993        -0.005  0.036   0.0001
+phiS                    1.006        +0.052  0.058   0.0014
+qK                      1.030        +0.004  0.031   0.0009
+phiK                    0.999        +0.009  0.018   0.0000
+Phi_phi0                0.919        -0.282  0.282   0.0465
+chi2                    0.459        -0.617  0.668   0.5750

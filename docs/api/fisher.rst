@@ -1,26 +1,26 @@
 Fisher Matrix Module
 ====================
 
-The Fisher matrix computation: ``StableEMRIFisher``, which runs the pipeline, and the helpers it uses to choose finite-difference step sizes.
+The core Fisher matrix computation functionality.
 
-StableEMRIFisher
-----------------
+.. automodule:: stableemrifisher.fisher
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Classes
+-------
 
 .. autoclass:: stableemrifisher.fisher.StableEMRIFisher
    :members:
+   :undoc-members:
    :show-inheritance:
    :special-members: __init__, __call__
 
-Step-size search
-----------------
+Functions
+---------
 
-.. automodule:: stableemrifisher.fisher.stepsize
+.. automodule:: stableemrifisher.fisher.derivatives
    :members:
-
-Defaults
---------
-
-Default parameters, step-size grids and stencil bounds used when the user gives none.
-
-.. automodule:: stableemrifisher.fisher.defaults
-   :members:
+   :undoc-members:
+   :show-inheritance:

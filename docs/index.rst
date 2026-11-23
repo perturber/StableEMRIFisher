@@ -66,8 +66,7 @@ resulting in more stable numerical derivatives.
 
    api/index
    installation
-   Quick Start <examples/quick_start_tutorial>
-   examples
+   quickstart
    validation/validation
    contribution
    citation

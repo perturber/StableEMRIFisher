@@ -30,7 +30,7 @@ np.in1d = np.isin  # eryn 1.2.6 calls np.in1d, which numpy >= 2.4 removed
 
 # (inspiral err, der_order, deep grid): the deep grid runs the trial steps of the masses and orbital
 # parameters down to 1e-12 of their value (default 1e-9), with twice as many steps (16 instead of 8)
-CASES = [(1e-11, 4, False), (1e-13, 4, False), (1e-11, 8, False), (1e-13, 8, False), (1e-13, 8, True)]
+CASES = [(1e-11, 4, False), (1e-15, 4, False), (1e-11, 8, False), (1e-15, 8, False), (1e-15, 8, True)]
 ORBITAL = {"m1", "m2", "a", "p0", "e0", "xI0"}
 
 spec = importlib.util.spec_from_file_location("cfg", sys.argv[1])

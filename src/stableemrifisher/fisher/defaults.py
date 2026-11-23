@@ -86,10 +86,11 @@ def stencil_kind(param, value, default_kind="central", bounds=STENCIL_BOUNDS):
 def default_delta_grid(param, value, Ndelta):
     """Trial step sizes for the step-size search, from largest to smallest.
 
-    Relative to the parameter value: from 1e-2 to 1e-7 for the masses, the
-    orbital parameters and the secondary spin chi2 (so that the stencil stays
-    within [-1, 1]), from 1e-1 to 1e-6 for the others (angles, phases). For a
-    parameter equal to zero, absolute steps from 1e-2 to 1e-7.
+    Relative to the parameter value: from 1e-4 to 1e-9 for the masses and the
+    orbital parameters, from 1e-2 to 1e-7 for the secondary spin chi2 (so that
+    the stencil stays within [-1, 1]), from 1e-1 to 1e-6 for the others
+    (angles, phases). For a parameter equal to zero, absolute steps from 1e-4
+    to 1e-9.
 
     Args:
         param (str): parameter name.
@@ -100,7 +101,9 @@ def default_delta_grid(param, value, Ndelta):
         np.ndarray: geometrically spaced steps, shape (Ndelta,).
     """
     if value == 0.0:
-        return np.geomspace(1e-2, 1e-7, Ndelta)
-    if param in {"m1", "m2", "a", "p0", "e0", "xI0", "chi2"}:
+        return np.geomspace(1e-4, 1e-9, Ndelta)
+    if param in {"m1", "m2", "a", "p0", "e0", "xI0"}:
+        return np.geomspace(1e-4 * value, 1e-9 * value, Ndelta)
+    if param == "chi2":
         return np.geomspace(1e-2 * value, 1e-7 * value, Ndelta)
     return np.geomspace(1e-1 * value, 1e-6 * value, Ndelta)

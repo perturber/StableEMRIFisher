@@ -9,7 +9,6 @@ import sys
 if importlib.util.find_spec("eryn") is None:
     subprocess.check_call([sys.executable, "-m", "pip", "install", "eryn==1.2.6"])
 
-import corner
 import h5py
 import numpy as np
 from eryn.backends import HDFBackend
@@ -18,7 +17,7 @@ from eryn.moves import GaussianMove, StretchMove
 from eryn.prior import ProbDistContainer, uniform_dist
 from few.utils.constants import YRSID_SI
 from few.utils.utility import get_p_at_t
-from matplotlib.lines import Line2D
+from plot_results import plot_results
 
 from stableemrifisher.fisher import StableEMRIFisher
 from stableemrifisher.utils.analysis import inner_product
@@ -132,19 +131,7 @@ with h5py.File(out + ".h5", "a") as f:
                    **{"T": sef.T, "dt": sef.dt})
 
 samples = sampler.get_chain()["model_0"][:, 0, :, 0, :].reshape(-1, ndim)
-fisher_samples = rng.multivariate_normal(samples.mean(axis=0), cov, size=len(samples))
 for p, s_mc, s_f in zip(names, samples.std(axis=0), sigma):
     print(f"{p:10s} sigma_MCMC = {s_mc:.4g}  sigma_Fisher = {s_f:.4g}  ratio = {s_mc / s_f:.3f}")
 
-kw = dict(
-    labels=names, bins=30, smooth=1.0, plot_datapoints=False, plot_density=False,
-    levels=(1 - np.exp(-0.5), 1 - np.exp(-2)),
-    range=list(zip(np.minimum(samples.min(0), fisher_samples.min(0)), np.maximum(samples.max(0), fisher_samples.max(0)))),
-)
-fig = corner.corner(samples, color="C0", truths=inj, truth_color="k", **kw)
-corner.corner(fisher_samples, fig=fig, color="C3", **kw)
-fig.legend(
-    handles=[Line2D([], [], color=c, label=l) for c, l in [("C0", "MCMC"), ("C3", "Fisher"), ("k", "Injection")]],
-    loc="upper right", fontsize=4 * ndim,
-)
-fig.savefig(out + ".png", dpi=300)
+plot_results(out + ".h5")

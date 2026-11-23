@@ -49,6 +49,6 @@ nwalkers = 24  # per temperature; even, and at least 2 * len(param_names)
 nsteps = 1000  # stored iterations, after burn-in
 burn = 0  # discarded iterations
 stretch_weight = 0.5  # StretchMove weight; the Gaussian move (Fisher covariance) gets 1 - stretch_weight
-seed = 42  # walker start and Fisher samples in the plot; None for a random seed
+seed = 42  # starting positions of the walkers; None for a random seed
 
 # optional: add_param_args (e.g. dict(chi2=0.9) for Circ1PAT1R)

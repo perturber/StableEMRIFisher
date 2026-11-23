@@ -195,11 +195,12 @@ The tests compare the results with values known exactly in theory wherever possi
 ### Building Documentation Locally
 
 <!-- build-docs-start: this section is also included in docs/installation.rst -->
-Install the documentation dependencies, then build the docs with Sphinx:
+Install the documentation dependencies, then build the docs with Sphinx. The example notebooks are rendered with `nbsphinx`, which also needs [pandoc](https://pandoc.org/installing.html), a program that `pip` does not install:
 
 ```bash
 # Install documentation dependencies
 pip install -e ".[docs]"
+conda install -c conda-forge pandoc  # or see pandoc.org/installing.html
 
 # Build documentation
 cd docs

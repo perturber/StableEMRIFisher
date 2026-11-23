@@ -1,4 +1,4 @@
-"""Choice of finite-difference step sizes from the stability of the Fisher diagonal."""
+"""Choice of finite-difference step sizes from the stability of the derivatives."""
 
 import logging
 import sys
@@ -10,13 +10,13 @@ logger = logging.getLogger("stableemrifisher")
 
 
 def stable_deltas(derivative, delta_grids, inner, order, kinds, verbose=False):
-    """Pick, for each parameter, the step size at which Gamma_ii is most stable.
+    """Pick, for each parameter, the step size at which the derivative is most stable.
 
-    For each trial step delta_k (from largest to smallest), the diagonal Fisher
-    element Gamma_ii(delta_k) = (dh/dx_i | dh/dx_i) is computed. The relative
-    change between consecutive steps::
+    For each trial step delta_k (from largest to smallest), the derivative
+    D_k = dh/dx_i is computed. The relative change of the derivative between
+    consecutive steps, in the noise-weighted norm ||a|| = sqrt((a|a))::
 
-        relerr_k = |Gamma_ii(delta_k) - Gamma_ii(delta_{k-1})| / Gamma_ii(delta_k)
+        relerr_k = ||D_k - D_{k-1}|| / ||D_k||
 
     is small where the derivative has converged but is not yet dominated by
     numerical noise. The step with the smallest relerr_k is chosen.
@@ -43,10 +43,11 @@ def stable_deltas(derivative, delta_grids, inner, order, kinds, verbose=False):
 
         - deltas (dict): parameter name -> chosen step size.
         - relerr (dict): parameter name -> relerr at the chosen step, an
-          estimate of the relative error of Gamma_ii (0.0 for analytic
+          estimate of the relative error of the derivative (0.0 for analytic
           derivatives; absent for single-step grids).
         - curves (dict): parameter name -> (grid, Gamma, index of the chosen
-          step), for the parameters that were searched.
+          step), for the parameters that were searched, with Gamma the
+          diagonal element Gamma_ii at each trial step.
     """
     grids = {p: np.asarray(g) for p, g in delta_grids.items()}
     searched = [
@@ -85,6 +86,8 @@ def stable_deltas(derivative, delta_grids, inner, order, kinds, verbose=False):
 
             bar.set_postfix_str(param_name)
             Gamma = []
+            relerr = []  # relerr[m - 1] compares the steps m - 1 and m
+            del_prev = None
             for delta_k in grid:
                 del_k = derivative(
                     param_name, delta_k, order=order, kind=kinds[param_name]
@@ -92,25 +95,22 @@ def stable_deltas(derivative, delta_grids, inner, order, kinds, verbose=False):
                 Gammai = inner(del_k, del_k)
                 logger.debug("Gamma_ii for %s at delta = %s: %s", param_name, delta_k, Gammai)
                 if np.isnan(Gammai):
-                    Gamma.append(0.0)  # handle nan's
+                    Gammai = 0.0  # handle nan's
                     logger.warning(
                         "NaN type encountered during "
                         "Fisher calculation! Replacing with 0.0."
                     )
-                else:
-                    Gamma.append(Gammai)
-                bar.update()
-            Gamma = np.array(Gamma)
-
-            if (Gamma[1:] == 0.0).all():  # handle non-contributing parameters
-                relerr = list(np.ones(len(Gamma) - 1))
-            else:
-                relerr = []
-                for m in range(1, len(Gamma)):
-                    if Gamma[m - 1] == 0.0:  # handle partially null contributors
+                if del_prev is not None:
+                    if Gammai == 0.0 or Gamma[-1] == 0.0:
+                        # no derivative to compare (non-contributing parameter or nan)
                         relerr.append(1.0)
                     else:
-                        relerr.append(np.abs(Gamma[m] - Gamma[m - 1]) / Gamma[m])
+                        change = del_k - del_prev
+                        relerr.append(float(np.sqrt(max(inner(change, change), 0.0) / Gammai)))
+                Gamma.append(Gammai)
+                del_prev = del_k
+                bar.update()
+            Gamma = np.array(Gamma)
             logger.debug("relative errors for %s: %s", param_name, relerr)
 
             relerr_min_i = relerr.index(min(relerr))

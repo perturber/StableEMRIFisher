@@ -74,8 +74,9 @@ class StableEMRIFisher:
 
     Attributes set by a call:
 
-    - `deltas` (step size per parameter), `relerr` (relative error of each
-      diagonal element at the chosen step), `fisher_check` (degeneracy
+    - `deltas` (step size per parameter), `relerr` (relative change of each
+      derivative between the chosen step and the previous one, see
+      `stepsize.stable_deltas`), `fisher_check` (degeneracy
       report, see `utils.analysis.check_fisher`), `covariance` (if
       CovEllipse) and `derivatives` (if keep_derivatives).
     - `waveform` (channels x N), `PSD_funcs`, `SNR2` and `T` (observation

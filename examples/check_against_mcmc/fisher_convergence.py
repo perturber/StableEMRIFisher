@@ -1,4 +1,4 @@
-"""Fisher matrices with different inspiral err, der_order and step grids vs an existing MCMC run.
+"""Fisher matrices with different inspiral err, der_order and trajectory stepping vs an existing MCMC run.
 
 Usage: python fisher_convergence.py <injection_config>.py
 
@@ -28,10 +28,33 @@ from stableemrifisher.fisher import StableEMRIFisher
 matplotlib.use("Agg")
 np.in1d = np.isin  # eryn 1.2.6 calls np.in1d, which numpy >= 2.4 removed
 
-# (inspiral err, der_order, deep grid): the deep grid runs the trial steps of the masses and orbital
-# parameters down to 1e-12 of their value (default 1e-9), with twice as many steps (16 instead of 8)
-CASES = [(1e-11, 4, False), (1e-15, 4, False), (1e-11, 8, False), (1e-15, 8, False), (1e-15, 8, True)]
-ORBITAL = {"m1", "m2", "a", "p0", "e0", "xI0"}
+# (inspiral err, der_order, fixed trajectory step in s or None): with a fixed step, the trajectories of
+# the stable derivative (masses, spins, orbital parameters) use FEW's DENSE_STEPPING with that step, so
+# every perturbed trajectory takes the same steps; None keeps FEW's adaptive stepping
+CASES = [(1e-11, 4, 1000.0), (1e-13, 4, 1000.0), (1e-11, 8, 1000.0), (1e-13, 8, 1000.0)]
+
+
+def fixed_step_trajectories(sef, step):
+    """Make the stable derivative's trajectories use DENSE_STEPPING with a fixed step (in s).
+
+    Only the derivative's own trajectories change: the waveform sampling, the plunge check and
+    the sky-angle derivatives (finite differences of the full waveform) keep adaptive stepping.
+    """
+    engine = getattr(sef.derivative, "engine", None)
+    if engine is None:
+        raise ValueError("fixed trajectory steps need deriv_type='stable'")
+    adaptive = engine._trajectory_from_parameters
+
+    def trajectory(parameters, T, dt):
+        saved = dict(engine.inspiral_kwargs)  # shared with the waveform: restore it afterwards
+        engine.inspiral_kwargs["DENSE_STEPPING"] = True
+        try:
+            return adaptive(parameters, T, step)
+        finally:
+            engine.inspiral_kwargs.clear()
+            engine.inspiral_kwargs.update(saved)
+
+    engine._trajectory_from_parameters = trajectory
 
 spec = importlib.util.spec_from_file_location("cfg", sys.argv[1])
 cfg = importlib.util.module_from_spec(spec)
@@ -77,8 +100,8 @@ if cfg.use_response:  # as in exec.py
     )
 
 summary = []
-for err, der_order, deep in CASES:
-    label = f"err{err:.0e}_order{der_order}" + ("_deepgrid" if deep else "")
+for err, der_order, traj_step in CASES:
+    label = f"err{err:.0e}_order{der_order}" + (f"_dense{traj_step:g}s" if traj_step else "")
     case_dir = os.path.join(out_dir, label)
     if os.path.exists(os.path.join(case_dir, "Fisher.h5")):
         with h5py.File(os.path.join(case_dir, "Fisher.h5"), "r") as f:
@@ -92,14 +115,10 @@ for err, der_order, deep in CASES:
             waveform_kwargs=opt("waveform_kwargs"), deriv_type=cfg.deriv_type, der_order=der_order,
             T=T, dt=dt, use_gpu=use_gpu, **response,
         )
-        ndelta, delta_range = 8, None
-        if deep:
-            values = {**params, **add}
-            ndelta = 16
-            delta_range = {p: np.geomspace(1e-4 * values[p], 1e-12 * values[p], ndelta)
-                           for p in names if p in ORBITAL and values[p] != 0.0}
-        fisher = sef(dict(params), add_param_args=add or None, param_names=names, Ndelta=ndelta,
-                     delta_range=delta_range, stability_plot=True, stats_for_nerds=True, filename=case_dir)
+        if traj_step:
+            fixed_step_trajectories(sef, traj_step)
+        fisher = sef(dict(params), add_param_args=add or None, param_names=names, stability_plot=True,
+                     stats_for_nerds=True, filename=case_dir)
         if not np.isclose(sef.T, attrs["T"]):
             print(f"WARNING: observation time {sef.T} differs from the MCMC run's {attrs['T']}")
     cov = np.linalg.inv(fisher)
@@ -110,7 +129,8 @@ for err, der_order, deep in CASES:
     z = np.linalg.solve(np.linalg.cholesky(corr), ((chain - inj) / sigma_f).T).T
     kl, w2 = gaussian_kl(z.mean(0), np.cov(z.T)), gaussian_w2(z.mean(0), np.cov(z.T))
 
-    title = f"inspiral err = {err:.0e}, der_order = {der_order}" + (", deep grid" if deep else "")
+    title = f"inspiral err = {err:.0e}, der_order = {der_order}" + (
+        f", fixed trajectory step {traj_step:g} s" if traj_step else "")
     plot_results(run, cov=cov, out=os.path.join(out_dir, f"corner_{label}.png"), title=title)
     summary.append((title, kl, w2, sigma_mcmc / sigma_f))
     print(f"{title}: joint KL = {kl:.4f}, joint W2 = {w2:.3f}", flush=True)

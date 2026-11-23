@@ -31,7 +31,7 @@ np.in1d = np.isin  # eryn 1.2.6 calls np.in1d, which numpy >= 2.4 removed
 # (inspiral err, der_order, fixed trajectory step in s or None): with a fixed step, the trajectories of
 # the stable derivative (masses, spins, orbital parameters) use FEW's DENSE_STEPPING with that step, so
 # every perturbed trajectory takes the same steps; None keeps FEW's adaptive stepping
-CASES = [(1e-11, 4, 1000.0), (1e-13, 4, 1000.0), (1e-11, 8, 1000.0), (1e-13, 8, 1000.0)]
+CASES = [(1e-11, 4, None), (1e-13, 8, None)]#, (1e-13, 8, 1000.0)]
 
 
 def fixed_step_trajectories(sef, step):

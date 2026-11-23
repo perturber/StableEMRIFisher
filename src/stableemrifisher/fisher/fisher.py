@@ -576,10 +576,10 @@ class StableEMRIFisher:
         )
 
         if self.stability_plot:
-            for param_name, (grid, Gamma, index) in curves.items():
+            for param_name, (steps, relerr, index) in curves.items():
                 plot_stability(
-                    grid,
-                    Gamma,
+                    steps,
+                    relerr,
                     stable_index=index,
                     param_name=param_name,
                     filename=self._output_path("stability", ".png", tag=param_name),

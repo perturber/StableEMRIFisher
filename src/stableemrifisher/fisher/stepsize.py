@@ -45,9 +45,9 @@ def stable_deltas(derivative, delta_grids, inner, order, kinds, verbose=False):
         - relerr (dict): parameter name -> relerr at the chosen step, an
           estimate of the relative error of the derivative (0.0 for analytic
           derivatives; absent for single-step grids).
-        - curves (dict): parameter name -> (grid, Gamma, index of the chosen
-          step), for the parameters that were searched, with Gamma the
-          diagonal element Gamma_ii at each trial step.
+        - curves (dict): parameter name -> (steps, relerr_k, index of the
+          chosen step), for the parameters that were searched, with steps the
+          trial steps from the second on and relerr_k the metric at each.
     """
     grids = {p: np.asarray(g) for p, g in delta_grids.items()}
     searched = [
@@ -85,9 +85,8 @@ def stable_deltas(derivative, delta_grids, inner, order, kinds, verbose=False):
                 continue
 
             bar.set_postfix_str(param_name)
-            Gamma = []
             relerr = []  # relerr[m - 1] compares the steps m - 1 and m
-            del_prev = None
+            del_prev, Gamma_prev = None, None
             for delta_k in grid:
                 del_k = derivative(
                     param_name, delta_k, order=order, kind=kinds[param_name]
@@ -101,16 +100,14 @@ def stable_deltas(derivative, delta_grids, inner, order, kinds, verbose=False):
                         "Fisher calculation! Replacing with 0.0."
                     )
                 if del_prev is not None:
-                    if Gammai == 0.0 or Gamma[-1] == 0.0:
+                    if Gammai == 0.0 or Gamma_prev == 0.0:
                         # no derivative to compare (non-contributing parameter or nan)
                         relerr.append(1.0)
                     else:
                         change = del_k - del_prev
                         relerr.append(float(np.sqrt(max(inner(change, change), 0.0) / Gammai)))
-                Gamma.append(Gammai)
-                del_prev = del_k
+                del_prev, Gamma_prev = del_k, Gammai
                 bar.update()
-            Gamma = np.array(Gamma)
             logger.debug("relative errors for %s: %s", param_name, relerr)
 
             relerr_min_i = relerr.index(min(relerr))
@@ -125,7 +122,7 @@ def stable_deltas(derivative, delta_grids, inner, order, kinds, verbose=False):
             deltas_min_i = relerr_min_i + 1
             deltas[param_name] = grid[deltas_min_i].item()
             relerr_min[param_name] = relerr[relerr_min_i]
-            curves[param_name] = (grid, Gamma, deltas_min_i)
+            curves[param_name] = (grid[1:], np.array(relerr), relerr_min_i)
             summary(
                 param_name,
                 f"delta = {deltas[param_name]:.3e}   "

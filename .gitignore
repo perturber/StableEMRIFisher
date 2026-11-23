@@ -150,5 +150,4 @@ cython_debug/
 !/examples/check_against_mcmc/exec.py
 !/examples/check_against_mcmc/plot_results.py
 !/examples/check_against_mcmc/metrics.py
-!/examples/check_against_mcmc/fisher_convergence.py
 !/examples/check_against_mcmc/injection_config*.py

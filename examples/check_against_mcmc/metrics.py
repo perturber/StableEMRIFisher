@@ -42,8 +42,9 @@ def whitened_samples(path, discard_act=5):
         cov, inj = f["fisher/covariance"][:], f["fisher/injection"][:]
         names = [n.decode() for n in f["fisher/param_names"][:]]
     chain = HDFBackend(path, read_only=True).get_chain()["model_0"][:, 0, :, 0, :]  # (steps, walkers, ndim)
-    tau = np.max(get_integrated_act(chain, average=True))
-    chain = chain[int(np.ceil(discard_act * tau)):]
+    # autocorrelation time in steps; short chains can give an unreliable estimate below one step
+    tau = max(float(np.max(get_integrated_act(chain, average=True))), 1.0)
+    chain = chain[min(int(np.ceil(discard_act * tau)), chain.shape[0] // 2):]
     n_eff = chain.shape[0] * chain.shape[1] / tau
 
     sigma = np.sqrt(np.diag(cov))

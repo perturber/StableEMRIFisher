@@ -1,4 +1,10 @@
-"""MCMC (Eryn) vs Fisher covariance for one injection. Usage: python exec.py <injection_config>.py"""
+"""MCMC (Eryn) vs Fisher covariance for one injection.
+
+Usage: python exec.py <injection_config>.py [--fisher-only]
+
+With --fisher-only, the Fisher matrix of a finished run is recomputed and its results updated,
+keeping the run's chains.
+"""
 
 import importlib.util
 import os
@@ -17,6 +23,7 @@ from eryn.moves import GaussianMove, StretchMove
 from eryn.prior import ProbDistContainer, uniform_dist
 from few.utils.constants import YRSID_SI
 from few.utils.utility import get_p_at_t
+from metrics import report
 from plot_results import plot_results
 
 from stableemrifisher.fisher import StableEMRIFisher
@@ -29,6 +36,7 @@ spec = importlib.util.spec_from_file_location("cfg", sys.argv[1])
 cfg = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(cfg)
 opt = lambda name, default=None: getattr(cfg, name, default)
+fisher_only = "--fisher-only" in sys.argv[2:]
 save_dir = os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), cfg.save_dir)
 os.makedirs(save_dir, exist_ok=True)
 shutil.copy(sys.argv[1], save_dir)
@@ -85,26 +93,6 @@ inj = np.array([params[p] for p in names])
 sigma = np.sqrt(np.diag(cov))
 ndim = len(names)
 
-
-def log_like(x):
-    r = sef.waveform - sef.derivative.generate(*{**params, **dict(zip(names, x))}.values(), **wkw)
-    return -0.5 * float(inner_product(r, r, sef.PSD_funcs, sef.dt, use_gpu=sef.use_gpu))
-
-
-# uniform priors: injection +/- prior_factor * sigma, clipped to the absolute prior_bounds
-factor = cfg.prior_factor
-bounds = np.array([cfg.prior_bounds.get(p, (-np.inf, np.inf)) for p in names], dtype=float)
-lo = np.maximum(inj - factor * sigma, bounds[:, 0])
-hi = np.minimum(inj + factor * sigma, bounds[:, 1])
-priors = {"model_0": ProbDistContainer({i: uniform_dist(lo[i], hi[i]) for i in range(ndim)})}
-
-# walkers start from the Fisher Gaussian; coordinates outside the priors are redrawn uniformly
-rng = np.random.default_rng(cfg.seed)
-nwalkers, ntemps = cfg.nwalkers, cfg.ntemps
-start = rng.multivariate_normal(inj, cov, size=ntemps * nwalkers)
-outside = (start <= lo) | (start >= hi)
-start[outside] = rng.uniform(np.broadcast_to(lo, start.shape)[outside], np.broadcast_to(hi, start.shape)[outside])
-
 tag = "_".join(
     [cfg.waveform_class.__name__, "AE-TDI1" if cfg.use_response else "noresponse",
      f"{sef.deriv_type.__name__}-order{cfg.der_order}", f"T={T:g}yr", f"dt={dt:g}s",
@@ -112,26 +100,56 @@ tag = "_".join(
     + [f"{k}={v:.8g}" for k, v in params.items() if k not in ("p0", "dist")]
 )
 out = os.path.join(save_dir, tag)
-if os.path.exists(out + ".h5"):
-    os.remove(out + ".h5")
 
-sampler = EnsembleSampler(
-    nwalkers, ndim, log_like, priors, tempering_kwargs=dict(ntemps=ntemps),
-    moves=[(StretchMove(), cfg.stretch_weight), (GaussianMove({"model_0": cov}), 1.0 - cfg.stretch_weight)],
-    backend=HDFBackend(out + ".h5"),
-)
-sampler.run_mcmc(start.reshape(ntemps, nwalkers, 1, ndim), cfg.nsteps, burn=cfg.burn, progress=True)
+if fisher_only:
+    # replace the Fisher results of the finished run; its chains and priors are kept
+    with h5py.File(out + ".h5", "a") as f:
+        g = f["fisher"]
+        if not np.allclose(g["injection"][:], inj, rtol=1e-10, atol=0.0):
+            raise ValueError(f"the injection differs from the one of the run in {out}.h5")
+        g["fisher"][...], g["covariance"][...] = fisher, cov
+        g.attrs["SNR"] = np.sqrt(sef.SNR2)
+    samples = HDFBackend(out + ".h5", read_only=True).get_chain()["model_0"][:, 0, :, 0, :].reshape(-1, ndim)
+else:
 
-with h5py.File(out + ".h5", "a") as f:
-    g = f.create_group("fisher")
-    g["fisher"], g["covariance"], g["injection"] = fisher, cov, inj
-    g["param_names"] = np.array(names, dtype="S")
-    g["prior_lower"], g["prior_upper"] = lo, hi
-    g.attrs.update(params, SNR=np.sqrt(sef.SNR2), snr_1gpc=snr_1gpc, DeltaT=cfg.DeltaT, prior_factor=factor,
-                   **{"T": sef.T, "dt": sef.dt})
+    def log_like(x):
+        r = sef.waveform - sef.derivative.generate(*{**params, **dict(zip(names, x))}.values(), **wkw)
+        return -0.5 * float(inner_product(r, r, sef.PSD_funcs, sef.dt, use_gpu=sef.use_gpu))
 
-samples = sampler.get_chain()["model_0"][:, 0, :, 0, :].reshape(-1, ndim)
+    # uniform priors: injection +/- prior_factor * sigma, clipped to the absolute prior_bounds
+    factor = cfg.prior_factor
+    bounds = np.array([cfg.prior_bounds.get(p, (-np.inf, np.inf)) for p in names], dtype=float)
+    lo = np.maximum(inj - factor * sigma, bounds[:, 0])
+    hi = np.minimum(inj + factor * sigma, bounds[:, 1])
+    priors = {"model_0": ProbDistContainer({i: uniform_dist(lo[i], hi[i]) for i in range(ndim)})}
+
+    # walkers start from the Fisher Gaussian; coordinates outside the priors are redrawn uniformly
+    rng = np.random.default_rng(cfg.seed)
+    nwalkers, ntemps = cfg.nwalkers, cfg.ntemps
+    start = rng.multivariate_normal(inj, cov, size=ntemps * nwalkers)
+    outside = (start <= lo) | (start >= hi)
+    start[outside] = rng.uniform(np.broadcast_to(lo, start.shape)[outside], np.broadcast_to(hi, start.shape)[outside])
+
+    if os.path.exists(out + ".h5"):
+        os.remove(out + ".h5")
+    sampler = EnsembleSampler(
+        nwalkers, ndim, log_like, priors, tempering_kwargs=dict(ntemps=ntemps),
+        moves=[(StretchMove(), cfg.stretch_weight), (GaussianMove({"model_0": cov}), 1.0 - cfg.stretch_weight)],
+        backend=HDFBackend(out + ".h5"),
+    )
+    sampler.run_mcmc(start.reshape(ntemps, nwalkers, 1, ndim), cfg.nsteps, burn=cfg.burn, progress=True)
+
+    with h5py.File(out + ".h5", "a") as f:
+        g = f.create_group("fisher")
+        g["fisher"], g["covariance"], g["injection"] = fisher, cov, inj
+        g["param_names"] = np.array(names, dtype="S")
+        g["prior_lower"], g["prior_upper"] = lo, hi
+        g.attrs.update(params, SNR=np.sqrt(sef.SNR2), snr_1gpc=snr_1gpc, DeltaT=cfg.DeltaT, prior_factor=factor,
+                       **{"T": sef.T, "dt": sef.dt})
+    samples = sampler.get_chain()["model_0"][:, 0, :, 0, :].reshape(-1, ndim)
+
 for p, s_mc, s_f in zip(names, samples.std(axis=0), sigma):
     print(f"{p:10s} sigma_MCMC = {s_mc:.4g}  sigma_Fisher = {s_f:.4g}  ratio = {s_mc / s_f:.3f}")
 
 plot_results(out + ".h5")
+report(out + ".h5")

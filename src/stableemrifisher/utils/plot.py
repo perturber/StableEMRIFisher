@@ -275,13 +275,17 @@ def plot_covariance_ellipses(
         plt.close()
 
 
-def plot_stability(deltas, Gammas, stable_index=None, param_name=None, filename=None):
+def plot_stability(deltas, relerr, stable_index=None, param_name=None, filename=None):
     """
-    Plot a diagonal Fisher element against the trial step size (step-size search).
+    Plot the step-size selection metric against the trial step size.
+
+    The metric at step k is the relative change of the derivative from the
+    previous (larger) trial step, ||D_k - D_{k-1}|| / ||D_k||, in the
+    noise-weighted norm (see `fisher.stepsize.stable_deltas`).
 
     Args:
-        deltas (array): trial step sizes.
-        Gammas (array): diagonal Fisher element at each step size.
+        deltas (array): trial step sizes delta_k, from the second step on.
+        relerr (array): the metric at each of these steps.
         stable_index (int, optional): index of the chosen step, highlighted.
         param_name (str, optional): parameter name, for the title.
         filename (str, optional): save the figure there and close it.
@@ -289,31 +293,30 @@ def plot_stability(deltas, Gammas, stable_index=None, param_name=None, filename=
     """
 
     plt.figure(figsize=(12, 5))
-    plt.loglog(deltas, Gammas, "ro-")
+    plt.loglog(deltas, relerr, "ro-")
 
-    if stable_index != None:
+    if stable_index is not None:
         plt.scatter(
             deltas[stable_index],
-            Gammas[stable_index],
+            relerr[stable_index],
             marker="s",
-            s=20,
+            s=40,
             color="b",
             label="chosen step size",
             zorder=5,
         )
+        plt.legend()
 
-    if param_name != None:
-        plt.xlabel(r"$\Delta\theta_i$", fontsize=12)
-
+    plt.xlabel(r"trial step $\Delta\theta_{i,k}$", fontsize=12)
     plt.ylabel(
-        r"$\left.\langle \frac{\partial h}{\partial \theta_i}\right|\frac{\partial h}{\partial \theta_i}\rangle$",
-        fontsize=14,
+        r"$\| D_k - D_{k-1} \| \, / \, \| D_k \|$,   $D_k = \partial h / \partial \theta_i$ at step $k$",
+        fontsize=12,
     )
-    plt.title(r"$\theta_i = $" + f"${param_name}$", fontsize=12)
+    if param_name is not None:
+        plt.title(r"$\theta_i = $" + f"${param_name}$", fontsize=12)
     plt.grid(True)
-    plt.legend()
 
-    if filename != None:
+    if filename is not None:
         plt.savefig(filename, dpi=300, bbox_inches="tight")
         plt.close()
     else:

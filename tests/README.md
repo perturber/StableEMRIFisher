@@ -55,6 +55,7 @@ The waveform tests use FEW's `FastKerrEccentricEquatorialFlux` model, with a sho
 - **Finite differences** (`test_finite_difference.py`): every stencil (central, forward, backward; orders 2 to 8) differentiates polynomials up to its order exactly, and the error of an order-n stencil shrinks as stepⁿ.
 - **Angles** (`test_angles.py`): the analytic derivatives of the viewing angle and of the antenna patterns match finite differences.
 - **Derivative interface** (`test_derivative_base.py`): the direct derivative of a toy waveform with known derivatives is correct for every stencil, and invalid input raises errors. These tests don't need FEW.
+- **Step-size search edges** (`test_stepsize_edges.py`): with a model derivative whose truncation and noise errors are known, the search warns when the chosen step is the largest or smallest trial step, and not when it lies inside the grid. These tests don't need FEW.
 - **FEW waveforms** (`test_derivatives.py`):
   - The waveform the stable derivative builds internally is identical to FEW's (to 10⁻¹²), whichever way the modes are chosen: FEW's default, a call-time threshold, an explicit mode list, or a threshold given at initialization (which FEW ignores).
   - The stable and direct derivatives agree for every Fisher parameter of the model.

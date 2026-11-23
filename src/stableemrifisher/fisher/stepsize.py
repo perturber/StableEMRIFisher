@@ -117,6 +117,17 @@ def stable_deltas(derivative, delta_grids, inner, order, kinds, verbose=False):
                     "than 1%% for %s. Fisher may be unstable!",
                     param_name,
                 )
+            if len(relerr) > 1 and relerr_min_i in (0, len(relerr) - 1):
+                largest = relerr_min_i == 0
+                logger.warning(
+                    "The step chosen for %s is the %s trial step (%.3e): the most "
+                    "stable step may lie outside the grid. Extend delta_range to %s "
+                    "steps.",
+                    param_name,
+                    "largest" if largest else "smallest",
+                    grid[relerr_min_i + 1],
+                    "larger" if largest else "smaller",
+                )
 
             # +1 because relerr starts from the second step
             deltas_min_i = relerr_min_i + 1
